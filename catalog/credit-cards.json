@@ -1,0 +1,345 @@
+{
+  "version": 1,
+  "categories": {
+    "dining": {
+      "label": "Restaurants",
+      "codes": {
+        "plaid": ["FOOD_AND_DRINK_RESTAURANT", "FOOD_AND_DRINK_FAST_FOOD", "FOOD_AND_DRINK_COFFEE"]
+      }
+    },
+    "groceries": { "label": "Groceries", "codes": { "plaid": ["FOOD_AND_DRINK_GROCERIES"] } },
+    "gas": { "label": "Gas stations", "codes": { "plaid": ["TRANSPORTATION_GAS"] } },
+    "transit": {
+      "label": "Transit, rideshare, parking and tolls",
+      "codes": {
+        "plaid": [
+          "TRANSPORTATION_PUBLIC_TRANSIT",
+          "TRANSPORTATION_TAXIS_AND_RIDE_SHARES",
+          "TRANSPORTATION_PARKING",
+          "TRANSPORTATION_TOLLS"
+        ]
+      }
+    },
+    "travel": { "label": "Travel", "codes": { "plaid": ["TRAVEL"] } },
+    "streaming": {
+      "label": "Streaming",
+      "codes": { "plaid": ["ENTERTAINMENT_TV_AND_MOVIES", "ENTERTAINMENT_MUSIC_AND_AUDIO"] }
+    },
+    "entertainment": {
+      "label": "Entertainment",
+      "codes": {
+        "plaid": [
+          "ENTERTAINMENT_SPORTING_EVENTS_AMUSEMENT_PARKS_AND_MUSEUMS",
+          "ENTERTAINMENT_VIDEO_GAMES",
+          "ENTERTAINMENT_OTHER_ENTERTAINMENT"
+        ]
+      }
+    },
+    "drugstores": {
+      "label": "Drugstores",
+      "codes": { "plaid": ["MEDICAL_PHARMACIES_AND_SUPPLEMENTS"] }
+    },
+    "online_retail": {
+      "label": "Online shopping",
+      "codes": { "plaid": ["GENERAL_MERCHANDISE_ONLINE_MARKETPLACES"] }
+    },
+    "apparel": {
+      "label": "Clothing",
+      "codes": { "plaid": ["GENERAL_MERCHANDISE_CLOTHING_AND_ACCESSORIES"] }
+    },
+    "rent": {
+      "label": "Rent",
+      "codes": { "plaid": ["RENT_AND_UTILITIES_RENT"] },
+      "card_payable": false
+    },
+    "taxes": {
+      "label": "Taxes",
+      "codes": { "plaid": ["GOVERNMENT_AND_NON_PROFIT_TAX_PAYMENT"] },
+      "card_payable": false
+    },
+    "donations": {
+      "label": "Donations",
+      "codes": { "plaid": ["GOVERNMENT_AND_NON_PROFIT_DONATIONS"] },
+      "card_payable": false
+    },
+    "utilities": {
+      "label": "Utilities",
+      "codes": {
+        "plaid": [
+          "RENT_AND_UTILITIES_GAS_AND_ELECTRICITY",
+          "RENT_AND_UTILITIES_WATER",
+          "RENT_AND_UTILITIES_SEWAGE_AND_WASTE_MANAGEMENT"
+        ]
+      },
+      "card_payable": false,
+      "card_note": "usually charges a card fee"
+    }
+  },
+  "acceptance": [
+    {
+      "match": ["costco"],
+      "networks": ["visa"],
+      "note": "Costco warehouses take only Visa credit cards.",
+      "source_url": "https://www.cnbc.com/select/what-credit-cards-does-costco-accept/"
+    }
+  ],
+  "cards": [
+    {
+      "id": "chase-freedom-unlimited",
+      "issuer": "Chase",
+      "name": "Chase Freedom Unlimited",
+      "annual_fee": "0",
+      "foreign_transaction_fee": null,
+      "reward": { "currency": "cash" },
+      "network": "visa",
+      "base_rate": "1.5",
+      "rates": [
+        { "category": "dining", "label": "dining, including takeout and delivery", "rate": "3" },
+        { "category": "drugstores", "label": "drugstores", "rate": "3" }
+      ],
+      "notes": "Rewards are Ultimate Rewards points worth 1 cent each as cash back. Leaves out 5% on travel booked through Chase Travel.",
+      "match": ["freedom unlimited"],
+      "source_url": "https://creditcards.chase.com/cash-back-credit-cards/freedom/unlimited",
+      "verified_on": "2026-10-30"
+    },
+    {
+      "id": "chase-freedom-flex",
+      "issuer": "Chase",
+      "name": "Chase Freedom Flex",
+      "annual_fee": "0",
+      "foreign_transaction_fee": "0",
+      "reward": { "currency": "cash" },
+      "network": "mastercard",
+      "base_rate": "1",
+      "rates": [
+        { "category": "dining", "label": "dining, including takeout and delivery", "rate": "3" },
+        { "category": "drugstores", "label": "drugstores", "rate": "3" }
+      ],
+      "notes": "Leaves out 5% on up to $1,500 a quarter in rotating categories you activate, and 5% on Chase Travel.",
+      "match": ["freedom flex"],
+      "source_url": "https://creditcards.chase.com/cash-back-credit-cards/freedom/flex",
+      "verified_on": "2026-10-30"
+    },
+    {
+      "id": "chase-sapphire-preferred",
+      "issuer": "Chase",
+      "name": "Chase Sapphire Preferred",
+      "annual_fee": "95",
+      "foreign_transaction_fee": "0",
+      "reward": {
+        "currency": "points",
+        "program": "Chase Ultimate Rewards",
+        "cents_per_point": "1"
+      },
+      "network": "visa",
+      "base_rate": "1",
+      "rates": [
+        { "category": "dining", "label": "dining", "rate": "3" },
+        { "category": "gas", "label": "gas stations and EV charging", "rate": "3" },
+        { "category": "streaming", "label": "top streaming services", "rate": "3" },
+        { "category": "travel", "label": "travel not booked through Chase Travel", "rate": "2" }
+      ],
+      "notes": "Points valued at 1 cent, their cash value; transfers to airlines and hotels can be worth more. Leaves out 5x on Chase Travel, 3x on online grocery and the $100 hotel credit.",
+      "match": ["sapphire preferred"],
+      "source_url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
+      "verified_on": "2026-10-30"
+    },
+    {
+      "id": "citi-double-cash",
+      "issuer": "Citi",
+      "name": "Citi Double Cash",
+      "annual_fee": "0",
+      "foreign_transaction_fee": null,
+      "reward": { "currency": "cash" },
+      "network": "mastercard",
+      "base_rate": "2",
+      "notes": "1% when you buy plus 1% as you pay. Leaves out the extra 3% on travel booked through Citi Travel.",
+      "match": ["double cash"],
+      "source_url": "https://www.citi.com/credit-cards/citi-double-cash-credit-card",
+      "verified_on": "2026-10-30"
+    },
+    {
+      "id": "fidelity-rewards-visa",
+      "issuer": "Fidelity (Elan)",
+      "name": "Fidelity Rewards Visa Signature",
+      "annual_fee": "0",
+      "foreign_transaction_fee": "0",
+      "reward": { "currency": "cash" },
+      "network": "visa",
+      "base_rate": "2",
+      "requires": "Rewards deposited into an eligible Fidelity account",
+      "match": ["fidelity rewards"],
+      "source_url": "https://www.fidelity.com/spend-save/visa-signature-card",
+      "verified_on": "2026-10-30"
+    },
+    {
+      "id": "amex-blue-cash-preferred",
+      "issuer": "American Express",
+      "name": "Amex Blue Cash Preferred",
+      "annual_fee": "95",
+      "foreign_transaction_fee": "2.7",
+      "reward": { "currency": "cash" },
+      "network": "amex",
+      "base_rate": "1",
+      "rates": [
+        {
+          "category": "groceries",
+          "label": "U.S. supermarkets",
+          "rate": "6",
+          "cap": { "amount": "6000", "period": "year" }
+        },
+        { "category": "streaming", "label": "select U.S. streaming subscriptions", "rate": "6" },
+        { "category": "transit", "label": "transit", "rate": "3" },
+        { "category": "gas", "label": "U.S. gas stations", "rate": "3" }
+      ],
+      "notes": "$0 annual fee the first year. Amex isn't accepted everywhere; Costco warehouses take only Visa.",
+      "match": ["blue cash preferred"],
+      "source_url": "https://www.americanexpress.com/us/credit-cards/card/blue-cash-preferred/",
+      "verified_on": "2026-10-30"
+    },
+    {
+      "id": "amex-blue-cash-everyday",
+      "issuer": "American Express",
+      "name": "Amex Blue Cash Everyday",
+      "annual_fee": "0",
+      "foreign_transaction_fee": "2.7",
+      "reward": { "currency": "cash" },
+      "network": "amex",
+      "base_rate": "1",
+      "rates": [
+        {
+          "category": "groceries",
+          "label": "U.S. supermarkets",
+          "rate": "3",
+          "cap": { "amount": "6000", "period": "year" }
+        },
+        {
+          "category": "online_retail",
+          "label": "U.S. online retail",
+          "rate": "3",
+          "cap": { "amount": "6000", "period": "year" }
+        },
+        {
+          "category": "gas",
+          "label": "U.S. gas stations",
+          "rate": "3",
+          "cap": { "amount": "6000", "period": "year" }
+        }
+      ],
+      "notes": "Amex isn't accepted everywhere; Costco warehouses take only Visa.",
+      "match": ["blue cash everyday"],
+      "source_url": "https://www.americanexpress.com/us/credit-cards/card/blue-cash-everyday/",
+      "verified_on": "2026-10-30"
+    },
+    {
+      "id": "capital-one-savor",
+      "issuer": "Capital One",
+      "name": "Capital One Savor",
+      "annual_fee": "0",
+      "foreign_transaction_fee": "0",
+      "reward": { "currency": "cash" },
+      "network": "mastercard",
+      "base_rate": "1",
+      "rates": [
+        { "category": "dining", "label": "dining", "rate": "3" },
+        { "category": "groceries", "label": "grocery stores (not Walmart or Target)", "rate": "3" },
+        { "category": "entertainment", "label": "entertainment", "rate": "3" },
+        { "category": "streaming", "label": "popular streaming services", "rate": "3" }
+      ],
+      "notes": "Leaves out 8% on Capital One Entertainment and 5% on Capital One Travel bookings.",
+      "match": ["savor"],
+      "source_url": "https://www.capitalone.com/credit-cards/savor/",
+      "verified_on": "2026-10-30"
+    },
+    {
+      "id": "capital-one-ventureone",
+      "issuer": "Capital One",
+      "name": "Capital One VentureOne",
+      "annual_fee": "0",
+      "foreign_transaction_fee": "0",
+      "reward": { "currency": "points", "program": "Capital One Miles", "cents_per_point": "1" },
+      "base_rate": "1.25",
+      "rates": [],
+      "notes": "Miles valued at 1 cent, their value as a statement credit against travel purchases; redeemed as cash back they are worth less. Leaves out 5 miles per dollar on hotels, vacation rentals and rental cars booked through Capital One Travel.",
+      "match": ["ventureone", "venture one"],
+      "source_url": "https://www.capitalone.com/credit-cards/ventureone/",
+      "verified_on": "2026-11-01"
+    },
+    {
+      "id": "amazon-prime-visa",
+      "issuer": "Chase",
+      "name": "Prime Visa",
+      "annual_fee": "0",
+      "foreign_transaction_fee": "0",
+      "reward": { "currency": "cash" },
+      "network": "visa",
+      "base_rate": "1",
+      "rates": [
+        {
+          "merchants": ["amazon", "audible", "whole foods"],
+          "label": "Amazon, Audible and Whole Foods Market",
+          "rate": "5"
+        },
+        { "category": "gas", "label": "gas stations", "rate": "2" },
+        { "category": "dining", "label": "restaurants", "rate": "2" },
+        { "category": "transit", "label": "local transit and rideshare", "rate": "2" }
+      ],
+      "requires": "An eligible Amazon Prime membership (3% at Amazon and Whole Foods without one)",
+      "notes": "The Prime membership fee isn't counted, on the assumption you'd have Prime anyway.",
+      "match": ["prime visa", "amazon prime"],
+      "source_url": "https://creditcards.chase.com/cash-back-credit-cards/amazon-prime-rewards",
+      "verified_on": "2026-10-30"
+    },
+    {
+      "id": "paypal-debit",
+      "issuer": "PayPal",
+      "name": "PayPal Debit Mastercard",
+      "kind": "debit",
+      "annual_fee": "0",
+      "foreign_transaction_fee": "2.5",
+      "reward": { "currency": "cash" },
+      "network": "mastercard",
+      "base_rate": "0",
+      "choose_one": {
+        "label": "your monthly 5% category",
+        "rates": [
+          {
+            "category": "groceries",
+            "label": "groceries, as your monthly 5% category",
+            "rate": "5",
+            "cap": { "amount": "1000.00", "period": "month" }
+          },
+          {
+            "category": "dining",
+            "label": "restaurants, as your monthly 5% category",
+            "rate": "5",
+            "cap": { "amount": "1000.00", "period": "month" }
+          },
+          {
+            "category": "gas",
+            "label": "fuel, as your monthly 5% category",
+            "rate": "5",
+            "cap": { "amount": "1000.00", "period": "month" }
+          },
+          {
+            "category": "apparel",
+            "label": "apparel, as your monthly 5% category",
+            "rate": "5",
+            "cap": { "amount": "1000.00", "period": "month" }
+          },
+          {
+            "category": "transit",
+            "label": "rideshare and public transit, as your monthly 5% category",
+            "rate": "5",
+            "cap": { "amount": "1000.00", "period": "month" }
+          }
+        ]
+      },
+      "requires": "A 5% category picked in the PayPal app every month (purchases before the pick don't earn)",
+      "notes": "A debit card that spends your PayPal balance. Earns nothing outside the chosen category, and 5% only on the first $1,000 of it each month. Rewards are PayPal points redeemable as cash. Groceries leave out discount stores, drugstores and gas stations, and include wholesale clubs, which Tidysum doesn't count yet.",
+      "match": ["paypal"],
+      "source_url": "https://www.paypal.com/us/digital-wallet/rewards/rewards-categories",
+      "verified_on": "2026-11-11"
+    }
+  ]
+}

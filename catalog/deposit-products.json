@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "products": [
+    {
+      "id": "sofi-savings",
+      "provider": "SoFi Bank, N.A.",
+      "institutions": ["sofi"],
+      "name": "SoFi Savings",
+      "kind": "savings",
+      "insurance": "FDIC",
+      "apy": [{ "from": "0", "apy": "0.80" }],
+      "conditional_apy": {
+        "apy": [{ "from": "0", "apy": "3.30" }],
+        "requires": "Eligible Direct Deposit, or $5,000 in Qualifying Deposits every 31 days"
+      },
+      "monthly_fee": "0.00",
+      "overdraft_fees": false,
+      "notes": "Comes with SoFi Checking (0.50% APY). Leaves out the temporary 1.10% APY boost for new members.",
+      "source_url": "https://www.sofi.com/legal/banking-rate-sheet",
+      "rates_as_of": "2026-10-20",
+      "verified_on": "2026-10-30"
+    },
+    {
+      "id": "sofi-checking",
+      "provider": "SoFi Bank, N.A.",
+      "institutions": ["sofi"],
+      "name": "SoFi Checking",
+      "kind": "checking",
+      "insurance": "FDIC",
+      "apy": [{ "from": "0", "apy": "0.50" }],
+      "monthly_fee": "0.00",
+      "overdraft_fees": false,
+      "notes": "Comes with SoFi Savings. No account, service or maintenance fees.",
+      "source_url": "https://www.sofi.com/legal/banking-rate-sheet",
+      "rates_as_of": "2026-10-20",
+      "verified_on": "2026-10-30"
+    },
+    {
+      "id": "ally-savings",
+      "provider": "Ally Bank",
+      "institutions": ["ally bank", "ally"],
+      "name": "Ally Savings",
+      "kind": "savings",
+      "insurance": "FDIC",
+      "apy": [{ "from": "0", "apy": "3.20" }],
+      "monthly_fee": "0.00",
+      "overdraft_fees": false,
+      "notes": "Same APY on every balance tier. 10 withdrawals per statement cycle.",
+      "source_url": "https://www.ally.com/bank/online-savings-account/",
+      "rates_as_of": "2026-10-29",
+      "verified_on": "2026-10-30"
+    },
+    {
+      "id": "ally-spending",
+      "provider": "Ally Bank",
+      "institutions": ["ally bank", "ally"],
+      "name": "Ally Spending Account",
+      "kind": "checking",
+      "insurance": "FDIC",
+      "apy": [{ "from": "0", "apy": "0.10" }, { "from": "15000", "apy": "0.25" }],
+      "monthly_fee": "0.00",
+      "overdraft_fees": false,
+      "notes": "Interest checking. The tier rate applies to the whole balance.",
+      "source_url": "https://www.ally.com/bank/interest-checking-account/",
+      "rates_as_of": "2026-10-29",
+      "verified_on": "2026-10-30"
+    },
+    {
+      "id": "wealthfront-cash",
+      "provider": "Wealthfront Brokerage",
+      "institutions": ["wealthfront"],
+      "name": "Wealthfront Cash Account",
+      "kind": "cash_management",
+      "insurance": "FDIC through program banks (not a bank itself)",
+      "apy": [{ "from": "0", "apy": "3.55" }],
+      "conditional_apy": {
+        "apy": [{ "from": "0", "apy": "3.80" }],
+        "requires": "Fund any Wealthfront investing account and make a monthly direct deposit of $1,000 or recurring deposits of $2,500"
+      },
+      "monthly_fee": "0.00",
+      "overdraft_fees": false,
+      "notes": "Debit card, direct deposit and bill pay, so it can replace checking. Leaves out the 3-month 0.65% boost for new clients.",
+      "source_url": "https://www.wealthfront.com/cash",
+      "rates_as_of": "2026-10-01",
+      "verified_on": "2026-10-30"
+    }
+  ]
+}

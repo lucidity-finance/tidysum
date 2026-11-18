@@ -1,0 +1,2 @@
+ALTER TABLE "proposal" ADD COLUMN "follow_up_of" uuid;--> statement-breakpoint
+ALTER TABLE "proposal" ADD CONSTRAINT "proposal_follow_up_fk" FOREIGN KEY ("follow_up_of","user_id") REFERENCES "public"."proposal"("id","user_id") ON DELETE cascade ON UPDATE no action;

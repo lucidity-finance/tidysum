@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "classes": {
+    "us_stocks": "US stocks",
+    "intl_stocks": "International stocks",
+    "bonds": "Bonds",
+    "cash": "Cash",
+    "commodities": "Commodities"
+  },
+  "sleeves": {
+    "us_stocks.large": "US large-cap stocks",
+    "us_stocks.small_mid": "US small- and mid-cap stocks",
+    "us_stocks.real_estate": "US real-estate stocks",
+    "intl_stocks.real_estate": "International real-estate stocks"
+  },
+  "default_buy": {
+    "us_stocks": "VTI",
+    "intl_stocks": "VXUS",
+    "bonds": "BND",
+    "cash": "SGOV",
+    "commodities": "GLDM"
+  },
+  "securities": [
+    { "ticker": "VTI", "name": "Vanguard Total Stock Market ETF", "mix": { "us_stocks": "1" } },
+    {
+      "ticker": "VTSAX",
+      "name": "Vanguard Total Stock Market Index Admiral",
+      "mix": { "us_stocks": "1" }
+    },
+    { "ticker": "VOO", "name": "Vanguard S&P 500 ETF", "mix": { "us_stocks.large": "1" } },
+    { "ticker": "VFIAX", "name": "Vanguard 500 Index Admiral", "mix": { "us_stocks.large": "1" } },
+    { "ticker": "SPY", "name": "SPDR S&P 500 ETF", "mix": { "us_stocks.large": "1" } },
+    { "ticker": "IVV", "name": "iShares Core S&P 500 ETF", "mix": { "us_stocks.large": "1" } },
+    {
+      "ticker": "ITOT",
+      "name": "iShares Core S&P Total US Stock Market ETF",
+      "mix": { "us_stocks": "1" }
+    },
+    { "ticker": "SCHB", "name": "Schwab US Broad Market ETF", "mix": { "us_stocks": "1" } },
+    { "ticker": "FSKAX", "name": "Fidelity Total Market Index", "mix": { "us_stocks": "1" } },
+    { "ticker": "FXAIX", "name": "Fidelity 500 Index", "mix": { "us_stocks.large": "1" } },
+    {
+      "ticker": "SWPPX",
+      "name": "Schwab S&P 500 Index Fund",
+      "mix": { "us_stocks.large": "1" },
+      "expense_ratio": "0.02",
+      "source_url": "https://www.schwabassetmanagement.com/products/swppx",
+      "verified_on": "2026-11-16"
+    },
+    {
+      "ticker": "QQQ",
+      "name": "Invesco QQQ Trust",
+      "mix": { "us_stocks": "1" },
+      "notes": "Nasdaq-100. A few non-US companies are in the index; counted as US."
+    },
+    { "ticker": "VPU", "name": "Vanguard Utilities ETF", "mix": { "us_stocks": "1" } },
+    {
+      "ticker": "SMH",
+      "name": "VanEck Semiconductor ETF",
+      "mix": { "us_stocks": "0.77", "intl_stocks": "0.23" },
+      "source_url": "https://www.vaneck.com/us/en/smh/fact-sheet/",
+      "mix_as_of": "2026-06-30",
+      "verified_on": "2026-11-03"
+    },
+    {
+      "ticker": "DTCR",
+      "name": "Global X Data Center & Digital Infrastructure ETF",
+      "mix": { "us_stocks": "0.82", "intl_stocks": "0.18" },
+      "source_url": "https://www.etfrc.com/DTCR",
+      "mix_as_of": "2026-10-25",
+      "verified_on": "2026-11-03"
+    },
+    {
+      "ticker": "MLPX",
+      "name": "Global X MLP & Energy Infrastructure ETF",
+      "mix": { "us_stocks": "0.76", "intl_stocks": "0.24" },
+      "source_url": "https://www.etfrc.com/MLPX",
+      "mix_as_of": "2026-10-24",
+      "verified_on": "2026-11-03"
+    },
+    {
+      "ticker": "NLR",
+      "name": "VanEck Uranium and Nuclear ETF",
+      "mix": { "us_stocks": "0.5", "intl_stocks": "0.5" },
+      "source_url": "https://www.vaneck.com/us/en/nlr/fact-sheet",
+      "mix_as_of": "2026-09-30",
+      "verified_on": "2026-11-03"
+    },
+    {
+      "ticker": "DRAM",
+      "name": "Roundhill Memory ETF",
+      "mix": { "us_stocks": "0.4", "intl_stocks": "0.6" },
+      "source_url": "https://www.roundhillinvestments.com/assets/pdfs/dram_factsheet.pdf",
+      "mix_as_of": "2026-09-30",
+      "verified_on": "2026-11-03"
+    },
+    {
+      "ticker": "ICLN",
+      "name": "iShares Global Clean Energy ETF",
+      "mix": { "us_stocks": "0.35", "intl_stocks": "0.65" },
+      "source_url": "https://www.ishares.com/us/products/239738/icln",
+      "mix_as_of": "2026-10-22",
+      "verified_on": "2026-11-03"
+    },
+    {
+      "ticker": "GRID",
+      "name": "First Trust Nasdaq Clean Edge Smart Grid Infrastructure ETF",
+      "mix": { "us_stocks": "0.27", "intl_stocks": "0.73" },
+      "source_url": "https://www.etfrc.com/GRID",
+      "mix_as_of": "2026-11-02",
+      "verified_on": "2026-11-03"
+    },
+    {
+      "ticker": "VXUS",
+      "name": "Vanguard Total International Stock ETF",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "VTIAX",
+      "name": "Vanguard Total International Stock Index Admiral",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "IXUS",
+      "name": "iShares Core MSCI Total International Stock ETF",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "FTIHX",
+      "name": "Fidelity Total International Index",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "VEA",
+      "name": "Vanguard FTSE Developed Markets ETF",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "VWO",
+      "name": "Vanguard FTSE Emerging Markets ETF",
+      "mix": { "intl_stocks": "1" }
+    },
+    { "ticker": "SCHF", "name": "Schwab International Equity ETF", "mix": { "intl_stocks": "1" } },
+    {
+      "ticker": "SFREX",
+      "name": "Schwab Fundamental Global Real Estate Index Fund",
+      "mix": { "us_stocks.real_estate": "0.5724", "intl_stocks.real_estate": "0.4276" },
+      "expense_ratio": "0.39",
+      "notes": "Global real estate stocks, split by country of domicile.",
+      "source_url": "https://www.schwabassetmanagement.com/products/sfrex",
+      "mix_as_of": "2026-09-30",
+      "verified_on": "2026-11-04"
+    },
+    {
+      "ticker": "VNQI",
+      "name": "Vanguard Global ex-US Real Estate ETF",
+      "mix": { "intl_stocks.real_estate": "1" }
+    },
+    {
+      "ticker": "RIO",
+      "name": "Rio Tinto (ADR)",
+      "mix": { "intl_stocks": "1" },
+      "notes": "UK and Australian company traded in the US as an ADR."
+    },
+    {
+      "ticker": "NHYDY",
+      "name": "Norsk Hydro (ADR)",
+      "mix": { "intl_stocks": "1" },
+      "notes": "Norwegian company traded in the US as an ADR."
+    },
+    { "ticker": "BND", "name": "Vanguard Total Bond Market ETF", "mix": { "bonds": "1" } },
+    {
+      "ticker": "VBTLX",
+      "name": "Vanguard Total Bond Market Index Admiral",
+      "mix": { "bonds": "1" }
+    },
+    { "ticker": "AGG", "name": "iShares Core US Aggregate Bond ETF", "mix": { "bonds": "1" } },
+    { "ticker": "FXNAX", "name": "Fidelity US Bond Index", "mix": { "bonds": "1" } },
+    { "ticker": "SCHZ", "name": "Schwab US Aggregate Bond ETF", "mix": { "bonds": "1" } },
+    { "ticker": "BNDX", "name": "Vanguard Total International Bond ETF", "mix": { "bonds": "1" } },
+    { "ticker": "VMFXX", "name": "Vanguard Federal Money Market Fund", "mix": { "cash": "1" } },
+    { "ticker": "SPAXX", "name": "Fidelity Government Money Market Fund", "mix": { "cash": "1" } },
+    { "ticker": "SWVXX", "name": "Schwab Value Advantage Money Fund", "mix": { "cash": "1" } },
+    { "ticker": "SGOV", "name": "iShares 0-3 Month Treasury Bond ETF", "mix": { "cash": "1" } },
+    { "ticker": "GLD", "name": "SPDR Gold Shares", "mix": { "commodities": "1" } },
+    { "ticker": "IAU", "name": "iShares Gold Trust", "mix": { "commodities": "1" } },
+    { "ticker": "GLDM", "name": "SPDR Gold MiniShares", "mix": { "commodities": "1" } },
+    { "ticker": "SLV", "name": "iShares Silver Trust", "mix": { "commodities": "1" } },
+    { "ticker": "SIVR", "name": "abrdn Physical Silver Shares ETF", "mix": { "commodities": "1" } },
+    {
+      "ticker": "PALL",
+      "name": "abrdn Physical Palladium Shares ETF",
+      "mix": { "commodities": "1" }
+    },
+    {
+      "ticker": "PPLT",
+      "name": "abrdn Physical Platinum Shares ETF",
+      "mix": { "commodities": "1" }
+    },
+    {
+      "ticker": "UNG",
+      "name": "United States Natural Gas Fund",
+      "mix": { "commodities": "1" },
+      "notes": "Natural gas futures."
+    }
+  ],
+  "target_date": {
+    "stocks": [
+      { "years": 25, "share": "0.9" },
+      { "years": 0, "share": "0.5" },
+      { "years": -7, "share": "0.3" }
+    ],
+    "stock_mix": { "us_stocks": "0.6", "intl_stocks": "0.4" },
+    "rest": "bonds",
+    "notes": "Vanguard Target Retirement glide path: 90% stocks until 25 years out, 50% at the target year, 30% seven years after; stocks 60% US, 40% international. Used for target-date funds with no ticker.",
+    "source_url": "https://workplace.vanguard.com/content/dam/inst/iig-transformation/tdf/TDF_table_2026.pdf",
+    "mix_as_of": "2025-12-31",
+    "verified_on": "2026-11-04"
+  }
+}

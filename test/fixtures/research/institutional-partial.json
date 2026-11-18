@@ -1,0 +1,244 @@
+{
+  "limitations": [],
+  "portfolio_manifests": [],
+  "run": {
+    "as_of": "2026-09-22 18:22:14.782628+00:00",
+    "completed_at": "2026-09-22 18:31:24.177568+00:00",
+    "coverage": {
+      "ratio": 0.9837773224043715,
+      "requested_sources": 5856,
+      "successful_sources": 5761
+    },
+    "fetch_warnings": [
+      "Corporate-action coverage degraded: 77 comparison interval(s) unresolved",
+      "Price fetch partial failures: ambiguous_empty_response: 17",
+      "Price metadata incomplete: 2298 required identity field observation(s) unavailable or conflicted"
+    ],
+    "limitations": [],
+    "run_id": "20260922_182214_maple-hawk",
+    "run_type": "institutional",
+    "schema_version": 3,
+    "scoring_version": "5",
+    "signals_found": 759,
+    "started_at": "2026-09-22 18:22:14.782628+00:00",
+    "status": "partial",
+    "tiers": ["13f", "prices", "etf", "insider"],
+    "watchlist_path": "watchlist-institutional.yaml"
+  },
+  "schema_version": 2,
+  "signals": [
+    {
+      "holders": [
+        {
+          "filing_date": "2026-08-14",
+          "holding_pct": 0.07021281983078945,
+          "manager_name": "Altimeter Capital (Gerstner)",
+          "report_date": "2026-06-30",
+          "value_usd": 578058158.0
+        },
+        {
+          "filing_date": "2026-08-14",
+          "holding_pct": 0.15950459750680604,
+          "manager_name": "Appaloosa Management (Tepper)",
+          "report_date": "2026-06-30",
+          "value_usd": 1191700000.0
+        },
+        {
+          "filing_date": "2026-08-13",
+          "holding_pct": 0.16475890316816205,
+          "manager_name": "Baupost Group (Klarman)",
+          "report_date": "2026-06-30",
+          "value_usd": 892310000.0
+        },
+        {
+          "filing_date": "2026-08-14",
+          "holding_pct": 0.0001379086801568679,
+          "manager_name": "Brave Warrior Advisors (Greenberg)",
+          "report_date": "2026-06-30",
+          "value_usd": 631601.0
+        }
+      ],
+      "insider_transactions": [],
+      "price": {
+        "availability": "observed",
+        "currency": "USD",
+        "drawdown_from_high": 0.1115,
+        "observed_at": "2026-09-22 00:00:00+00:00"
+      },
+      "signal": {
+        "accumulation_score": 1.0,
+        "asset_class": "",
+        "company_name": "Amazon Com Inc",
+        "component_availability": {
+          "accumulation": "observed",
+          "insider": "not_requested",
+          "manager_overlap": "observed",
+          "position_sizing": "observed"
+        },
+        "conviction_score": 0.721,
+        "current_price": 255.17999267578125,
+        "dca_pattern_score": 1.0,
+        "drawdown_from_high": 0.1115,
+        "drawdown_score": 0.3717,
+        "high_52wk": 287.20001220703125,
+        "holders_count": 17,
+        "insider_score": 0.0,
+        "latest_filing_date": "2026-08-27",
+        "manager_overlap_score": 1.0,
+        "market_cap": 2753206539253.0,
+        "market_cap_score": 0.0,
+        "position_sizing_score": 0.5236,
+        "price_dislocation_score": null,
+        "range_position_score": null,
+        "run_id": "20260922_182214_maple-hawk",
+        "score_coverage": 0.8571,
+        "scoring_version": "5",
+        "ticker": "AMZN",
+        "trend_discount_score": null,
+        "value_score": null
+      }
+    },
+    {
+      "holders": [
+        {
+          "filing_date": "2026-08-14",
+          "holding_pct": 0.08291288436224395,
+          "manager_name": "Altimeter Capital (Gerstner)",
+          "report_date": "2026-06-30",
+          "value_usd": 682617068.0
+        },
+        {
+          "filing_date": "2026-08-14",
+          "holding_pct": 0.1054695875989652,
+          "manager_name": "Appaloosa Management (Tepper)",
+          "report_date": "2026-06-30",
+          "value_usd": 787990500.0
+        },
+        {
+          "filing_date": "2026-07-29",
+          "holding_pct": 0.0824440051240008,
+          "manager_name": "Cantillon Capital (von Mueffling)",
+          "report_date": "2026-06-30",
+          "value_usd": 54834587.0
+        },
+        {
+          "filing_date": "2026-08-14",
+          "holding_pct": 0.09148462394928303,
+          "manager_name": "Coatue Management (Laffont)",
+          "report_date": "2026-06-30",
+          "value_usd": 4257534162.0
+        }
+      ],
+      "insider_transactions": [],
+      "price": {
+        "availability": "observed",
+        "currency": "",
+        "drawdown_from_high": 0.0583,
+        "observed_at": "2026-09-22 00:00:00+00:00"
+      },
+      "signal": {
+        "accumulation_score": 1.0,
+        "asset_class": "",
+        "company_name": "Taiwan Semiconductor Manufac",
+        "component_availability": {
+          "accumulation": "observed",
+          "insider": "not_requested",
+          "manager_overlap": "observed",
+          "position_sizing": "observed"
+        },
+        "conviction_score": 0.658,
+        "current_price": 449.8500061035156,
+        "dca_pattern_score": 1.0,
+        "drawdown_from_high": 0.0583,
+        "drawdown_score": 0.1943,
+        "high_52wk": 477.7184335703195,
+        "holders_count": 14,
+        "insider_score": 0.0,
+        "latest_filing_date": "2026-08-28",
+        "manager_overlap_score": 0.8235,
+        "market_cap": null,
+        "market_cap_score": 0.0,
+        "position_sizing_score": 0.5236,
+        "price_dislocation_score": null,
+        "range_position_score": null,
+        "run_id": "20260922_182214_maple-hawk",
+        "score_coverage": 0.8571,
+        "scoring_version": "5",
+        "ticker": "TSM",
+        "trend_discount_score": null,
+        "value_score": null
+      }
+    },
+    {
+      "holders": [
+        {
+          "filing_date": "2026-08-14",
+          "holding_pct": 0.08196973071653953,
+          "manager_name": "Akre Capital Management (Akre)",
+          "report_date": "2026-06-30",
+          "value_usd": 381132162.0
+        },
+        {
+          "filing_date": "2026-08-13",
+          "holding_pct": 0.04443030488456758,
+          "manager_name": "Baupost Group (Klarman)",
+          "report_date": "2026-06-30",
+          "value_usd": 240628000.0
+        },
+        {
+          "filing_date": "2026-08-14",
+          "holding_pct": 4.629628112314689e-5,
+          "manager_name": "Brave Warrior Advisors (Greenberg)",
+          "report_date": "2026-06-30",
+          "value_usd": 212030.0
+        },
+        {
+          "filing_date": "2026-07-29",
+          "holding_pct": 0.043146161805355535,
+          "manager_name": "Cantillon Capital (von Mueffling)",
+          "report_date": "2026-06-30",
+          "value_usd": 28697077.0
+        }
+      ],
+      "insider_transactions": [],
+      "price": {
+        "availability": "observed",
+        "currency": "",
+        "drawdown_from_high": 0.0599,
+        "observed_at": "2026-09-22 00:00:00+00:00"
+      },
+      "signal": {
+        "accumulation_score": 1.0,
+        "asset_class": "",
+        "company_name": "Visa Inc",
+        "component_availability": {
+          "accumulation": "observed",
+          "insider": "not_requested",
+          "manager_overlap": "observed",
+          "position_sizing": "observed"
+        },
+        "conviction_score": 0.637,
+        "current_price": 362.4649963378906,
+        "dca_pattern_score": 1.0,
+        "drawdown_from_high": 0.0599,
+        "drawdown_score": 0.1997,
+        "high_52wk": 385.57000732421875,
+        "holders_count": 13,
+        "insider_score": 0.0,
+        "latest_filing_date": "2026-08-28",
+        "manager_overlap_score": 0.7647,
+        "market_cap": null,
+        "market_cap_score": 0.0,
+        "position_sizing_score": 0.5236,
+        "price_dislocation_score": null,
+        "range_position_score": null,
+        "run_id": "20260922_182214_maple-hawk",
+        "score_coverage": 0.8571,
+        "scoring_version": "5",
+        "ticker": "V",
+        "trend_discount_score": null,
+        "value_score": null
+      }
+    }
+  ]
+}

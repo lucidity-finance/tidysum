@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "cash": {
+    "buffer": {
+      "amount": "5000.00"
+    },
+    "tolerance": "500.00"
+  },
+  "cards": {
+    "pay_statement_in_full": true
+  },
+  "debt": {
+    "extra_payments": "none"
+  },
+  "allocation": {
+    "drift_band": "0.05",
+    "buckets": {
+      "us_stocks": {
+        "target": "0.60",
+        "tickers": ["VTI", "VOO", "ITOT", "SCHB", "FSKAX", "FXAIX", "SPY", "IVV"],
+        "security_types": ["equity"]
+      },
+      "intl_stocks": {
+        "target": "0.30",
+        "tickers": ["VXUS", "IXUS", "FTIHX", "VEA", "VWO", "SCHF"]
+      },
+      "bonds_and_cash": {
+        "target": "0.10",
+        "tickers": ["BND", "AGG", "FXNAX", "SCHZ", "BNDX"],
+        "cash_equivalents": true
+      },
+      "commodities": {
+        "target": "0",
+        "tickers": ["PALL", "PPLT", "GLD", "IAU", "SLV", "SIVR", "GLDM"]
+      }
+    }
+  },
+  "robinhood": {
+    "agentic_account_funding": "10000.00"
+  },
+  "limits": {
+    "order_types": ["limit"]
+  }
+}

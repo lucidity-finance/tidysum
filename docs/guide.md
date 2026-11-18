@@ -1,0 +1,519 @@
+# Tidysum guide
+
+The full reference: every command, detector and rule, and how Tidysum runs. Start with the
+[README](../README.md) for what Tidysum is and how to set it up, and read
+[DISCLAIMER.md](../DISCLAIMER.md) before relying on anything here.
+
+## Linking real accounts
+
+`pnpm tidysum serve` runs the admin page, Plaid's webhook endpoint and the scheduled sync in one
+process. Open it (on the default loopback `HOST` there is no sign-in; bound to any other address
+it asks for any username and `TIDYSUM_ADMIN_TOKEN` as the password), and click
+**Link institutions**. One Link session can add several banks and brokerages in a row (Plaid's
+Multi-Item Link), so Plaid's phone code is entered once per session rather than once per bank;
+Tidysum registers the user with Plaid (`/user/create`) the first time and falls back to one
+institution per session if Plaid refuses. Items that need re-authentication show a **Re-link**
+button, which opens Plaid Link in update mode. Link asks Plaid for 730 days of history.
+
+Webhooks need `TIDYSUM_PUBLIC_URL` (https). Every webhook must carry a valid `Plaid-Verification`
+JWT (ES256, body hash, at most 5 minutes old) or it is rejected with 401.
+
+## Institutions Plaid can't reach
+
+```sh
+pnpm tidysum import-csv apple-card.csv --institution Apple --account "Apple Card" \
+  --type credit --date-col "Transaction Date" --amount-col "Amount (USD)"
+```
+
+Re-importing an overlapping export only adds the new rows. Tidysum stores amounts as positive =
+money out, so pass `--flip-sign` for exports where purchases are negative (most bank CSVs).
+
+## Agents (MCP)
+
+Tidysum's MCP server gives agents read-only tools: `list_accounts`, `query_transactions`,
+`get_holdings`, `get_liabilities`, `cash_flow_summary`, `net_worth_history`,
+`compare_products`, `compare_cards`, `best_card_for_purchase`, `get_allocation` and
+`get_research_candidates`. Every query
+runs as the `tidysum_agent` role in a read-only session, so agents never see Plaid tokens or
+cursors and cannot write. Money comes back as decimal strings.
+
+Locally, over stdio. For Claude Code, the owner runs one command in the repo, once:
+
+```sh
+pnpm tidysum agent setup        # --dry-run shows what it would change
+```
+
+It adds the MCP server for your user (`claude mcp add --scope user tidysum -- pnpm -s --dir
+<repo> tidysum mcp`), links the [tidysum-actions skill](../skills/tidysum-actions/SKILL.md), and adds
+two permission rules to `~/.claude/settings.json`: `mcp__tidysum` (Tidysum's MCP tools) and
+`Bash(pnpm -C <repo> -s tidysum:*)` (its command line). Without them, Claude Code's permission
+checks stop the agent at each step, and an agent can't grant itself permissions, so the owner
+runs this themselves. Neither can move money: only the owner approves actions, on the Actions
+page, and trades wait for them. Agents run Tidysum commands in exactly that form,
+`pnpm -C <repo> -s tidysum <command>`. Other MCP clients: run `pnpm -s --dir <repo> tidysum mcp`
+as a stdio server.
+
+When `TIDYSUM_MCP_TOKEN` is set, `tidysum serve` also exposes the same tools at `/mcp`
+(Streamable HTTP, stateless) behind `Authorization: Bearer <TIDYSUM_MCP_TOKEN>`. That token is
+separate from the admin password and only opens `/mcp`.
+
+## Your agent carries out approved actions
+
+Tidysum has no agent of its own ([decision 0005](decisions/0005-actions.md)). Once the owner
+approves an action on the Actions page, their own agent can carry it out with its own browser
+tools: `start_action` (returns the steps, the sites involved and the rules), `report_step` (a
+step done, or `your_turn` when only the owner can do it: identity checks, codes, signatures),
+`finish_action` and `stop_action`. Only an approved action can be started; trades and the
+new-money action are refused, since Tidysum will place trades itself, but 401(k) elections
+(contribution rate, plan funds) are the agent's to do. Reports are append-only audit events
+written as `tidysum_proposer`, and the Actions page shows where the agent is and what it needs.
+A finished action is marked done on the next tick, and a later sync confirms it.
+
+The workflow and rules ship as a skill, [skills/tidysum-actions](../skills/tidysum-actions/SKILL.md),
+and as the MCP prompt `carry_out_action` for agents without skills. For Claude Code,
+`pnpm tidysum agent setup` links it (a link, not a copy, so a pull updates it).
+
+Then ask it to "carry out my approved Tidysum actions".
+
+## Actions with a day
+
+Some fixes have a date ([decision 0006](decisions/0006-scheduled-actions.md)): next year's
+401(k) percent can only be set after this year's last payday, and a paystub can only be checked
+once it's out. An action can carry `not_before` (the first day it may be carried out) and `due_by`
+(the last day it still does its job). The owner approves it on the Actions page whenever they
+like, ahead of time included; an approved one waits under **Scheduled** until its day, then moves
+to In progress, and `start_action` refuses it before then. Detectors set the days when they know
+them (`retirement_rate` does for next year's percent). Agents add one with the MCP tool
+`schedule_action`, typically a follow-up check after a change (`follows_up` names the action it
+checks, and finishing the check confirms that action: no sync can see a 401(k) election); the
+owner adds one with
+`pnpm tidysum action schedule <file>` (see `scheduled-action.example.json`). `pnpm tidysum
+actions` lists the queue with the days.
+
+An action can also wait for calm markets ([decision 0008](decisions/0008-calm-markets.md)):
+`wait_for: "calm_markets"`, for a sale whose money goes straight back into the market. While
+`tidysum serve` runs it records past VIX closes from FRED (`VIXCLS`) at most every twelve hours
+and today's level from Cboe's delayed quote every hour, into `market_reading`. Markets are calm
+when the last five closes are each at or below 20, none of the last fifteen is above 25, and the
+newest is at most four days old. Until then an approved one waits under **Scheduled**; the first
+calm hour it turns due, the owner is notified, and an agent action goes to the owner's agent. If
+markets turn jumpy before it's done, it waits again and the owner is told. The brokerage-window
+move waits this way.
+
+While `serve` runs it checks the days every hour (`pnpm tidysum due` runs the check once): it notes
+in the audit log, and tells the owner with a notification (`TIDYSUM_NOTIFY`), when an action comes
+due, the day before its last day, and when it's past due. If `TIDYSUM_AGENT_COMMAND` is set, it
+also starts the owner's own agent on an approved action the day it comes due (within
+`TIDYSUM_AGENT_HOURS`, at most once a day and three times in all), passing the action's id and a
+one-line request; the agent then works it like any other approved action and hands over for
+sign-ins and codes.
+
+## Workplace retirement plans
+
+Plaid shows a 401(k)'s holdings but not the elections behind them. Record what the plan's site
+shows with `pnpm tidysum workplace set <account_id> <file>` (`workplace.example.json` is the
+shape: pay, contribution percents and year-to-date total, the match, where each paycheck is
+invested, and every fund in the plan with its yearly cost). Keep the real file as `workplace.json`,
+which git ignores. With investing enabled, three detectors price it:
+
+- **retirement_rate:** contributions that fall short of the year's IRS limit (pre-tax money saves
+  tax only in its own year), or that reach it before the last paycheck (later paychecks get no
+  match unless the plan trues up). In the last two paychecks of a year it looks at next year,
+  and that action waits until the day after this year's last payday. Paydays are the usual ones
+  (the 15th and the last day, or the last day, moved back to the Friday before a weekend) unless
+  `pay.pay_dates` lists them; pay every one or two weeks needs `pay.last_pay_date`, and
+  `pay.cutoff_days` is how far ahead of a payday payroll needs a change.
+- **fund_fee:** a plan fund that costs more than a faithful copy of it in the plan's own index
+  funds (decision 0007). The copy is built from what the fund actually holds: its lineup `mix`,
+  by sleeve (`us_stocks.large`, `us_stocks.small_mid`, `intl_stocks`, `bonds`), and for a
+  target-date or other several-sleeve fund the fact sheet it came from (`mix_source`) and its date
+  (`mix_as_of`, re-read after about a year). Each sleeve goes to the cheapest plan fund holding
+  exactly that sleeve. No recorded mix means no swap and a note asking for the fact sheet; a
+  sleeve the plan has no fund for means no swap either. The action shows the fund's holdings and
+  the copy side by side, then swaps it inside the plan.
+- **brokerage_window:** money in the plan's brokerage window (Schwab PCRA and the like, linked as
+  its own account and paired with the plan's lump by `src/portfolio/overlap.ts`). Each fund in it
+  is copied the same way, from its `mix` in `catalog/securities.json` (an S&P 500 fund is
+  `us_stocks.large`); a fund the plan can't copy (a real estate fund, with no real estate fund in
+  the plan) stays in the window, unless the owner lists its ticker in `window_also_sell`: then it
+  is sold too and its money goes in the same split as the rest. It's priced as what the moved funds cost (`expense_ratio` in the
+  catalog) over their copy; the bigger reason is nothing to trade by hand. The action sells the
+  funds that can be copied and puts the cash back into the plan's index funds, tax-free inside
+  the plan.
+
+The new-money action also says how each paycheck should be invested in the plan, in its cheapest
+fund per bucket. `allocation.new_money_max_share` in the policy caps how much of each
+contribution one bucket takes while the mix catches up (once on target, contributions follow the
+targets uncapped). A bucket with `taxable_new_money: false` (asset location, such as bonds) is left
+out of the new-money split, which is what a taxable brokerage buys; the accounts that hold it, such
+as a 401(k) mirroring a target-date fund, fill it. An owner who wants paychecks to match one
+of the plan's funds instead sets `paychecks_mirror` to its name: paychecks then copy its recorded
+mix sleeve by sleeve (decision 0007), and the window's paycheck share goes there too, as does
+the money moved out of the window (decision 0008). Limits live in `src/retirement/limits.ts`.
+
+## IRAs
+
+With investing enabled, **roth_ira** prices unused Roth IRA room for each tax year still open
+(the year itself, and last year until April 15): the tax its growth would pay in a taxable
+account, at an assumed 7% a year and the federal capital gains rate. Above the Roth IRA income
+limit (estimated from the workplace plan's pay, or recorded) the action is a backdoor Roth:
+contribute to a traditional IRA, convert it to Roth, and keep no pre-tax IRA money on December 31
+(pre-tax money found in a traditional, SEP or SIMPLE IRA is rolled into the 401(k) first). The
+owner's agent carries it out. Plaid can't say which tax year a contribution counts for, so a
+finished IRA action records itself in `ira_year`; record other contributions with
+`pnpm tidysum ira set <file>` (`ira.example.json` is the shape).
+
+## Your plan
+
+The policy is the numbers; the plan is the why. Write your plan for your money in Markdown (what
+it is for, goals, target mix, where each dollar goes, the rules you keep) and load it with
+`pnpm tidysum plan set <file>`. [plan.example.md](plan.example.md) is a starting point: copy it to
+`plan.md` in the repo root, which git ignores, and make it yours. Set `TIDYSUM_PLAN_FILE=plan.md` in
+`.env` and `deploy/macos-setup.sh` reloads it on every deploy, so the file stays the source of
+truth. The admin page shows it under
+Plan, and agents read it with `get_plan` and keep their advice inside it.
+`pnpm tidysum plan show` prints the stored plan.
+
+## Research sleeve (investment-miner)
+
+A small, capped slice of the portfolio for picks from investment-miner, a separate research tool
+the owner runs (Python, SQLite), kept apart from the core allocation. Add it to the policy:
+
+```json
+"research_sleeve": { "cap": "0.05", "tickers": ["TICKER"] }
+```
+
+`cap` is the most of investable assets (every investment account, plus holdings entered by hand)
+the sleeve may hold, at most 0.25. `tickers` are the positions held as sleeve picks: they count
+toward the cap and are left out of the core buckets, and a ticker can't be in both. Investment
+advice, so all of it only runs for users with investing enabled.
+
+Tidysum never reads the miner's database. Set `TIDYSUM_MINER_DIR` to its directory and
+`tidysum research import` (and `serve`, every `TIDYSUM_MINER_INTERVAL_HOURS`, default 1) reads its
+runs through its own read-only CLI: `list-runs`, then `export --run <id> --format json` for each
+watchlist's newest current run. Only export `schema_version: 2` is accepted. A run is current when
+it **completed**, or when it is **partial** but fetched at least 90% of its sources (the export's
+`run.coverage.ratio`): the miner marks a run partial when even a few of its hundreds of price
+fetches fail, which is most institutional runs. Thinner partial runs and failed, running or legacy
+runs never are; the next older usable run is shown instead, and the page says why. Each run's id,
+as-of time, status, share fetched, scoring version and limitations are kept with its top 50
+candidates and a short evidence summary for each. Institutional lists also show their biggest
+drops: of those top 50 conviction picks, the ones furthest below their 52-week high.
+
+**Scan now.** The Investments page's _Scan now_ button (and `tidysum research scan`) asks the
+miner's own API (`TIDYSUM_MINER_URL`, default `http://127.0.0.1:8000`) to scan every
+institutional watchlist, signing in with the `AUTH_PASSWORD` in the miner's `.env`. The miner runs
+one scan per product at a time, so a press during a scheduled scan just shows that scan's
+progress. When no scan is left running, Tidysum imports the new runs. Scans take about 15
+minutes; `tidysum research scan assets` scans the asset watchlist instead.
+
+`tidysum research`, the MCP tool `get_research_candidates` and the Investments page show the
+sleeve against its cap and the ranked candidates, with the run's age and a warning when the newest
+run is over two weeks old. A ticker the owner already holds shows once, tagged. A miner score is
+research evidence, not a target weight or an instruction to trade, and `check_policy` and the
+tool both say so. Proposals may buy into the sleeve only with new money (a proposal that also
+sells is blocked) and only up to the cap, counting the buy itself; a buy of a ticker the miner ranks
+and no bucket lists counts as a sleeve buy.
+
+On a Mac, `deploy/macos-setup.sh` also runs the miner's API server on 127.0.0.1:8000 as a launchd
+agent when `TIDYSUM_MINER_DIR` is set. Its built-in scheduler runs the scans in the miner's
+`config.yaml` (weekdays after the US close, UTC); only run one scheduler per miner database, so
+stop the agent before running the miner's own `just serve`. The first time, it backs the miner's
+database up to `~/Library/Application Support/tidysum/investment-miner-backups/`, since the
+miner upgrades an older database on start.
+
+## Policy and proposals
+
+Your rules are a policy: cash buffer, card payoff, extra debt payments, target allocation,
+Robinhood agentic funding, and optional hard caps. Write one as JSON (start from
+`cp policy.example.json policy.json`, git-ignored) and load it with `pnpm tidysum policy set
+policy.json`. Policies are stored per user in the database; each distinct content gets a version
+id (sha256), the latest one set is active, and every proposal records the version it was checked
+against.
+
+```sh
+pnpm tidysum policy show  # the active policy
+pnpm tidysum check        # deterministic checks: cash vs buffer, card statements, allocation drift
+pnpm tidysum proposals    # what agents have proposed
+```
+
+Agents get `get_policy`, `check_policy`, `list_proposals` and `create_proposal` over MCP.
+`create_proposal` and the reports on approved actions above are the only writes any agent can
+do. They run as `tidysum_proposer`, a role that can insert proposals and audit events and
+nothing else, and the policy engine stores a proposal
+that breaks a limit (cash buffer, caps, overpaying a card) as `blocked` with the reasons. The
+admin page shows each proposal on the finding it fixes (by `finding_key`), where the owner can
+approve or dismiss it. Approving checks the proposal again against the active policy and the
+latest data, records `approved` with that evidence, and executes nothing. `audit_event` is
+append-only, enforced by a trigger, and has no foreign keys, so it outlives what it logs.
+Execution is Phase 4, and must check once more before moving anything.
+
+Leaving is one step (decision 0002, principle 9). `tidysum item remove <item_id>`, or Remove on the
+admin page, revokes a connection at Plaid and deletes its accounts and everything synced from
+them, along with proposals that named those accounts; findings that relied on them are
+withdrawn, never counted as fixed. `tidysum user delete <user_id> --yes` does that for every
+connection and then deletes the user. Audit events stay for at least 7 years.
+
+Each proposal also records its category (`cash`, `card`, `debt` or `securities`), the
+`check_policy` finding it fixes and what it should save or earn per year, and its audit event
+keeps the exact data it was checked against. Allocation checks and trade proposals are
+investment advice, so they only run for users with `investing_enabled` (the operator; `tidysum
+user add <name> --investing` for someone managing their own money).
+
+## Better accounts
+
+`pnpm tidysum products` (and **Cash accounts** on the admin page, and the
+`compare_products` MCP tool) compares every checking, savings, money market and cash management
+account with the products in `catalog/deposit-products.json` and says how much not switching
+costs per year.
+
+- **What you earn now is observed, not assumed.** Interest is the account's own
+  `INCOME_INTEREST_EARNED` credits over the last 365 days; fees are its maintenance, overdraft
+  and NSF fees. Less history is annualized. The balance is the average of the last 90 days of
+  daily balances, rebuilt from transactions (see below) when they cover all 90 days, otherwise
+  from the snapshots synced so far.
+- **What you could earn comes from the catalog.** Each product has its APY tiers, any condition
+  for a higher rate (direct deposit, say), fees, the provider's page as `source_url`, the bank's
+  printed `rates_as_of` date and the `verified_on` date someone last checked that page. A rate
+  more than 30 days past `verified_on` is flagged stale. Promotional boosts and sign-up bonuses
+  are left out.
+- **Updating rates:** open each `source_url`, change the numbers and both dates, and commit. The
+  catalog is read on every request, so `tidysum serve` picks it up without a restart.
+  `TIDYSUM_PRODUCTS_FILE` points at a different file.
+
+The headline is the best gain per account summed, with conditions met; a second total uses only
+rates that need no conditions. Figures are before tax.
+
+## What idle cash has already cost
+
+`pnpm tidysum cash-history` (also `idle_cash_history` over MCP and **What idle cash has cost you**
+on the Cash page) looks back instead of forward: what the cash above your buffer lost, day by day,
+over up to the last 730 days.
+
+- **Balances are rebuilt, not fetched.** Plaid has no balance history, so the balance at the end
+  of each day is the latest synced balance plus every posted transaction after that day. Balance
+  snapshots synced earlier are compared with the rebuilt series, and a difference over $1 is
+  flagged, since it means a transaction is missing. A snapshot may match the day before instead,
+  because banks often add a deposit to the balance a day after its date.
+- **Idle is above the buffer.** Each day, the total across the policy's cash accounts minus the
+  policy's cash buffer. With no policy there is no buffer.
+- **The benchmark is the catalog.** Every savings and cash management product in
+  `catalog/deposit-products.json`, at today's rate with no conditions, compounded daily. Rates
+  were higher in 2024 and 2025, so the loss further back errs low. Interest actually credited on
+  the cash accounts is subtracted.
+
+## Credit cards
+
+`pnpm tidysum cards` (also `compare_cards` over MCP and **Credit cards** on the admin page) takes
+the last 365 days of purchases from linked cards and bank accounts, works out what your cards
+earn on them, and ranks every card in `catalog/credit-cards.json` you don't have by what it would
+add per year after its annual fee. It also picks the best set of cards to add, one at a time
+while each still pays for itself. `pnpm tidysum card-for --merchant "Whole Foods" --amount 80`
+(`best_card_for_purchase` over MCP) says which of your cards to use; the category comes from your
+past purchases at that merchant, or pass `--category`.
+
+- Spending categories are Tidysum's own (dining, groceries) and map to each data source's codes
+  under `codes`; today that is Plaid's personal finance categories, which read straight off
+  synced transactions. Transfers, loan and card payments, income and bank
+  fees are not spending. Rent, taxes and donations only count for cards with a rate for them.
+- Points are valued at their cash or statement-credit value. Portal-only rates, rotating
+  quarterly categories and welcome bonuses are left out. Caps are honoured.
+- Linked cards are matched to the catalog by the name the bank reports. When that name is too
+  generic, the card is assumed to pay 1% and flagged. Say which card it is with the picker on
+  the admin page or `pnpm tidysum card-set <account_id> <card_id>`; it's stored per user in
+  `card_assignment`, which agents can read but not change. `--card <account_id>=<card_id>` (or
+  `cards` over MCP) overrides it for one run.
+- Purchases on cards that aren't linked can't be seen, so link every card you use.
+- When cards charged interest in the last year, the report says so first: interest on a carried
+  balance outweighs any rewards.
+
+Every product and card answer carries the same disclosure: Tidysum takes no referral or affiliate
+money, and rankings use only what a product would gain you.
+
+## Investments
+
+`pnpm tidysum allocation` (also `get_allocation` over MCP and **Investments** on the admin page)
+compares your holdings with the policy's target allocation and says where new money should go to
+reach it, the way an adviser handles a client's contributions, without selling anything. It is in
+percentages only: each bucket's share of the portfolio, how many points it is off target, and how
+to split each new contribution. It never shows what anything is worth.
+
+- **New money** goes only to the buckets under target, split so they reach their targets
+  together: with new money worth n of today's portfolio, a bucket with target t and weight w gets
+  t(1 + n) − w, where n = (their gap) / (1 − their targets). The split is in whole percents and
+  says which fund to buy; `catch_up` is n, so "until about 38% more has gone in". Once nothing
+  is under target, new money follows the targets. The report recomputes it on every sync, so the
+  split shifts as markets move.
+- **Holdings you enter by hand** cover what no data source reaches, such as Treasuries at
+  TreasuryDirect. Each has a name, one asset class from the catalog and a value, per user, in
+  `manual_holding`:
+
+  ```sh
+  pnpm tidysum manual set "TreasuryDirect" --class bonds --value 10000.00 [--as-of 2026-11-06]
+  pnpm tidysum manual list            # names, classes and dates; values stay out
+  pnpm tidysum manual remove "TreasuryDirect"
+  ```
+
+- **Holdings are put in buckets** by, in order: a ticker the bucket lists; what
+  `catalog/securities.json` says the fund holds by asset class (a global ETF counts partly as US
+  and partly as international stocks, from the issuer's country breakdown, with its source and
+  date; a sleeve like `us_stocks.large` counts toward its class); a target-date fund by the year
+  in its name, split along the catalog's glide path (plan funds like "The 2055 Retirement Fund"
+  often have no ticker; an estimate for counting only, never for copying a fund, decision 0007);
+  a cash equivalent; then a Plaid
+  security type the bucket names. A bucket holds the
+  asset classes in its name (`bonds_and_cash` holds bonds and cash) unless it lists
+  `asset_classes`. Holdings that match no bucket are reported and left out of the percentages.
+- **Money is counted once.** A 401(k) with a brokerage window (Schwab PCRA, Fidelity
+  BrokerageLink) reports the window as one lump position, and the brokerage reports it again as
+  its own account. A lump whose name says it's a brokerage window and whose value is within 3% of
+  another investment account is left out, and that account's own funds are counted instead
+  (`src/portfolio/overlap.ts`). The page says which account it counted once; `get_holdings` and
+  `net_worth_history` leave the duplicate out too.
+- **Selling to rebalance** is there for when you ask for it (`get_allocation`, the CLI), not on
+  the page. **Moves** pair overweight buckets with underweight ones, largest gap first, once any bucket is
+  outside `drift_band`. Each says which positions to sell, as a share of the position, from
+  tax-advantaged accounts first, then losses before gains, smallest gain first, and what to buy
+  in the same account: the first ticker the bucket lists that you already hold, else its first
+  ticker, else the catalog's default fund for the class.
+- It also shows how much is in single stocks and the largest holdings.
+- **The admin page is calm on purpose**: where new money goes, then each bucket's share against
+  its target, with no warning colours. It never names a position you hold, how much one is up or
+  down, or anything to sell; `/api/allocation` leaves those fields out. The per-position detail is
+  for `get_allocation` and the CLI.
+
+Allocation is investment advice, so it only runs for users with `investing_enabled`. Drift has no
+yearly dollar cost (decision 0003), so it isn't ranked with the misallocations; the Actions page
+puts it to the owner as an action, with the split, when new money has somewhere to catch up. `check_policy` reports the same drift, in points.
+
+## Misallocations
+
+`pnpm tidysum misallocations` (also `find_misallocations` over MCP and the top of the admin page)
+runs every detector and lists what is costing you money, ranked by cost per year:
+
+| Detector         | Category | Finds                                                                                                                      |
+| ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `deposit_rate`   | cash     | a cash account earning less than the best catalog product would                                                            |
+| `card_wallet`    | card     | each card worth adding, priced by what it adds on top of the ones before it                                                |
+| `card_usage`     | card     | purchases paid from a bank account that would earn rewards on your best card                                               |
+| `foreign_fees`   | card     | foreign transaction fees paid in the last year                                                                             |
+| `card_statement` | card     | a card statement due on a card that has charged interest (a year of its APR, or the interest charged, whichever is larger) |
+| `extra_payment`  | debt     | spare cash above the buffer that could pay down the highest-APR debt                                                       |
+
+Each finding has a stable `key`, a `category` (`cash`, `card`, `debt`, `securities`), the action
+that fixes it, and the `inputs` it was priced from, including the sha256 of the catalog it used.
+`not_covered` lists what isn't checked yet.
+
+`tidysum serve` records findings in the `misallocation` table after every sync (the CLI command
+does too). A finding is `open` while it is still found; `dismissed` when you say it isn't for
+you (`pnpm tidysum misallocation dismiss <id>`, or the button on the admin page), which leaves it
+out of the total; `resolved` when it goes away because you acted (you now hold the suggested
+account or card, or the fee stopped); and `withdrawn` when it goes away for another reason. A
+finding that comes back reopens. Every transition is an `audit_event`. For resolved findings,
+`realized_annual_value` is what acting actually gained, where Tidysum can measure it: interest
+the new bank paid since the switch, annualized, minus what the old account earned (from 30
+days after the switch), or a fee that stopped. Card rewards aren't measured yet.
+`list_misallocations` over MCP reads the record.
+
+Generate `TIDYSUM_TOKEN_KEY` with `openssl rand -base64 32`. Plaid Sandbox keys are on the
+Plaid dashboard under Developers → Keys.
+
+## Running on your Mac
+
+Tidysum runs locally; there is no server deploy. `deploy/macos-setup.sh` starts Postgres in
+Docker (restarts with Docker Desktop) and installs a launchd agent that runs `tidysum serve`
+at login: the admin page on http://127.0.0.1:8080 and a Plaid sync every
+`SYNC_INTERVAL_MINUTES`. The page has no sign-in because it only listens on loopback, and it
+refuses requests whose Host isn't loopback, so a web page can't reach it by DNS rebinding. It creates
+`policy.json` from the example and loads it if you have no policy yet. Re-run it after pulling; logs go to
+`~/Library/Logs/tidysum/serve.log`. `deploy/macos-setup.sh uninstall` removes the agents.
+
+After that the Mac deploys itself. A second agent, `com.tidysum.auto-deploy`, runs
+`deploy/auto-deploy.sh` every minute: when `main` on GitHub has a commit the Mac isn't running, it
+fast-forwards the clone, re-runs `deploy/macos-setup.sh` and waits for `/healthz`. If that fails it
+puts the previous commit back, retries twice, and then shows a macOS notification. It won't touch a
+clone that is on another branch or has local edits or commits, and it waits for Docker Desktop
+after login. The last result is in `.deploy/status` in the clone, the full history in
+`~/Library/Logs/tidysum/auto-deploy.log`. Set `TIDYSUM_AUTO_DEPLOY=off` in `.env` and re-run the
+setup script to turn it off.
+
+Without a public URL there are no Plaid webhooks, so Item errors show up at the next scheduled
+sync instead of immediately.
+
+## Layout
+
+```
+src/
+  cli.ts                  migrate | link-sandbox | sync | serve | mcp | check | proposals | products | cards | ...
+  mcp/                    MCP server: tools, queries, tidysum_agent/tidysum_proposer connections
+  policy/                 policy file schema, snapshot reads, deterministic checks, proposals
+  products/               deposit and credit card catalogs, "what not switching costs" and card math
+  server/                 Hono admin page + API, Plaid webhook endpoint
+  ingest/csv.ts           CSV import with exact decimal parsing
+  config.ts               env parsing (zod)
+  crypto/tokenCipher.ts   AES-256-GCM for Plaid access tokens, bound to the item id
+  db/schema.ts            Drizzle schema (source of truth for migrations)
+  plaid/gateway.ts        the slice of Plaid Tidysum uses, in Tidysum's own types
+  plaid/plaidApiGateway.ts  implementation over the official `plaid` client
+  plaid/webhookVerifier.ts  Plaid-Verification JWT check
+  sync/scheduler.ts       one sync at a time per Item, whoever asks
+  sync/syncItem.ts        accounts + balances, /transactions/sync, holdings, liabilities
+  portfolio/              allocation by target bucket, where new money goes, hand-entered holdings
+catalog/                  deposit rates, card terms and fund asset-class splits, with sources
+drizzle/                  generated + hand-written SQL migrations
+test/                     vitest against a real Postgres (Testcontainers)
+docs/                     decisions and spikes
+```
+
+## Design rules that already hold
+
+- **Money is never a float.** Plaid's JSON numbers become decimal strings at the gateway
+  edge and are stored as Postgres `numeric`.
+- **Amount sign follows Plaid:** positive is money out of the account, negative is money in.
+- **Only the ingest side holds Plaid tokens.** They live encrypted in `item_secret`, which
+  the `tidysum_agent` role is never granted. That role is read-only and table grants are
+  explicit, so a new table stays invisible to agents until it is granted on purpose.
+- **Transactions are never deleted.** Plaid removals set `removed_at`.
+- **Sync is all-or-nothing per pagination run.** `/transactions/sync` pages are collected
+  first and written in one database transaction with the new cursor; a mid-pagination
+  mutation restarts from the original cursor, as Plaid requires.
+- **Every record belongs to a user.** Personal tables carry `user_id`, and foreign keys
+  include it, so a row can't point at another user's data. Agent connections set
+  `tidysum.user_id` and row-level security limits them to that user's rows; with no user set they
+  see nothing. Securities (market data) are shared. Commands act for `TIDYSUM_USER_ID`, or the only
+  user when there is one.
+- **Institution text is untrusted.** Transaction names and merchant names are data, never
+  instructions, for any agent that reads them.
+
+## Development
+
+```sh
+pnpm typecheck
+pnpm lint
+pnpm test                 # starts a throwaway Postgres container
+pnpm db:generate          # after editing src/db/schema.ts
+```
+
+Locally, tests use a Testcontainers Postgres (needs Docker). With `TEST_PG_BIN` set to a
+PostgreSQL `bin` directory they start a throwaway cluster on a Unix socket instead, which is
+what CI does.
+
+Secrets stay in `.env` (git-ignored). A gitleaks pre-commit hook is configured in
+`.pre-commit-config.yaml` and runs in CI.
+
+## CI
+
+CI runs on a self-hosted runner, `tidysum-ci`, never on GitHub-hosted runners.
+`deploy/ci-runner-setup.sh` installs it on an Ubuntu host as an unprivileged, low-priority systemd
+service with the PostgreSQL binaries but no running cluster. To install or update it:
+
+```sh
+repo=<owner>/tidysum
+token="$(gh api -X POST "repos/$repo/actions/runners/registration-token" --jq .token)"
+ssh root@<host> "REPO_URL=https://github.com/$repo RUNNER_TOKEN=$token bash -s" < deploy/ci-runner-setup.sh
+```
+
+The workflow runs only on `push`, so it runs only for people who can push to the repository. A
+pull request from a fork never runs on the self-hosted runner: a maintainer reads it first and
+pushes it to a branch to run the checks. Keep it that way, since a public repository's fork could
+otherwise run any code on the runner's host.

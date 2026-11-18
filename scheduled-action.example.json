@@ -1,0 +1,20 @@
+{
+  "title": "Check that the new 401(k) percent reached your paycheck",
+  "rationale": "The contribution was raised to 28% on Nov 14, before the Nov 19 payroll cutoff. The Nov 30 paystub is the first to show whether payroll applied it; if it didn't, the two December paychecks need more to reach the year's limit.",
+  "category": "securities",
+  "steps": [
+    {
+      "text": "Open the Nov 30 paystub and check that the 401(k) pre-tax deduction is 28% of base pay",
+      "by": "agent",
+      "needs_you": "Sign-in"
+    },
+    {
+      "text": "If it isn't, set pre-tax to the whole percent that reaches the limit over the two December paychecks",
+      "by": "agent",
+      "needs_you": "Sign-in"
+    }
+  ],
+  "not_before": "2026-11-27",
+  "due_by": "2026-12-03",
+  "finding_key": "retirement_rate:<account_id>:2026:check"
+}

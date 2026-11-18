@@ -1,0 +1,195 @@
+{
+  "limitations": [],
+  "portfolio_manifests": [],
+  "run": {
+    "as_of": "2026-09-22 19:41:39.327577+00:00",
+    "completed_at": "2026-09-22 19:41:48.638536+00:00",
+    "coverage": {
+      "ratio": 1.0,
+      "requested_sources": 66,
+      "successful_sources": 66
+    },
+    "fetch_warnings": [],
+    "limitations": [],
+    "run_id": "20260922_194139_mesa-cider",
+    "run_type": "assets",
+    "schema_version": 3,
+    "scoring_version": "5",
+    "signals_found": 66,
+    "started_at": "2026-09-22 19:41:39.327577+00:00",
+    "status": "completed",
+    "tiers": ["prices"],
+    "watchlist_path": "watchlist-assets.yaml"
+  },
+  "schema_version": 2,
+  "signals": [
+    {
+      "holders": [],
+      "insider_transactions": [],
+      "price": {
+        "availability": "observed",
+        "currency": "USD",
+        "drawdown_from_high": 0.4384,
+        "observed_at": "2026-09-22 00:00:00+00:00"
+      },
+      "signal": {
+        "accumulation_score": 0.0,
+        "asset_class": "aluminum",
+        "company_name": "Century Aluminum",
+        "component_availability": {
+          "accumulation": "unavailable",
+          "insider": "not_requested",
+          "manager_overlap": "unavailable",
+          "position_sizing": "unavailable"
+        },
+        "conviction_score": 0.0,
+        "current_price": 39.54999923706055,
+        "dca_pattern_score": 0.0,
+        "drawdown_from_high": 0.4384,
+        "drawdown_score": 0.912,
+        "high_52wk": 70.43000030517578,
+        "holders_count": 0,
+        "insider_score": 0.0,
+        "latest_filing_date": null,
+        "manager_overlap_score": 0.0,
+        "market_cap": 3915184741.7241096,
+        "market_cap_score": 0.75,
+        "position_sizing_score": 0.0,
+        "price_dislocation_score": 0.912,
+        "range_position_score": 0.6858,
+        "run_id": "20260922_194139_mesa-cider",
+        "score_coverage": 0.0,
+        "scoring_version": "5",
+        "ticker": "CENX",
+        "trend_discount_score": 0.5819,
+        "value_score": 0.912
+      }
+    },
+    {
+      "holders": [],
+      "insider_transactions": [],
+      "price": {
+        "availability": "observed",
+        "currency": "USD",
+        "drawdown_from_high": 0.4453,
+        "observed_at": "2026-09-22 00:00:00+00:00"
+      },
+      "signal": {
+        "accumulation_score": 0.0,
+        "asset_class": "precious_metals",
+        "company_name": "iShares Silver Trust",
+        "component_availability": {
+          "accumulation": "unavailable",
+          "insider": "not_requested",
+          "manager_overlap": "unavailable",
+          "position_sizing": "unavailable"
+        },
+        "conviction_score": 0.0,
+        "current_price": 60.91999816894531,
+        "dca_pattern_score": 0.0,
+        "drawdown_from_high": 0.4453,
+        "drawdown_score": 0.9219,
+        "high_52wk": 109.83000183105469,
+        "holders_count": 0,
+        "insider_score": 0.0,
+        "latest_filing_date": null,
+        "manager_overlap_score": 0.0,
+        "market_cap": null,
+        "market_cap_score": 0.0,
+        "position_sizing_score": 0.0,
+        "price_dislocation_score": 0.9219,
+        "range_position_score": 0.6939,
+        "run_id": "20260922_194139_mesa-cider",
+        "score_coverage": 0.0,
+        "scoring_version": "5",
+        "ticker": "SLV",
+        "trend_discount_score": 0.6107,
+        "value_score": 0.9219
+      }
+    },
+    {
+      "holders": [],
+      "insider_transactions": [],
+      "price": {
+        "availability": "observed",
+        "currency": "USD",
+        "drawdown_from_high": 0.6283,
+        "observed_at": "2026-09-22 00:00:00+00:00"
+      },
+      "signal": {
+        "accumulation_score": 0.0,
+        "asset_class": "counter_uas",
+        "company_name": "Red Cat Holdings (Black Widow)",
+        "component_availability": {
+          "accumulation": "unavailable",
+          "insider": "not_requested",
+          "manager_overlap": "unavailable",
+          "position_sizing": "unavailable"
+        },
+        "conviction_score": 0.0,
+        "current_price": 6.980000019073486,
+        "dca_pattern_score": 0.0,
+        "drawdown_from_high": 0.6283,
+        "drawdown_score": 1.0,
+        "high_52wk": 18.780000686645508,
+        "holders_count": 0,
+        "insider_score": 0.0,
+        "latest_filing_date": null,
+        "manager_overlap_score": 0.0,
+        "market_cap": 1065946249.6727953,
+        "market_cap_score": 1.0,
+        "position_sizing_score": 0.0,
+        "price_dislocation_score": 1.0,
+        "range_position_score": 0.907,
+        "run_id": "20260922_194139_mesa-cider",
+        "score_coverage": 0.0,
+        "scoring_version": "5",
+        "ticker": "RCAT",
+        "trend_discount_score": 1.0,
+        "value_score": 1.0
+      }
+    },
+    {
+      "holders": [],
+      "insider_transactions": [],
+      "price": {
+        "availability": "observed",
+        "currency": "USD",
+        "drawdown_from_high": 0.6219,
+        "observed_at": "2026-09-22 00:00:00+00:00"
+      },
+      "signal": {
+        "accumulation_score": 0.0,
+        "asset_class": "counter_uas",
+        "company_name": "AeroVironment (loitering weapons)",
+        "component_availability": {
+          "accumulation": "unavailable",
+          "insider": "not_requested",
+          "manager_overlap": "unavailable",
+          "position_sizing": "unavailable"
+        },
+        "conviction_score": 0.0,
+        "current_price": 157.99000549316406,
+        "dca_pattern_score": 0.0,
+        "drawdown_from_high": 0.6219,
+        "drawdown_score": 1.0,
+        "high_52wk": 417.8599853515625,
+        "holders_count": 0,
+        "insider_score": 0.0,
+        "latest_filing_date": null,
+        "manager_overlap_score": 0.0,
+        "market_cap": 8029162988.146454,
+        "market_cap_score": 0.75,
+        "position_sizing_score": 0.0,
+        "price_dislocation_score": 1.0,
+        "range_position_score": 0.9194,
+        "run_id": "20260922_194139_mesa-cider",
+        "score_coverage": 0.0,
+        "scoring_version": "5",
+        "ticker": "AVAV",
+        "trend_discount_score": 1.0,
+        "value_score": 1.0
+      }
+    }
+  ]
+}

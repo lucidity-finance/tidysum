@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+# The plaid-client-id rule matches any 24-character word near "plaid".
+[[allowlists]]
+description = "Code identifiers that happen to be 24 characters"
+regexTarget = "secret"
+regexes = ['''^WebhookVerificationError$''']

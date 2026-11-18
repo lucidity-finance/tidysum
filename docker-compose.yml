@@ -1,0 +1,20 @@
+# Named explicitly so the containers and volume don't depend on the checkout's folder name.
+name: tidysum
+
+services:
+  postgres:
+    image: postgres:17
+    # Comes back with Docker Desktop after a reboot, so the background sync has its database.
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tidysum
+      POSTGRES_PASSWORD: tidysum
+      POSTGRES_DB: tidysum
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+    name: tidysum-pg

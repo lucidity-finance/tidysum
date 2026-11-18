@@ -1,0 +1,56 @@
+name: ci
+
+# Every branch push runs the checks on its exact commit, so a pull request needs no second run.
+# Jobs run on the self-hosted tidysum-ci runner (deploy/ci-runner-setup.sh), which uses no
+# GitHub-hosted minutes. Never switch this to a GitHub-hosted runner such as ubuntu-latest.
+on:
+  push:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch replaces a run still in progress. Main is never cancelled.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  check:
+    runs-on: [self-hosted, tidysum-ci]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.19.0
+          package-manager-cache: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      # TEST_PG_BIN comes from the runner's .env, so tests start a throwaway Postgres without Docker.
+      - name: Test
+        run: |
+          [[ -n "${TEST_PG_BIN:-}" ]] || { echo "TEST_PG_BIN is not set on this runner; rerun deploy/ci-runner-setup.sh."; exit 1; }
+          pnpm test
+      # gitleaks-action breaks on a persistent self-hosted runner (it reuses a fixed /tmp path and
+      # resolves uploads against $HOME), so install a pinned, checksummed binary per run instead.
+      - name: Scan for secrets
+        env:
+          GITLEAKS_VERSION: 8.28.0
+          GITLEAKS_SHA256: a65b5253807a68ac0cafa4414031fd740aeb55f54fb7e55f386acb52e6a840eb
+        run: |
+          dir="$RUNNER_TEMP/gitleaks"
+          mkdir -p "$dir"
+          tarball="$dir/gitleaks.tar.gz"
+          curl -fsSL -o "$tarball" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "$GITLEAKS_SHA256  $tarball" | sha256sum -c --quiet -
+          tar -xzf "$tarball" -C "$dir" gitleaks
+          "$dir/gitleaks" git --redact --no-banner --exit-code 1 .

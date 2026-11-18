@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.*
+!.env.example
+coverage/
+*.log
+policy.json
+
+# A workplace plan read off its site (`tidysum workplace set`): personal, never committed.
+workplace.json
+
+# Auto-deploy state and last deploy log (deploy/auto-deploy.sh), per machine.
+.deploy/
+
+# Your written plan (`tidysum plan set`, TIDYSUM_PLAN_FILE): personal, never committed.
+plan.md

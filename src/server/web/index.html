@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Tidysum</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="top-inner">
+        <a class="brand" href="#actions" aria-label="Tidysum home">
+          <img class="logo" src="/favicon.svg" alt="" width="30" height="30" />
+          <span class="brand-name">Tidysum</span>
+        </a>
+        <nav class="tabs" aria-label="Sections">
+          <a href="#actions" data-nav="actions"
+            ><span data-icon="inbox"></span><span class="tab-label">Actions</span
+            ><span class="badge" id="badge-actions" hidden></span
+          ></a>
+          <a href="#cash" data-nav="cash"
+            ><span data-icon="wallet"></span><span class="tab-label">Cash</span></a
+          >
+          <a href="#cards" data-nav="cards"
+            ><span data-icon="card"></span><span class="tab-label">Cards</span></a
+          >
+          <a href="#investments" data-nav="investments" id="nav-investments" hidden
+            ><span data-icon="up"></span><span class="tab-label">Investments</span></a
+          >
+          <a href="#plan" data-nav="plan" id="nav-plan" hidden
+            ><span data-icon="book"></span><span class="tab-label">Plan</span></a
+          >
+        </nav>
+        <a class="sync" href="#connections" data-nav="connections" id="sync">
+          <span class="sync-dot"></span><span class="sync-text" id="sync-text">Connections</span>
+        </a>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="view" data-view="actions" data-title="Actions">
+        <div id="actions-body"></div>
+      </section>
+
+      <section class="view" data-view="plan" data-title="Plan" hidden>
+        <header class="page-head"><h1>Plan</h1></header>
+        <div id="plan-body"></div>
+      </section>
+
+      <section class="view" data-view="cash" data-title="Cash" hidden>
+        <header class="page-head"><h1>Cash</h1></header>
+        <div id="cash-body"></div>
+      </section>
+
+      <section class="view" data-view="cards" data-title="Cards" hidden>
+        <header class="page-head"><h1>Cards</h1></header>
+        <div id="cards-body"></div>
+      </section>
+
+      <section class="view" data-view="investments" data-title="Investments" hidden>
+        <header class="page-head"><h1>Investments</h1></header>
+        <div id="investments-body"></div>
+      </section>
+
+      <section class="view" data-view="connections" data-title="Connections" hidden>
+        <header class="page-head page-head-row">
+          <h1>Connections</h1>
+          <button class="btn btn-primary" type="button" id="link-new" hidden>
+            <span data-icon="plus"></span>Link institutions
+          </button>
+        </header>
+        <div id="connections-body"></div>
+      </section>
+    </main>
+
+    <footer class="site-foot">
+      <p id="disclosure"></p>
+      <p>
+        Tidysum is software you run yourself, not a financial adviser, and nothing here is financial,
+        tax or legal advice. You decide and approve every action; your own agent carries it out.
+      </p>
+    </footer>
+
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+
+    <dialog class="dialog" id="confirm">
+      <h2 id="confirm-title">Are you sure?</h2>
+      <p id="confirm-body"></p>
+      <div class="dialog-actions">
+        <button class="btn" type="button" value="cancel" id="confirm-cancel">Cancel</button>
+        <button class="btn btn-danger" type="button" value="ok" id="confirm-ok"></button>
+      </div>
+    </dialog>
+
+    <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
