@@ -496,24 +496,14 @@ pnpm db:generate          # after editing src/db/schema.ts
 
 Locally, tests use a Testcontainers Postgres (needs Docker). With `TEST_PG_BIN` set to a
 PostgreSQL `bin` directory they start a throwaway cluster on a Unix socket instead, which is
-what CI does.
+an alternative when Docker isn't available.
 
 Secrets stay in `.env` (git-ignored). A gitleaks pre-commit hook is configured in
 `.pre-commit-config.yaml` and runs in CI.
 
 ## CI
 
-CI runs on a self-hosted runner, `tidysum-ci`, never on GitHub-hosted runners.
-`deploy/ci-runner-setup.sh` installs it on an Ubuntu host as an unprivileged, low-priority systemd
-service with the PostgreSQL binaries but no running cluster. To install or update it:
-
-```sh
-repo=<owner>/tidysum
-token="$(gh api -X POST "repos/$repo/actions/runners/registration-token" --jq .token)"
-ssh root@<host> "REPO_URL=https://github.com/$repo RUNNER_TOKEN=$token bash -s" < deploy/ci-runner-setup.sh
-```
-
-The workflow runs only on `push`, so it runs only for people who can push to the repository. A
-pull request from a fork never runs on the self-hosted runner: a maintainer reads it first and
-pushes it to a branch to run the checks. Keep it that way, since a public repository's fork could
-otherwise run any code on the runner's host.
+CI (`.github/workflows/ci.yml`) runs typecheck, lint, the tests and a gitleaks scan of the whole
+history on GitHub-hosted runners, which are free for public repositories. It runs on every push to
+this repository and on pull requests from forks. Tests start a throwaway Postgres in Docker, as
+they do locally.

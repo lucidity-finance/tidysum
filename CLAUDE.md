@@ -16,8 +16,8 @@
   path that can.
 - Run `pnpm typecheck && pnpm lint` before every push, and `pnpm test` before finishing. Every
   failed CI run emails the account owner, so a branch must never be pushed red.
-- CI runs only on the self-hosted `tidysum-ci` runner (`runs-on: [self-hosted, tidysum-ci]`).
-  Never use GitHub-hosted runners such as `ubuntu-latest`; they spend the account's paid minutes.
+- CI runs on GitHub-hosted `ubuntu-latest`, free for this public repository. Never add a
+  self-hosted runner: on a public repository a fork's pull request could run code on it.
 - Merging to main deploys to the owner's Mac by itself within about a minute
   (`deploy/auto-deploy.sh`, launchd agent `com.tidysum.auto-deploy`). Don't run deploys by hand;
   to confirm one, read `.deploy/status` in the Mac's clone (`result=ok` and the merge commit).

@@ -21,9 +21,9 @@ interface TestPostgres {
 }
 
 /**
- * The self-hosted CI runner has no Docker, so with TEST_PG_BIN set (a PostgreSQL bin directory)
- * tests run on a throwaway cluster in a temp directory, reachable only over a Unix socket.
- * Locally, without TEST_PG_BIN, they use a Testcontainers Postgres.
+ * Tests use a Testcontainers Postgres, locally and in CI. Where there is no Docker, set TEST_PG_BIN
+ * (a PostgreSQL bin directory) and they run on a throwaway cluster in a temp directory, reachable
+ * only over a Unix socket.
  */
 async function startPostgres(): Promise<TestPostgres> {
   const bin = process.env.TEST_PG_BIN;

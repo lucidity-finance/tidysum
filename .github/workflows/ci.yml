@@ -1,10 +1,11 @@
 name: ci
 
-# Every branch push runs the checks on its exact commit, so a pull request needs no second run.
-# Jobs run on the self-hosted tidysum-ci runner (deploy/ci-runner-setup.sh), which uses no
-# GitHub-hosted minutes. Never switch this to a GitHub-hosted runner such as ubuntu-latest.
+# Every branch push runs the checks on its exact commit, so a pull request from a branch here needs
+# no second run; a pull request from a fork runs once on its own. GitHub-hosted runners are free for
+# public repositories, and a fork's code never reaches a machine of ours.
 on:
   push:
+  pull_request:
 
 permissions:
   contents: read
@@ -16,7 +17,8 @@ concurrency:
 
 jobs:
   check:
-    runs-on: [self-hosted, tidysum-ci]
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
@@ -34,13 +36,11 @@ jobs:
         run: pnpm typecheck
       - name: Lint
         run: pnpm lint
-      # TEST_PG_BIN comes from the runner's .env, so tests start a throwaway Postgres without Docker.
+      # Tests start a throwaway Postgres container (Testcontainers) on the runner's Docker.
       - name: Test
-        run: |
-          [[ -n "${TEST_PG_BIN:-}" ]] || { echo "TEST_PG_BIN is not set on this runner; rerun deploy/ci-runner-setup.sh."; exit 1; }
-          pnpm test
-      # gitleaks-action breaks on a persistent self-hosted runner (it reuses a fixed /tmp path and
-      # resolves uploads against $HOME), so install a pinned, checksummed binary per run instead.
+        run: pnpm test
+      # A pinned, checksummed gitleaks binary scans the whole history (gitleaks-action needs a
+      # license for organization repositories).
       - name: Scan for secrets
         env:
           GITLEAKS_VERSION: 8.28.0

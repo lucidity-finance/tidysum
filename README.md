@@ -201,8 +201,7 @@ Issues and pull requests are welcome. Before you open one, read the
 pnpm typecheck && pnpm lint && pnpm test
 ```
 
-Tests start a throwaway Postgres in Docker. Pull requests from forks don't run CI automatically; a
-maintainer runs the checks after reading the change.
+Tests start a throwaway Postgres in Docker. CI runs the same checks on every pull request.
 
 ## License
 
