@@ -56,9 +56,32 @@ const Bucket = z
   })
   .strict();
 
+/** The money styles a policy can start from (src/policy/styles.ts, decision 0009). */
+export const STYLE_IDS = [
+  "debt_free_first",
+  "index_and_chill",
+  "early_retirement",
+  "classic_60_40",
+  "all_weather",
+  "safety_first",
+] as const;
+export type StyleId = (typeof STYLE_IDS)[number];
+
 export const PolicySchema = z
   .object({
     version: z.literal(1),
+    /**
+     * The money style this policy was filled from, so the page can say which one it is and what
+     * was changed since. Only a label: the rules below are what the checks read.
+     */
+    style: z
+      .object({
+        id: z.enum(STYLE_IDS),
+        /** The age a style's mix was worked out for ("Index and chill" holds your age in bonds). */
+        age: z.number().int().min(18).max(90).optional(),
+      })
+      .strict()
+      .optional(),
     cash: z
       .object({
         /** Keep this much across the cash accounts: a fixed amount or months of average spending. */
@@ -68,20 +91,37 @@ export const PolicySchema = z
         ]),
         /** Ignore excess or shortfall smaller than this. */
         tolerance: amount.default("500"),
+        /**
+         * A smaller buffer kept while there is consumer debt to pay off (a loan other than a
+         * mortgage, or a card that charged interest in the last year), so spare cash goes to the
+         * debt first: "Debt-free first" keeps $1,000 until the debt is gone. Absent: the buffer
+         * above always applies.
+         */
+        buffer_while_in_debt: z.object({ amount }).strict().optional(),
         /** Cash account ids. Default: every checking, savings, money market and cash management account. */
         account_ids: z.array(z.uuid()).optional(),
       })
       .strict(),
     cards: z
-      .object({ pay_statement_in_full: z.boolean().default(true) })
+      .object({
+        pay_statement_in_full: z.boolean().default(true),
+        /**
+         * Steer away from credit cards: Tidysum stops suggesting new cards or moving bills onto
+         * cards. Statements are still checked, so balances get paid off. Absent: false.
+         */
+        avoid_credit_cards: z.boolean().optional(),
+      })
       .strict()
       .default({
         pay_statement_in_full: true,
       }),
     debt: z
       .object({
-        /** Where excess cash beyond the buffer should go first. */
-        extra_payments: z.enum(["none", "highest_apr"]).default("none"),
+        /**
+         * Where excess cash beyond the buffer should go first: the debt with the highest APR
+         * (avalanche), or the smallest balance, mortgages aside (snowball).
+         */
+        extra_payments: z.enum(["none", "highest_apr", "smallest_balance"]).default("none"),
       })
       .strict()
       .default({ extra_payments: "none" }),

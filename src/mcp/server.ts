@@ -10,6 +10,7 @@ import { evaluatePolicy } from "../policy/engine.js";
 import type { LoadedPolicy } from "../policy/policy.js";
 import { createProposal, listProposals } from "../policy/proposals.js";
 import { readSnapshot } from "../policy/snapshot.js";
+import { findStyle, listStyles, styleStatus } from "../policy/styles.js";
 import { readAllocation } from "../portfolio/allocation.js";
 import type { SecurityCatalog } from "../portfolio/securityCatalog.js";
 import type { CardCatalog } from "../products/cardCatalog.js";
@@ -56,7 +57,10 @@ owner's: present findings as information, say when a figure is an estimate, and 
 result.
 
 The owner may have written a plan for their money (get_plan): goals, target mix and rules. Read it
-before advising and keep advice inside it.
+before advising and keep advice inside it. Their policy may also start from a money style
+(get_policy's style, list_styles): keep advice in that style's spirit too, including the rules
+it leaves to them (left_to_you), and never present a style as endorsed by the people it is
+named after.
 
 Tidysum's job is to find money in the wrong place, say what that costs per year, and propose the
 fix. To suggest where money should go: call check_policy, base each action on its findings and
@@ -387,7 +391,32 @@ function registerPolicyTools(
     },
     async () => {
       const loaded = await p.loadPolicy();
-      return json({ version: loaded.versionId, policy: loaded.policy });
+      const status = styleStatus(loaded.policy);
+      const style = status ? findStyle(status.id) : null;
+      return json({
+        version: loaded.versionId,
+        policy: loaded.policy,
+        style: status && style ? { ...status, left_to_you: style.left_to_you } : null,
+      });
+    },
+  );
+
+  server.registerTool(
+    "list_styles",
+    {
+      title: "List money styles",
+      description:
+        "Well-known ways of running money (Debt-free first, Index and chill, Early retirement, " +
+        "Classic 60/40, All weather, Safety first), each with its rules, how Tidysum applies them, " +
+        "what it leaves to the owner, its sources, and what picking it would change in the " +
+        "owner's policy. Read-only: only the owner switches styles, on Tidysum's Plan page or " +
+        "with `tidysum policy style <id>`. Pass age for styles whose mix depends on it.",
+      inputSchema: { age: z.number().int().min(18).max(90).optional() },
+      annotations: readOnly,
+    },
+    async ({ age }) => {
+      const loaded = await p.loadPolicy().catch(() => null);
+      return json(listStyles(loaded?.policy ?? null, { age }));
     },
   );
 

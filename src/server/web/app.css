@@ -3815,3 +3815,102 @@ body.is-sorting * {
   overflow-x: auto;
   white-space: nowrap;
 }
+
+/* Money styles ------------------------------------------------------------------------------ */
+
+#confirm-body {
+  white-space: pre-line;
+}
+
+.styles {
+  margin-bottom: 34px;
+}
+
+.style-now {
+  color: var(--text-2);
+  margin-bottom: 10px;
+}
+
+.style-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 14px;
+  margin: 14px 0 12px;
+}
+
+.style-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.style-card.is-current {
+  border-color: var(--brand);
+  box-shadow:
+    0 0 0 1px var(--brand),
+    var(--shadow);
+}
+
+.style-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.style-head h3 {
+  font-size: 16.5px;
+  font-weight: 680;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.style-card .style-who {
+  margin-top: -4px;
+}
+
+.style-changes {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  font-size: 13.5px;
+}
+
+.style-changes li + li {
+  margin-top: 3px;
+}
+
+.style-changes s {
+  text-decoration-color: var(--line-strong);
+}
+
+.style-age-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.style-age {
+  width: 80px;
+  padding: 6px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.style-actions {
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.style-card p {
+  margin: 0;
+}

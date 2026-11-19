@@ -216,7 +216,9 @@ describe("policy checks", () => {
     const off = byCheck(evaluatePolicy(parsePolicy(base).policy, snapshot()), "extra_payment");
     expect(off).toEqual([]);
     const on = parsePolicy({ ...base, debt: { extra_payments: "highest_apr" } }).policy;
-    const [extra] = byCheck(evaluatePolicy(on, snapshot()), "extra_payment");
+    // A card paid in full charges no interest, so paying it early saves nothing.
+    expect(byCheck(evaluatePolicy(on, snapshot()), "extra_payment")).toEqual([]);
+    const [extra] = byCheck(evaluatePolicy(on, withDebts()), "extra_payment");
     // 12000.10 cash - 5000 buffer - 350 statement = 6650.10 spare, capped at the 410 owed.
     expect(extra).toMatchObject({
       amount: "410.00",
@@ -225,7 +227,55 @@ describe("policy checks", () => {
       annual_cost: "102.46",
     });
   });
+
+  it("pays the smallest debt first with the snowball, mortgage aside", () => {
+    const policy = parsePolicy({ ...base, debt: { extra_payments: "smallest_balance" } }).policy;
+    const [extra] = byCheck(evaluatePolicy(policy, withDebts()), "extra_payment");
+    expect(extra).toMatchObject({ account_ids: [CARD], amount: "410.00" });
+    expect(extra?.summary).toMatch(/smallest debt/);
+    expect(extra?.numbers).toMatchObject({ order: "smallest_balance" });
+  });
+
+  it("keeps the smaller buffer while there is consumer debt", () => {
+    const policy = parsePolicy({
+      ...base,
+      cash: { ...base.cash, buffer_while_in_debt: { amount: "1000.00" } },
+      debt: { extra_payments: "smallest_balance" },
+    }).policy;
+    const inDebt = byCheck(evaluatePolicy(policy, withDebts()), "cash_buffer")[0];
+    expect(inDebt?.numbers).toMatchObject({ buffer: "1000.00", while_in_debt: "1000.00" });
+    const [extra] = byCheck(evaluatePolicy(policy, withDebts()), "extra_payment");
+    // 12000.10 - 1000 starter buffer - 350 statement = 10650.10 spare, capped at 410.
+    expect(extra).toMatchObject({ amount: "410.00" });
+    // A card paid in full each month is not debt: the full buffer applies.
+    const clear = byCheck(evaluatePolicy(policy, snapshot()), "cash_buffer")[0];
+    expect(clear?.numbers).toMatchObject({ buffer: "5000.00", fixed: "5000.00" });
+  });
 });
+
+/** The base snapshot with interest on the card, a student loan and a mortgage. */
+function withDebts(): Snapshot {
+  const s = snapshot();
+  const loan = (account_id: string, kind: string, balance: string, apr: string) => ({
+    account_id,
+    name: kind,
+    kind,
+    apr_percentage: apr,
+    last_statement_balance: null,
+    minimum_payment: null,
+    next_payment_due_date: null,
+    current_balance: balance,
+    interest_charged_365d: "0",
+  });
+  return {
+    ...s,
+    liabilities: [
+      ...s.liabilities.map((l) => ({ ...l, interest_charged_365d: "40.00" })),
+      loan("00000000-0000-4000-8000-000000000005", "student", "9000.00", "5.5"),
+      loan("00000000-0000-4000-8000-000000000006", "mortgage", "300.00", "6.5"),
+    ],
+  };
+}
 
 describe("proposal validation", () => {
   const policy = parsePolicy({

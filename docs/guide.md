@@ -237,7 +237,26 @@ pnpm tidysum check        # deterministic checks: cash vs buffer, card statement
 pnpm tidysum proposals    # what agents have proposed
 ```
 
-Agents get `get_policy`, `check_policy`, `list_proposals` and `create_proposal` over MCP.
+### Money styles
+
+A money style fills the policy from a well-known way of running money (decision 0009): its cash
+buffer, card and debt rules and target mix replace yours where it has a view, and your accounts,
+limits, research sleeve and asset location stay. The policy records which style it came from
+(`style`), and the Plan page and `get_policy` say what you changed since.
+
+```sh
+pnpm tidysum policy styles [--age 35]                 # every style and what it would change
+pnpm tidysum policy style index_and_chill --age 35 --dry-run
+pnpm tidysum policy style debt_free_first             # fill the policy from it
+```
+
+Styles use three policy rules that hand-written policies can use too: `debt.extra_payments:
+"smallest_balance"` (the debt snowball, mortgages left out), `cash.buffer_while_in_debt` (a
+smaller buffer while there is consumer debt, so spare cash goes to it), and
+`cards.avoid_credit_cards` (no suggestions to open cards or move bills onto them).
+
+Agents get `get_policy`, `check_policy`, `list_styles`, `list_proposals` and `create_proposal` over
+MCP. Only the owner switches styles.
 `create_proposal` and the reports on approved actions above are the only writes any agent can
 do. They run as `tidysum_proposer`, a role that can insert proposals and audit events and
 nothing else, and the policy engine stores a proposal

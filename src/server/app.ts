@@ -32,7 +32,10 @@ import type { PlaidGateway } from "../plaid/gateway.js";
 import { handlePlaidWebhook } from "../plaid/webhooks.js";
 import { type PlaidWebhookVerifier, WebhookVerificationError } from "../plaid/webhookVerifier.js";
 import { planForPage, readPlan } from "../plan/plan.js";
+import { STYLE_IDS } from "../policy/policy.js";
 import { approveProposal, listProposals } from "../policy/proposals.js";
+import { readOwnerPolicy, setStyle } from "../policy/store.js";
+import { listStyles } from "../policy/styles.js";
 import { allocationForPage, readAllocation } from "../portfolio/allocation.js";
 import { setCardAssignment } from "../products/cardAssignments.js";
 import {
@@ -92,6 +95,15 @@ const DepositChoiceBody = z
       .string()
       .regex(/^[a-z0-9-]{1,60}$/)
       .nullable(),
+  })
+  .strict();
+
+const StyleBody = z
+  .object({
+    id: z.enum(STYLE_IDS),
+    age: z.number().int().min(18).max(90).optional(),
+    /** Only say what would change. */
+    dryRun: z.boolean().optional(),
   })
   .strict();
 
@@ -490,6 +502,36 @@ export function createApp(deps: AppDeps) {
     await refreshMisallocations(deps.db, deps.agentDb, deps.userId, catalogs, today());
     await draftActions(deps.db, deps.userId);
     return c.json({ ok: true });
+  });
+
+  // Money styles: every style and what picking it would change, for the Plan page.
+  app.get("/api/styles", async (c) => {
+    const raw = c.req.query("age");
+    const age = raw && /^\d{2}$/.test(raw) ? Number(raw) : undefined;
+    const current = await readOwnerPolicy(deps.db, deps.userId);
+    return c.json(listStyles(current?.policy ?? null, { age }));
+  });
+
+  // The owner picks a money style: it fills the policy's rules, then findings and actions follow
+  // at once, so the Actions page reflects the new rules.
+  app.post("/api/policy/style", async (c) => {
+    const body = StyleBody.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: "invalid request" }, 400);
+    const { id, age, dryRun } = body.data;
+    let r: Awaited<ReturnType<typeof setStyle>>;
+    try {
+      r = await setStyle(deps.db, deps.userId, id, { age, dryRun });
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 400);
+    }
+    if (r.applied) {
+      if (deps.products) {
+        const catalogs = await loadCatalogs(deps.products);
+        await refreshMisallocations(deps.db, deps.agentDb, deps.userId, catalogs, today());
+      }
+      await draftActions(deps.db, deps.userId);
+    }
+    return c.json({ ok: true, applied: r.applied, changes: r.changes });
   });
 
   // The owner's yes. Re-checked against the rules and today's data first; nothing executes.

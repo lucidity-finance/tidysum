@@ -262,6 +262,7 @@ describe("MCP tools", () => {
       "list_accounts",
       "list_actions",
       "list_proposals",
+      "list_styles",
       "net_worth_history",
       "query_transactions",
       "report_step",

@@ -9,7 +9,7 @@ import {
 } from "../portfolio/investable.js";
 import type { SecurityCatalog } from "../portfolio/securityCatalog.js";
 import type { Policy } from "./policy.js";
-import type { Snapshot, SnapshotAccount } from "./snapshot.js";
+import type { Snapshot, SnapshotAccount, SnapshotLiability } from "./snapshot.js";
 
 // Deterministic policy checks. The agent explains and drafts; this code does the arithmetic,
 // in exact decimals, and every finding carries the numbers it came from.
@@ -67,6 +67,23 @@ export interface CashPosition {
   bufferBasis: Record<string, unknown>;
 }
 
+/**
+ * Debt worth paying off early: loans with a balance (a mortgage only when `withMortgage`) and
+ * cards that charged interest in the last year. A card paid in full each month has a balance
+ * too, but early payments on it save nothing.
+ */
+export function payableDebts(snapshot: Snapshot, withMortgage = true): SnapshotLiability[] {
+  return snapshot.liabilities.filter(
+    (l) =>
+      big(l.current_balance).gt(0) &&
+      (withMortgage || l.kind !== "mortgage") &&
+      (l.kind !== "credit" || big(l.interest_charged_365d).gt(0)),
+  );
+}
+
+/** Consumer debt, the kind "Debt-free first" clears before anything else: all of it but the house. */
+export const consumerDebts = (snapshot: Snapshot) => payableDebts(snapshot, false);
+
 export function cashPosition(policy: Policy, snapshot: Snapshot): CashPosition {
   const accounts = cashAccounts(policy, snapshot);
   const liquid = accounts.reduce((sum, a) => sum.plus(spendable(a)), new Big(0));
@@ -76,6 +93,19 @@ export function cashPosition(policy: Policy, snapshot: Snapshot): CashPosition {
     spendable: money(spendable(a)),
     as_of: a.balance_as_of,
   }));
+  const starter = policy.cash.buffer_while_in_debt;
+  const debts = starter ? consumerDebts(snapshot) : [];
+  if (starter && debts.length > 0) {
+    return {
+      accounts: listed,
+      liquid,
+      buffer: big(starter.amount),
+      bufferBasis: {
+        while_in_debt: starter.amount,
+        debts: debts.map((d) => ({ account_id: d.account_id, kind: d.kind })),
+      },
+    };
+  }
   const rule = policy.cash.buffer;
   if ("amount" in rule) {
     return {
@@ -203,22 +233,39 @@ function extraPaymentFinding(
   cash: CashPosition,
   cardsDue: Big,
 ): Finding | undefined {
-  if (policy.debt.extra_payments !== "highest_apr" || !cash.buffer) return undefined;
+  const order = policy.debt.extra_payments;
+  if (order === "none" || !cash.buffer) return undefined;
   const spare = cash.liquid.minus(cash.buffer).minus(cardsDue);
   if (spare.lte(policy.cash.tolerance)) return undefined;
-  const target = snapshot.liabilities
-    .filter((l) => big(l.current_balance).gt(0) && l.apr_percentage !== null)
-    .sort((a, b) => big(b.apr_percentage).cmp(big(a.apr_percentage)))[0];
+  const target =
+    order === "highest_apr"
+      ? payableDebts(snapshot)
+          .filter((l) => l.apr_percentage !== null)
+          .sort((a, b) => big(b.apr_percentage).cmp(big(a.apr_percentage)))[0]
+      : // The debt snowball: smallest balance first, whatever its rate, so each payoff comes soon.
+        consumerDebts(snapshot).sort(
+          (a, b) =>
+            big(a.current_balance).cmp(big(b.current_balance)) ||
+            big(b.apr_percentage).cmp(big(a.apr_percentage)),
+        )[0];
   if (!target) return undefined;
   const amount = min(spare, big(target.current_balance));
+  const why =
+    order === "highest_apr"
+      ? `${target.name} has the highest APR (${target.apr_percentage}%).`
+      : `${target.name} is your smallest debt (${money(big(target.current_balance))} left).`;
   return {
     check: "extra_payment",
     status: "action",
-    summary: `${target.name} has the highest APR (${target.apr_percentage}%). ${money(amount)} of spare cash could go to it.`,
+    summary: `${why} ${money(amount)} of spare cash could go to it.`,
     amount: money(amount),
     account_ids: [target.account_id],
-    annual_cost: money(yearlyInterest(amount, target.apr_percentage ?? "0")),
+    // Unpriced when the lender reports no APR: the interest it saves isn't known.
+    ...(target.apr_percentage
+      ? { annual_cost: money(yearlyInterest(amount, target.apr_percentage)) }
+      : {}),
     numbers: {
+      order,
       liquid: money(cash.liquid),
       buffer: money(cash.buffer),
       card_statements_due: money(cardsDue),

@@ -3,7 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, inject, it } from "vitest";
 import { TokenCipher } from "../src/crypto/tokenCipher.js";
 import { connect } from "../src/db/client.js";
-import { appUser, financialPlan, item, transaction } from "../src/db/schema.js";
+import { appUser, financialPlan, item, policyVersion, transaction } from "../src/db/schema.js";
 import { connectAgent } from "../src/mcp/agentDb.js";
 import { PlaidWebhookVerifier } from "../src/plaid/webhookVerifier.js";
 import { setPlan } from "../src/plan/plan.js";
@@ -36,7 +36,7 @@ beforeEach(async () => {
   await db.update(appUser).set({ plaidUserId: null, phoneNumber: null });
 });
 
-function setup({ open = false } = {}) {
+function setup({ open = false, user = userId, agent = agentDb } = {}) {
   const plaid = new FakePlaid();
   plaid.accounts = [checking("100.00")];
   const signer = webhookSigner();
@@ -52,8 +52,8 @@ function setup({ open = false } = {}) {
     adminToken: open ? undefined : ADMIN,
     webhookUrl: "https://tidysum.example/webhooks/plaid",
     daysRequested: 730,
-    userId,
-    agentDb,
+    userId: user,
+    agentDb: agent,
   });
   return { plaid, app, scheduler, signer };
 }
@@ -259,6 +259,50 @@ describe("linking", () => {
       body: "publicToken=x",
     });
     expect(res.status).toBe(403);
+  });
+});
+
+describe("money styles", () => {
+  it("lists styles and lets the owner pick one, previewing first", async () => {
+    // A user of its own: other files' proposals point at the owner's policy versions.
+    const [user] = await db
+      .insert(appUser)
+      .values({ displayName: "Styles test" })
+      .returning({ id: appUser.id });
+    if (!user) throw new Error("no user");
+    const agent = connectAgent(inject("databaseUrl"), user.id);
+    const versions = () => db.select().from(policyVersion).where(eq(policyVersion.userId, user.id));
+    try {
+      const { app } = setup({ user: user.id, agent });
+      expect((await app.request("/api/styles")).status).toBe(401);
+      const list = (await (await app.request("/api/styles?age=35", { headers: auth })).json()) as {
+        current: unknown;
+        styles: { id: string }[];
+      };
+      expect(list.current).toBeNull();
+      expect(list.styles.map((s) => s.id)).toContain("index_and_chill");
+      const post = (body: unknown) =>
+        app.request("/api/policy/style", {
+          method: "POST",
+          headers: json,
+          body: JSON.stringify(body),
+        });
+      const preview = await (await post({ id: "early_retirement", dryRun: true })).json();
+      expect(preview).toMatchObject({ applied: false });
+      expect(await versions()).toEqual([]);
+      expect((await post({ id: "index_and_chill" })).status).toBe(400);
+      expect((await post({ id: "nope" })).status).toBe(400);
+      expect(await (await post({ id: "index_and_chill", age: 35 })).json()).toMatchObject({
+        applied: true,
+      });
+      expect(await versions()).toHaveLength(1);
+      const now = (await (await app.request("/api/styles", { headers: auth })).json()) as {
+        current: unknown;
+      };
+      expect(now.current).toMatchObject({ id: "index_and_chill", age: 35, tweaks: [] });
+    } finally {
+      await agent.end();
+    }
   });
 });
 

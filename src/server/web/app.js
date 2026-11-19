@@ -406,8 +406,12 @@ const SOURCES = {
   allocation: "/api/allocation",
   research: "/api/research",
   plan: "/api/plan",
+  styles: () => `/api/styles${styleAge ? `?age=${styleAge}` : ""}`,
   activity: "/api/activity",
 };
+
+/** The age typed for a style whose mix depends on it, so what it would change can be shown. */
+let styleAge = null;
 
 /** Latest response per source; { error, status } when it failed, undefined while loading. */
 const data = {};
@@ -416,7 +420,8 @@ async function load(...keys) {
   await Promise.all(
     keys.map(async (k) => {
       try {
-        data[k] = await api(SOURCES[k]);
+        const src = SOURCES[k];
+        data[k] = await api(typeof src === "function" ? src() : src);
       } catch (e) {
         data[k] = { error: e.message, status: e.status };
       }
@@ -3673,16 +3678,184 @@ function planBlock(b) {
   }
 }
 
+// Money styles ------------------------------------------------------------------------------
+// Well-known ways of running money. Picking one fills the policy's rules (buffer, cards, debt,
+// target mix); the owner can tweak any of them afterwards.
+
+function changeList(changes) {
+  return h(
+    "ul",
+    { class: "style-changes" },
+    changes.map((c) =>
+      h(
+        "li",
+        null,
+        h("span", { class: "muted" }, `${c.rule}: `),
+        h("s", { class: "muted" }, c.from),
+        " → ",
+        h("strong", null, c.to),
+      ),
+    ),
+  );
+}
+
+function ageInput(style) {
+  const input = h("input", {
+    type: "number",
+    min: "18",
+    max: "90",
+    inputmode: "numeric",
+    class: "style-age",
+    placeholder: "Age",
+    "aria-label": `Your age, for ${style.name}`,
+    value: currentAge() ?? "",
+  });
+  input.addEventListener("change", () => {
+    const n = Number(input.value);
+    styleAge = Number.isInteger(n) && n >= 18 && n <= 90 ? n : null;
+    if (!styleAge && input.value) toast("Enter an age from 18 to 90.", "error");
+    load("styles");
+  });
+  return h("label", { class: "style-age-row" }, "Your age ", input);
+}
+
+/** The age typed, or the one the owner's current style was set up with. */
+const currentAge = () => styleAge ?? ok("styles")?.current?.age ?? null;
+
+async function useStyle(button, style) {
+  const lines = style.changes.map((c) => `${c.rule}: ${c.to}`).join("\n");
+  const yes = await confirmDialog(
+    `Use ${style.name}?`,
+    `${lines}\n\nYour accounts, limits and research sleeve stay as they are. You can change any rule later.`,
+    "Use this style",
+    "primary",
+  );
+  if (!yes) return;
+  act(
+    button,
+    () =>
+      api("/api/policy/style", {
+        id: style.id,
+        ...(style.needs_age && currentAge() ? { age: currentAge() } : {}),
+      }),
+    `Now using ${style.name}.`,
+    ["styles", "actions", "mis", "allocation"],
+  );
+}
+
+function styleCard(style, current) {
+  const isCurrent = current?.id === style.id;
+  const changes = style.changes;
+  let foot;
+  if (!changes) foot = h("p", { class: "muted small" }, "Enter your age to see what it would set.");
+  else if (changes.length === 0)
+    foot = h("p", { class: "muted small" }, "Your rules already match it.");
+  else
+    foot = h("div", null, h("p", { class: "small" }, "Picking it changes:"), changeList(changes));
+  const button = changes?.length
+    ? h(
+        "button",
+        {
+          type: "button",
+          class: `btn btn-sm ${isCurrent ? "" : "btn-primary"}`,
+          onclick: (e) => useStyle(e.currentTarget, style),
+        },
+        isCurrent ? "Reset to this style" : "Use this style",
+      )
+    : null;
+  return h(
+    "article",
+    { class: `panel style-card ${isCurrent ? "is-current" : ""}` },
+    h(
+      "header",
+      { class: "style-head" },
+      h("h3", null, style.name),
+      isCurrent ? h("span", { class: "pill pill-accent" }, "Your style") : null,
+    ),
+    h("p", { class: "muted small style-who" }, `Known from ${style.advocates}`),
+    h("p", null, style.summary),
+    style.needs_age ? ageInput(style) : null,
+    foot,
+    fold(
+      `style-${style.id}`,
+      "How Tidysum applies it",
+      h(
+        "ul",
+        { class: "bullets" },
+        style.rules.map((r) => h("li", null, h("strong", null, r.rule), " ", r.applied)),
+      ),
+      style.left_to_you.length
+        ? h(
+            "div",
+            null,
+            h("p", { class: "small" }, "Left to you and your AI:"),
+            bullets(style.left_to_you),
+          )
+        : null,
+      h(
+        "p",
+        { class: "small" },
+        "Sources: ",
+        style.sources.flatMap((src, i) => [
+          i ? ", " : "",
+          h(
+            "a",
+            { class: "inline-link", href: src.url, target: "_blank", rel: "noopener noreferrer" },
+            src.title,
+          ),
+        ]),
+      ),
+    ),
+    button ? h("div", { class: "style-actions" }, button) : null,
+  );
+}
+
+function stylePanel() {
+  const r = data.styles;
+  if (!r) return skeleton(1);
+  if (r.error) return failed("Money styles", r);
+  const now = r.current;
+  return h(
+    "section",
+    { class: "styles" },
+    sectionHead("Money style", "Pick how Tidysum runs your money. You can tweak any rule after."),
+    h(
+      "p",
+      { class: "style-now" },
+      now
+        ? [
+            "You're using ",
+            h("strong", null, now.name),
+            now.tweaks.length ? ", with your own changes:" : ".",
+          ]
+        : [h("strong", null, "Your own rules."), " Pick a style below to start from one instead."],
+    ),
+    now?.tweaks.length ? changeList(now.tweaks) : null,
+    h(
+      "div",
+      { class: "style-grid" },
+      r.styles.map((s) => styleCard(s, now)),
+    ),
+    h("p", { class: "muted small" }, r.note),
+  );
+}
+
 function renderPlan() {
   const root = $("#plan-body");
   const r = data.plan;
-  $("#nav-plan").hidden = !r || !!r.error || r.state !== "ready";
-  if (!r) return fill(root, skeleton(3));
-  if (r.error) return fill(root, failed("Plan", r));
+  const styles = stylePanel();
+  $("#nav-plan").hidden = !ok("plan") && !ok("styles");
+  if (!r) return fill(root, styles, skeleton(3));
+  if (r.error) return fill(root, styles, failed("Plan", r));
   if (r.state !== "ready") {
     return fill(
       root,
-      empty("info", "No plan yet", "Write one in Markdown and run tidysum plan set <file>."),
+      styles,
+      empty(
+        "info",
+        "No written plan yet",
+        "Write one in Markdown and run tidysum plan set <file>.",
+      ),
     );
   }
   // The page already says "Plan", so a leading title in the document is left out.
@@ -3719,6 +3892,8 @@ function renderPlan() {
       : null;
   fill(
     root,
+    styles,
+    sectionHead("Your written plan"),
     intro.length ? h("div", { class: "plan-intro" }, intro.map(planBlock)) : null,
     index,
     h("div", { class: "stack" }, panels),

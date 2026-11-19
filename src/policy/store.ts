@@ -1,8 +1,9 @@
-import { sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { policyVersion } from "../db/schema.js";
 import type { AgentDb } from "../mcp/agentDb.js";
-import { type LoadedPolicy, parsePolicy } from "./policy.js";
+import { type LoadedPolicy, type Policy, parsePolicy, type StyleId } from "./policy.js";
+import { applyStyle, type Change, changesBetween } from "./styles.js";
 
 /**
  * Makes `loaded` the user's active policy. Versions are kept (proposals point at the one they
@@ -32,4 +33,34 @@ export async function loadActivePolicy(db: AgentDb): Promise<LoadedPolicy> {
     return { versionId: row.id, policy: loaded.policy };
   }
   return loaded;
+}
+
+/** The user's active policy, read as the owner, or null when none is set. */
+export async function readOwnerPolicy(db: Db, userId: string): Promise<LoadedPolicy | null> {
+  const [row] = await db
+    .select({ id: policyVersion.id, content: policyVersion.content })
+    .from(policyVersion)
+    .where(eq(policyVersion.userId, userId))
+    .orderBy(desc(policyVersion.activatedAt))
+    .limit(1);
+  if (!row) return null;
+  return { versionId: row.id, policy: parsePolicy(row.content).policy };
+}
+
+/**
+ * Fills the user's policy from a money style and makes it active, or with `dryRun` only says what
+ * would change. Only the owner does this (the command line or the admin page): an agent's MCP
+ * tools can read styles but never rewrite the rules they are checked against.
+ */
+export async function setStyle(
+  db: Db,
+  userId: string,
+  id: StyleId,
+  opts: { age?: number; dryRun?: boolean } = {},
+): Promise<{ versionId: string; policy: Policy; changes: Change[]; applied: boolean }> {
+  const current = await readOwnerPolicy(db, userId);
+  const next = parsePolicy(applyStyle(current?.policy ?? null, id, { age: opts.age }));
+  const changes = changesBetween(current?.policy ?? null, next.policy);
+  if (!opts.dryRun) await activatePolicy(db, userId, next);
+  return { versionId: next.versionId, policy: next.policy, changes, applied: !opts.dryRun };
 }

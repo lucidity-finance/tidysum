@@ -200,8 +200,25 @@ export async function recordMisallocations(
     const ran = new Set<string>(detection.ran);
     const stale = new Set(detection.stale_account_ids);
     const undecided = new Set(detection.holdings.undecided_keys ?? []);
+    const suppressed = new Set<string>(detection.suppressed ?? []);
     for (const row of existing) {
-      if (seen.has(row.key) || !ran.has(row.detector) || undecided.has(row.key)) continue;
+      if (seen.has(row.key) || undecided.has(row.key)) continue;
+      if (suppressed.has(row.detector)) {
+        // The owner's rules no longer ask for this kind of advice: withdrawn, not fixed.
+        if (row.state !== "open" && row.state !== "dismissed") continue;
+        await tx
+          .update(misallocation)
+          .set({ state: "withdrawn", decidedAt: now })
+          .where(eq(misallocation.id, row.id));
+        await audit("withdrawn", row, {
+          was: row.state,
+          annual_cost: new Big(row.annualCost).toFixed(2),
+          reason: "policy",
+        });
+        result.withdrawn++;
+        continue;
+      }
+      if (!ran.has(row.detector)) continue;
       if (mayBeMissingData(row, stale)) continue;
       if (row.state !== "open" && row.state !== "dismissed") continue;
       const resolved = actedOn(row, detection.holdings);

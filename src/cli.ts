@@ -58,10 +58,11 @@ import { PlaidApiGateway } from "./plaid/plaidApiGateway.js";
 import { PlaidWebhookVerifier } from "./plaid/webhookVerifier.js";
 import { setPlanFile } from "./plan/plan.js";
 import { evaluatePolicy } from "./policy/engine.js";
-import { loadPolicyFile } from "./policy/policy.js";
+import { loadPolicyFile, parsePolicy } from "./policy/policy.js";
 import { listProposals } from "./policy/proposals.js";
 import { readSnapshot } from "./policy/snapshot.js";
-import { activatePolicy, loadActivePolicy } from "./policy/store.js";
+import { activatePolicy, loadActivePolicy, readOwnerPolicy, setStyle } from "./policy/store.js";
+import { findStyle, listStyles, type StyleStatus, styleStatus } from "./policy/styles.js";
 import { readAllocation } from "./portfolio/allocation.js";
 import {
   listManualHoldings,
@@ -111,6 +112,12 @@ const USAGE = `tidysum <command>
   policy set <file> [--if-missing] make a policy file the user's active policy (stored in the
                                    database; --if-missing only if the user has none yet)
   policy show                      print the active policy
+  policy styles [--age <n>]        the money styles (Debt-free first, Index and chill, ...) and
+                                   what picking each would change in your policy
+  policy style <id> [--age <n>] [--dry-run]
+                                   fill your policy from a money style: its cash buffer, card,
+                                   debt and target-mix rules replace yours; accounts, limits and
+                                   the research sleeve stay. Tweak it afterwards with policy set
   plan set [file] [--if-configured]
                                    store your written plan (Markdown: goals, target mix, rules)
                                    so the admin page shows it and agents follow it; file defaults
@@ -950,10 +957,46 @@ async function runPolicy(h: DbHandle, args: string[]) {
   const { values, positionals } = parseArgs({
     args,
     allowPositionals: true,
-    options: { "if-missing": { type: "boolean", default: false } },
+    options: {
+      "if-missing": { type: "boolean", default: false },
+      age: { type: "string" },
+      "dry-run": { type: "boolean", default: false },
+    },
   });
   const [sub, file] = positionals;
   const userId = await resolveUserId(h.db);
+  const age = values.age === undefined ? undefined : Number(values.age);
+  if (age !== undefined && !(Number.isInteger(age) && age >= 18 && age <= 90)) {
+    throw new Error("--age must be a whole number from 18 to 90");
+  }
+  if (sub === "styles") {
+    const current = await readOwnerPolicy(h.db, userId);
+    const r = listStyles(current?.policy ?? null, { age });
+    console.log(r.current ? `Now: ${styleLine(r.current)}` : "Now: your own rules (no style)");
+    for (const s of r.styles) {
+      console.log(`\n${s.id}  ${s.name} (${s.advocates})\n  ${s.summary}`);
+      if (!s.changes) console.log("  needs --age to show what it would change");
+      else if (s.changes.length === 0) console.log("  nothing would change");
+      else for (const c of s.changes) console.log(`  ${c.rule}: ${c.from} -> ${c.to}`);
+    }
+    console.log(`\n${r.note}`);
+    return;
+  }
+  if (sub === "style" && file) {
+    const id = findStyle(file).id;
+    const r = await setStyle(h.db, userId, id, { age, dryRun: values["dry-run"] });
+    const style = findStyle(id);
+    console.log(
+      `${r.applied ? "Now using" : "Would use"} ${style.name} (${style.advocates}). ${r.applied ? `active policy ${r.versionId.slice(0, 12)}` : "Nothing was changed."}`,
+    );
+    if (r.changes.length === 0) console.log("Your rules already match it.");
+    for (const c of r.changes) console.log(`  ${c.rule}: ${c.from} -> ${c.to}`);
+    if (style.left_to_you.length) {
+      console.log("Left to you:");
+      for (const t of style.left_to_you) console.log(`  - ${t}`);
+    }
+    return;
+  }
   if (sub === "set" && file) {
     if (values["if-missing"]) {
       const [existing] = await h.db
@@ -980,12 +1023,19 @@ async function runPolicy(h: DbHandle, args: string[]) {
       .limit(1);
     if (!row) throw new Error("no policy set; run `tidysum policy set <file>`");
     console.log(`policy ${row.id.slice(0, 12)}, activated ${row.activatedAt.toISOString()}`);
+    const status = styleStatus(parsePolicy(row.content).policy);
+    console.log(status ? `style: ${styleLine(status)}` : "style: your own rules");
     console.log(JSON.stringify(row.content, null, 2));
     return;
   }
   throw new Error(
-    `usage: tidysum policy set <file> [--if-missing] | tidysum policy show\n\n${USAGE}`,
+    `usage: tidysum policy set <file> [--if-missing] | policy show | policy styles [--age <n>] | policy style <id> [--age <n>] [--dry-run]\n\n${USAGE}`,
   );
+}
+
+function styleLine(s: StyleStatus): string {
+  const tweaks = s.tweaks.map((t) => `${t.rule.toLowerCase()} ${t.to}`).join("; ");
+  return `${s.name} (${s.advocates})${tweaks ? `, tweaked: ${tweaks}` : ""}`;
 }
 
 async function status(h: DbHandle) {

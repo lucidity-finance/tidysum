@@ -7,6 +7,7 @@ import { TokenCipher } from "../src/crypto/tokenCipher.js";
 import { connect } from "../src/db/client.js";
 import {
   account,
+  appUser,
   auditEvent,
   balanceSnapshot,
   item,
@@ -20,16 +21,20 @@ import { createTidysumMcpServer } from "../src/mcp/server.js";
 import {
   type Catalogs,
   catalogVersion,
+  type Detection,
+  detectMisallocations,
+  type Misallocation,
   type MisallocationReport,
 } from "../src/misallocation/detect.js";
 import {
   listMisallocations,
+  recordMisallocations,
   refreshMisallocations,
   setMisallocationState,
 } from "../src/misallocation/ledger.js";
 import { PlaidWebhookVerifier } from "../src/plaid/webhookVerifier.js";
 import { loadPolicyFile } from "../src/policy/policy.js";
-import { activatePolicy } from "../src/policy/store.js";
+import { activatePolicy, setStyle } from "../src/policy/store.js";
 import { setCardAssignment } from "../src/products/cardAssignments.js";
 import { parseCardCatalog } from "../src/products/cardCatalog.js";
 import type { CardReport } from "../src/products/cards.js";
@@ -518,6 +523,68 @@ describe("policy findings", () => {
       if (had.length === 0) {
         await db.delete(policyVersion).where(eq(policyVersion.userId, userId));
       }
+    }
+  });
+});
+
+describe("money styles", () => {
+  it("drops card suggestions for a style that avoids credit cards, and withdraws open ones", async () => {
+    // A user of its own, so the owner's active policy (which other files use) never changes.
+    const { db } = owner;
+    const [user] = await db
+      .insert(appUser)
+      .values({ displayName: "Card styles test" })
+      .returning({ id: appUser.id });
+    if (!user) throw new Error("no user");
+    const agent = connectAgent(inject("databaseUrl"), user.id);
+    try {
+      const usage: Misallocation = {
+        key: "card_usage",
+        category: "card",
+        detector: "card_usage",
+        summary: "Bills paid from a bank account earn no rewards.",
+        annual_cost: "20.00",
+        currency: "USD",
+        account_ids: [],
+        product_id: null,
+        action: "Pay these with your best card.",
+        inputs: {},
+      };
+      const detection = (d: Partial<Detection>): Detection => ({
+        as_of: TODAY,
+        ran: [],
+        items: [],
+        holdings: { card_ids: [], cash_institutions: [] },
+        stale_account_ids: [],
+        warnings: [],
+        ...d,
+      });
+      await recordMisallocations(db, user.id, detection({ ran: ["card_usage"], items: [usage] }));
+
+      await activatePolicy(db, user.id, await loadPolicyFile("policy.example.json"));
+      const plain = await detectMisallocations(agent, { cards }, TODAY);
+      expect(plain.ran).toContain("card_usage");
+      expect(plain.suppressed).toBeUndefined();
+
+      const r = await setStyle(db, user.id, "debt_free_first");
+      expect(r.changes).toContainEqual({
+        rule: "Credit cards",
+        from: "pay in full, use for rewards",
+        to: "avoid them",
+      });
+      const avoiding = await detectMisallocations(agent, { cards }, TODAY);
+      expect(avoiding.ran).not.toContain("card_usage");
+      expect(avoiding.suppressed).toEqual(["card_wallet", "card_usage"]);
+
+      // Withdrawn, not counted as something the owner fixed.
+      expect(await recordMisallocations(db, user.id, avoiding)).toMatchObject({
+        withdrawn: 1,
+        resolved: 0,
+      });
+      const [row] = await db.select().from(misallocation).where(eq(misallocation.userId, user.id));
+      expect(row).toMatchObject({ key: "card_usage", state: "withdrawn" });
+    } finally {
+      await agent.end();
     }
   });
 });

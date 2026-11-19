@@ -77,6 +77,11 @@ export interface Detection {
   as_of: string;
   /** Detectors that ran. The ledger only closes findings whose detector ran. */
   ran: Detector[];
+  /**
+   * Detectors the policy turned off (a style that avoids credit cards): their open findings are
+   * withdrawn, not counted as fixed.
+   */
+  suppressed?: Detector[];
   items: Misallocation[];
   /** What later runs need to tell "acted on" from "went away": what the user now holds. */
   holdings: {
@@ -141,6 +146,7 @@ export async function detectMisallocations(
 ): Promise<Detection> {
   const items: Misallocation[] = [];
   const ran: Detector[] = [];
+  const suppressed: Detector[] = [];
   const warnings: string[] = [];
   const holdings: Detection["holdings"] = { card_ids: [], cash_institutions: [] };
   const stale = await staleAccounts(db, today, warnings);
@@ -169,6 +175,7 @@ export async function detectMisallocations(
 
   if (catalogs.cards) {
     const heldRows = await readHeldCards(db);
+    const avoidCards = await avoidsCreditCards(db);
     holdings.card_ids = identifyCards(catalogs.cards, heldRows).held.flatMap((h) =>
       h.card_id ? [h.card_id] : [],
     );
@@ -180,14 +187,19 @@ export async function detectMisallocations(
       {},
       totalInterest(fees),
     );
-    items.push(...cardFindings(report, catalogs.cards));
+    // A style that steers away from credit cards ("Debt-free first") gets no suggestion to open
+    // a card or to move bills onto one.
+    if (!avoidCards) {
+      items.push(...cardFindings(report, catalogs.cards));
+      ran.push("card_wallet", "card_usage");
+    } else suppressed.push("card_wallet", "card_usage");
     warnings.push(...report.warnings);
-    ran.push("card_wallet", "card_usage");
   }
 
   return {
     as_of: today,
     ran,
+    ...(suppressed.length ? { suppressed } : {}),
     items: items
       .filter((m) => new Big(m.annual_cost).gte(MIN_ANNUAL_COST))
       .sort((a, b) => new Big(b.annual_cost).cmp(a.annual_cost) || a.key.localeCompare(b.key)),
@@ -279,6 +291,13 @@ const POLICY_ACTIONS: Partial<Record<KeyedFinding["check"], string>> = {
  * The policy checks that put a yearly cost on what they find. A card statement only counts once
  * the card has actually charged interest: a statement that is simply due isn't money lost yet.
  */
+/** Whether the active policy asks Tidysum to steer away from credit cards. */
+async function avoidsCreditCards(db: AgentDb): Promise<boolean> {
+  const { rows } = await db.query("select 1 from policy_version limit 1");
+  if (rows.length === 0) return false;
+  return (await loadActivePolicy(db)).policy.cards.avoid_credit_cards === true;
+}
+
 async function policyFindings(
   db: AgentDb,
   today: string,
