@@ -20,6 +20,7 @@ import {
   merchantCategory,
   readCardFees,
   readHeldCards,
+  readPaidMemberships,
   readSpending,
   totalInterest,
 } from "../products/cards.js";
@@ -876,6 +877,7 @@ function registerProductTools(server: McpServer, db: AgentDb, p: ProductTools) {
           today,
           a.cards ?? {},
           totalInterest(await readCardFees(db, today)),
+          await readPaidMemberships(db, today),
         ),
       );
     },

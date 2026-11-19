@@ -176,6 +176,36 @@ describe("compareCards", () => {
     expect(w.warnings[0]).toMatch(/charged 84.10 in interest.*paying each statement in full/);
   });
 
+  it("charges a card's membership unless the owner already pays for it", () => {
+    const gold = parseCardCatalog({
+      version: 1,
+      categories: {},
+      cards: [
+        card({
+          id: "gold-3",
+          name: "Gold Three",
+          base_rate: "3",
+          membership: { name: "Robinhood Gold", annual_cost: "50" },
+        }),
+      ],
+    });
+    const rows = [spend("credit", "GENERAL_MERCHANDISE_SUPERSTORES", "target", "5000")];
+    // 3% vs the held card's 1% on 5000 adds 100; the membership takes 50 of it.
+    const charged = compareCards(gold, rows, held, TODAY);
+    expect(charged.recommendations[0]).toMatchObject({
+      added_rewards: "100.00",
+      annual_gain: "50.00",
+      membership: "Robinhood Gold, 50.00/yr",
+      membership_already_paid: false,
+    });
+    const paid = compareCards(gold, rows, held, TODAY, {}, "0", ["robinhood gold"]);
+    expect(paid.recommendations[0]).toMatchObject({
+      annual_gain: "100.00",
+      membership_already_paid: true,
+    });
+    expect(paid.recommended_wallet.annual_gain).toBe("100.00");
+  });
+
   it("uses an override when the owner says which card it is", () => {
     const o = compareCards(catalog, spending, held, TODAY, { [MYSTERY]: "flat-2" });
     expect(o.held_cards[0]).toMatchObject({ card_id: "flat-2", identified_by: "override" });

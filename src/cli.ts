@@ -78,6 +78,7 @@ import {
   merchantCategory,
   readCardFees,
   readHeldCards,
+  readPaidMemberships,
   readSpending,
   totalInterest,
 } from "./products/cards.js";
@@ -690,6 +691,7 @@ async function runCards(args: string[]) {
       day,
       cardOverrides(values.card),
       totalInterest(await readCardFees(db, day)),
+      await readPaidMemberships(db, day),
     );
     console.log(`Spending ${r.window.from} to ${r.window.to}:`);
     for (const c of r.spending.by_category) {

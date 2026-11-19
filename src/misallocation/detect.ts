@@ -10,8 +10,10 @@ import type { CardCatalog } from "../products/cardCatalog.js";
 import {
   compareCards,
   identifyCards,
+  membershipsIn,
   readCardFees,
   readHeldCards,
+  readPaidMemberships,
   readSpending,
   totalInterest,
 } from "../products/cards.js";
@@ -186,6 +188,7 @@ export async function detectMisallocations(
       today,
       {},
       totalInterest(fees),
+      [...new Set([...membershipsIn(items), ...(await readPaidMemberships(db, today))])],
     );
     // A style that steers away from credit cards ("Debt-free first") gets no suggestion to open
     // a card or to move bills onto one.
@@ -440,7 +443,11 @@ function cardFindings(
       key: `card_wallet:${pick.card_id}`,
       category: "card",
       detector: "card_wallet",
-      summary: `Adding ${pick.name} would earn ${pick.annual_gain} a year more on your spending, after its fees.`,
+      summary:
+        `Adding ${pick.name} would earn ${pick.annual_gain} a year more on your spending, after its fees` +
+        (rec?.membership_already_paid
+          ? `. It needs ${rec.membership?.replace(/,.*$/, "")}, which you already pay for to get its IRA match.`
+          : "."),
       annual_cost: pick.annual_gain,
       currency: "USD",
       account_ids: [],
@@ -453,6 +460,8 @@ function cardFindings(
         wallet_order: report.recommended_wallet.card_ids,
         held_cards: held,
         annual_fee: rec?.annual_fee ?? null,
+        membership: rec?.membership ?? null,
+        membership_already_paid: rec?.membership_already_paid ?? false,
         earns_on: rec?.earns_on ?? [],
         requires: rec?.requires ?? null,
         source_url: rec?.source_url ?? null,

@@ -340,6 +340,23 @@
       "match": ["paypal"],
       "source_url": "https://www.paypal.com/us/digital-wallet/rewards/rewards-categories",
       "verified_on": "2026-11-11"
+    },
+    {
+      "id": "robinhood-gold-card",
+      "issuer": "Robinhood",
+      "name": "Robinhood Gold Card",
+      "annual_fee": "0",
+      "membership": { "name": "Robinhood Gold", "annual_cost": "50" },
+      "foreign_transaction_fee": "3",
+      "reward": { "currency": "cash" },
+      "network": "visa",
+      "base_rate": "3",
+      "rates": [],
+      "requires": "An invitation from Robinhood's waitlist, an active Robinhood Gold membership, and a Robinhood brokerage account to redeem cash back into.",
+      "notes": "Issued by Coastal Community Bank. Gold is $5 a month or $50 a year; the yearly plan is counted. Accounts opened from July 1, 2026 pay a 3% foreign transaction fee. Leaves out 5x points on travel booked through Robinhood's travel portal.",
+      "match": ["robinhood gold", "robinhood credit"],
+      "source_url": "https://robinhood.com/creditcard/",
+      "verified_on": "2026-11-19"
     }
   ]
 }

@@ -42,6 +42,7 @@ import {
   compareCards,
   readCardFees,
   readHeldCards,
+  readPaidMemberships,
   readSpending,
   totalInterest,
 } from "../products/cards.js";
@@ -433,6 +434,7 @@ export function createApp(deps: AppDeps) {
         today,
         {},
         totalInterest(await readCardFees(deps.agentDb, today)),
+        await readPaidMemberships(deps.agentDb, today),
       ),
       catalog_cards: catalog.cards.map((k) => ({
         id: k.id,

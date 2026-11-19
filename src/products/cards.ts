@@ -130,6 +130,30 @@ export async function readCardFees(db: AgentDb, today: string): Promise<CardFeeR
   return rows;
 }
 
+/**
+ * Memberships the owner pays for anyway: the one a Roth IRA finding takes for its brokerage's IRA
+ * match (Robinhood Gold), while that finding is open or for a year after it was acted on, since
+ * the match is charged back if the membership is dropped within a year.
+ */
+export async function readPaidMemberships(db: AgentDb, today: string): Promise<string[]> {
+  const { rows } = await db.query<{ membership: string }>(
+    `select distinct inputs->'match'->>'membership' as membership
+     from misallocation
+     where detector = 'roth_ira' and inputs->'match'->>'membership' is not null
+       and (state = 'open' or (state = 'resolved' and decided_at > $1::date - ${WINDOW_DAYS}))`,
+    [today],
+  );
+  return rows.map((r) => r.membership);
+}
+
+/** Memberships taken by the Roth IRA findings of this run (see readPaidMemberships). */
+export const membershipsIn = (items: { detector: string; inputs: unknown }[]): string[] =>
+  items.flatMap((m) => {
+    if (m.detector !== "roth_ira") return [];
+    const name = (m.inputs as { match?: { membership?: unknown } | null }).match?.membership;
+    return typeof name === "string" ? [name] : [];
+  });
+
 /** Card interest across all accounts, for compareCards' warning. */
 export const totalInterest = (fees: CardFeeRow[]) =>
   fees.reduce((s, f) => s.plus(f.interest), new Big(0)).toFixed(2);
@@ -319,8 +343,18 @@ function allocate(catalog: CardCatalog, cards: Card[], rows: RewardRow[]) {
   return { total, allocations };
 }
 
-export const annualCost = (card: Card) =>
-  new Big(card.annual_fee).plus(card.membership?.annual_cost ?? 0);
+/**
+ * What holding the card costs a year: its fee, plus the membership its rates depend on unless the
+ * owner already pays for that membership for another reason (paidMemberships, by name).
+ */
+export const annualCost = (card: Card, paidMemberships: readonly string[] = []) =>
+  new Big(card.annual_fee).plus(
+    card.membership && !membershipPaid(card, paidMemberships) ? card.membership.annual_cost : 0,
+  );
+
+const membershipPaid = (card: Card, paidMemberships: readonly string[]) =>
+  !!card.membership &&
+  paidMemberships.some((m) => m.toLowerCase() === card.membership?.name.toLowerCase());
 
 export interface HeldCard {
   account_id: string;
@@ -423,9 +457,14 @@ export interface CardRecommendation {
   issuer: string;
   annual_fee: string;
   membership: string | null;
+  /**
+   * True when the owner already pays for the membership for another reason (a brokerage's IRA
+   * match), so it isn't counted against this card.
+   */
+  membership_already_paid: boolean;
   /** Extra rewards per year from adding this card, before its fees. */
   added_rewards: string;
-  /** added_rewards minus annual fee and membership: what the user actually gains. */
+  /** added_rewards minus annual fee and any membership not already paid for: what the user gains. */
   annual_gain: string;
   /** Where the extra rewards come from, by category. */
   earns_on: { category: string; spend: string; percent: string }[];
@@ -509,6 +548,8 @@ const ASSUMPTIONS = [
   `Bank payments to a payee paid ${STOPPED_MIN_PAYMENTS} or more times but not in the last ` +
     `${STOPPED_AFTER_DAYS} days are treated as stopped, so they don't count toward moving bills to a card.`,
   "Merchants that take only some card networks (Costco takes only Visa) count only for cards on them.",
+  "A card that needs a paid membership (the Robinhood Gold Card needs Robinhood Gold) is charged " +
+    "the membership, unless you already pay for it to get a brokerage's IRA match.",
   "Welcome bonuses, first-year fee waivers and rotating quarterly categories are left out.",
   "A card where you pick the bonus category (PayPal Debit's monthly 5%) is counted with the one " +
     "pick that earns you the most, as if you picked it every month.",
@@ -527,6 +568,8 @@ export function compareCards(
   overrides: Record<string, string> = {},
   /** Card interest charged over the same year (readCardFees), for the honesty warning. */
   interestCharged = "0",
+  /** Memberships the owner pays for anyway (readPaidMemberships): not charged to a card again. */
+  paidMemberships: readonly string[] = [],
 ): CardReport {
   const warnings: string[] = [];
   if (new Big(interestCharged).gt(0)) {
@@ -710,7 +753,7 @@ export function compareCards(
             earnsOn.set(k, e);
           }
         });
-        return { card, added, gain: added.minus(annualCost(card)), earnsOn };
+        return { card, added, gain: added.minus(annualCost(card, paidMemberships)), earnsOn };
       })
       .sort((a, b) => b.gain.cmp(a.gain));
 
@@ -726,6 +769,7 @@ export function compareCards(
         membership: s.card.membership
           ? `${s.card.membership.name}, ${money(new Big(s.card.membership.annual_cost))}/yr`
           : null,
+        membership_already_paid: membershipPaid(s.card, paidMemberships),
         added_rewards: money(s.added),
         annual_gain: money(s.gain),
         earns_on: [...s.earnsOn.entries()]
@@ -754,7 +798,7 @@ export function compareCards(
     wallet.push(next.card);
     picked.push({ card_id: next.card.id, name: next.card.name, annual_gain: money(next.gain) });
     walletRewards = walletRewards.plus(next.added);
-    walletFees = walletFees.plus(annualCost(next.card));
+    walletFees = walletFees.plus(annualCost(next.card, paidMemberships));
   }
   const withRecommended = walletRewards.minus(walletFees);
 
