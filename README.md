@@ -77,10 +77,11 @@ your agent, the legwork. You make the calls.
 - **One decision at a time.** Fixes arrive as plain action cards. Approve one, skip one, reorder
   them, or schedule one for a later date.
 - **Your agent does the legwork.** Bring the AI agent you already use, with any model: Claude
-  Code, Codex, Gemini CLI, Cursor or any other MCP client. Once you approve an action, it carries
-  out the steps on the institution's own website, such as applying for the account, moving the
-  direct deposit or changing a 401(k) election, and only hands back to you for what has to be
-  you: sign-ins, codes, identity checks and final confirmations.
+  Code, Codex, Gemini CLI, Cursor or any other MCP client. Once you approve an action, it does the
+  work in your browser, on the institution's own website: filling in the account application,
+  moving the direct deposit, changing your 401(k) contribution, or lining up a fund exchange to
+  rebalance your 401(k). It takes each one as far as the final review screen and hands back to you
+  only for what has to be you: signing in, a code, an identity check, and pressing **Submit**.
 - **No percentage.** Tidysum is free, open-source software that runs on your computer. It takes no
   fee on your assets and no referral money from anyone it recommends.
 - **Calm by design.** New money does the rebalancing, so nothing you own gets sold to chase a
@@ -126,8 +127,8 @@ from the agent you bring ([decision 0005](docs/decisions/0005-actions.md)):
 | Syncs accounts and keeps the numbers exact            | Talks ideas through with you                           |
 | Finds misallocations and prices them per year         | Reads your data through Tidysum's read-only MCP tools  |
 | Checks every proposal against your hard limits        | Suggests fixes as proposals                            |
-| Shows you one action at a time, and records your call | Carries out approved actions on institutions' websites |
-| Confirms the result with the next sync                | Hands sign-ins, codes and signatures back to you       |
+| Shows you one action at a time, and records your call | Carries out approved actions in your browser           |
+| Confirms the result with the next sync                | Hands sign-ins, codes and the final Submit back to you |
 
 ### Built to be safe with your money
 
@@ -256,9 +257,11 @@ suggests anything and keeps its suggestions inside it.
 
 ## Status
 
-Tidysum syncs, finds, prices, proposes and records approvals today, and your agent can carry out
-approved actions that aren't trades. **Nothing in this repository can move money on its own.**
-Placing trades from Tidysum (Phase 4) is not built yet.
+Tidysum syncs, finds, prices, proposes and records approvals today. Your agent carries out approved
+actions in your browser: opening accounts, moving a direct deposit, changing 401(k) contributions,
+and exchanging or rebalancing 401(k) funds, which it prepares up to the plan's review screen for
+you to submit. Brokerage buys and sells aren't handed to agents yet, and placing them from Tidysum
+after approval (Phase 4) is not built. **Nothing in this repository can move money on its own.**
 
 | Phase | What                                                         | State                |
 | ----- | ------------------------------------------------------------ | -------------------- |
