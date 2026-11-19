@@ -309,7 +309,7 @@ describe("compare_products", () => {
       products: { loadCatalog: async () => catalog, today: () => TODAY },
     });
     expect((await app.request("/api/products")).status).toBe(401);
-    const basic = `Basic ${Buffer.from(`luka:${ADMIN}`).toString("base64")}`;
+    const basic = `Basic ${Buffer.from(`owner:${ADMIN}`).toString("base64")}`;
     const res = await app.request("/api/products", { headers: { Authorization: basic } });
     expect(res.status).toBe(200);
     expect(((await res.json()) as Comparison).annual_loss).toBe("738.90");

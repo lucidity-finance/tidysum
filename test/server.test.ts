@@ -18,7 +18,7 @@ const h = connect(inject("databaseUrl"));
 const { db } = h;
 const cipher = new TokenCipher(randomBytes(32).toString("base64"));
 const ADMIN = "correct horse battery staple 0123456789";
-const auth = { Authorization: `Basic ${Buffer.from(`luka:${ADMIN}`).toString("base64")}` };
+const auth = { Authorization: `Basic ${Buffer.from(`owner:${ADMIN}`).toString("base64")}` };
 const json = { ...auth, "Content-Type": "application/json", Origin: "http://localhost" };
 
 const userId = await ownerUserId(db);
@@ -65,7 +65,7 @@ describe("admin auth", () => {
       const res = await app.request(path);
       expect(res.status, path).toBe(401);
     }
-    const wrong = { Authorization: `Basic ${Buffer.from("luka:nope").toString("base64")}` };
+    const wrong = { Authorization: `Basic ${Buffer.from("owner:nope").toString("base64")}` };
     expect((await app.request("/api/items", { headers: wrong })).status).toBe(401);
   });
 

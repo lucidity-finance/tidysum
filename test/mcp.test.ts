@@ -749,7 +749,7 @@ describe("HTTP /mcp", () => {
   it("needs the MCP token, and the admin password doesn't work", async () => {
     expect((await rpc(listTools)).status).toBe(401);
     expect((await rpc(listTools, "Bearer wrong")).status).toBe(401);
-    const basic = `Basic ${Buffer.from(`luka:${ADMIN}`).toString("base64")}`;
+    const basic = `Basic ${Buffer.from(`owner:${ADMIN}`).toString("base64")}`;
     expect((await rpc(listTools, basic)).status).toBe(401);
   });
 
@@ -775,7 +775,7 @@ describe("HTTP /mcp", () => {
   });
 
   it("lists proposals on the admin API and dismisses one, with an audit event", async () => {
-    const basic = `Basic ${Buffer.from(`luka:${ADMIN}`).toString("base64")}`;
+    const basic = `Basic ${Buffer.from(`owner:${ADMIN}`).toString("base64")}`;
     const list = await app.request("/api/proposals", { headers: { Authorization: basic } });
     const { proposals } = (await list.json()) as { proposals: { id: string; state: string }[] };
     const open = proposals.find((p) => p.state === "proposed");
@@ -799,7 +799,7 @@ describe("HTTP /mcp", () => {
   });
 
   describe("approving a proposal on the admin API", () => {
-    const basic = `Basic ${Buffer.from(`luka:${ADMIN}`).toString("base64")}`;
+    const basic = `Basic ${Buffer.from(`owner:${ADMIN}`).toString("base64")}`;
     const post = (path: string) =>
       app.request(path, {
         method: "POST",

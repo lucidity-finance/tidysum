@@ -456,7 +456,7 @@ describe("misallocation ledger", () => {
         today: () => TODAY,
       },
     });
-    const basic = `Basic ${Buffer.from(`luka:${ADMIN}`).toString("base64")}`;
+    const basic = `Basic ${Buffer.from(`owner:${ADMIN}`).toString("base64")}`;
     const headers = { Authorization: basic, "Content-Type": "application/json" };
     expect((await app.request("/api/misallocations")).status).toBe(401);
     const res = await app.request("/api/misallocations", { headers });
