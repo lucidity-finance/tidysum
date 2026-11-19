@@ -262,6 +262,12 @@ pnpm typecheck && pnpm lint && pnpm test
 
 Tests start a throwaway Postgres in Docker. CI runs the same checks on every pull request.
 
+## Contact
+
+Like Tidysum, or want to work with the person behind it? Write to
+[hello.tidysum@proton.me](mailto:hello.tidysum@proton.me). For bugs and feature requests, please
+open an issue instead.
+
 ## License
 
 [MIT](LICENSE). Provided as is, with no warranty and no liability: see the
