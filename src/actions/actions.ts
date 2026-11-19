@@ -766,6 +766,29 @@ export async function draftActions(
       await tx.update(proposal).set(draft).where(eq(proposal.id, p.id));
       result.updated++;
     }
+    // An approved new-money action is a standing instruction to invest toward the target mix, not
+    // a one-off trade: when the split changes (the policy changed, or the mix moved), it follows,
+    // with the change in the audit log. Leaving it would keep buying what the owner since dropped.
+    for (const p of live.filter((x) => x.state === "approved" && x.source === TIDYSUM_SOURCE)) {
+      if (
+        p.title === draft.title &&
+        p.rationale === draft.rationale &&
+        sameJson(p.steps, draft.steps)
+      )
+        continue;
+      await tx
+        .update(proposal)
+        .set({ ...draft, ...(policy && { policyVersionId: policy.id }) })
+        .where(eq(proposal.id, p.id));
+      await audit("revised", p.id, {
+        ...ref,
+        why: "The new-money split changed; the approved action follows the target mix.",
+        from_steps: p.steps,
+        to_steps: draft.steps,
+        evidence: { new_money: allocation.state === "ready" ? allocation.new_money : null },
+      });
+      result.updated++;
+    }
   });
   return result;
 }

@@ -406,8 +406,10 @@ describe("new money action", () => {
       },
     }) as unknown as AllocationResult;
   const under = mix("catch_up", [["intl_stocks", "100"]]);
-  const newMoney = async () =>
-    (await listActions(agentDb, TODAY)).queue.find((a) => a.finding_key === NEW_MONEY_KEY);
+  const newMoney = async () => {
+    const list = await listActions(agentDb, TODAY);
+    return [...list.queue, ...list.in_progress].find((a) => a.finding_key === NEW_MONEY_KEY);
+  };
 
   it("puts where new money goes on a card, in percentages, with no selling", async () => {
     expect(await draftActions(owner.db, userId, new Date(), under)).toMatchObject({ drafted: 1 });
@@ -448,12 +450,26 @@ describe("new money action", () => {
     );
   });
 
-  it("is confirmed once the mix reaches its target", async () => {
+  it("follows a new split once approved too, and says so in the audit log", async () => {
     const a = await newMoney();
     if (!a) throw new Error("no new money action");
     expect(await approveProposal(owner.db, agentDb, userId, a.id, TODAY, "test")).toMatchObject({
       approved: true,
     });
+    expect(await draftActions(owner.db, userId, new Date(), under)).toMatchObject({ updated: 1 });
+    const now = await newMoney();
+    expect(now).toMatchObject({ id: a.id, state: "approved" });
+    expect(now?.steps.map((s) => s.text)).toEqual([
+      "Put the money you invest from each paycheck into international stocks (VXUS)",
+      "Leave everything you already hold as it is",
+    ]);
+    expect((await events(a.id)).at(-1)).toBe("proposal.revised");
+    expect(await draftActions(owner.db, userId, new Date(), under)).toMatchObject({ updated: 0 });
+  });
+
+  it("is confirmed once the mix reaches its target", async () => {
+    const a = await newMoney();
+    if (!a) throw new Error("no new money action");
     const onTarget = mix("target", [["intl_stocks", "30"]]);
     expect(await draftActions(owner.db, userId, new Date(), onTarget)).toMatchObject({
       confirmed: 1,
