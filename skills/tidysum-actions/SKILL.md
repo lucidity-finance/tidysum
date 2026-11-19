@@ -46,7 +46,9 @@ and IRA contributions (a Roth IRA contribution, or a backdoor Roth: contribute t
 IRA, convert it to Roth once it settles) are yours once approved: do them on the plan's or
 brokerage's site, with the owner signing in. Converting moves cash between the owner's own IRAs;
 buying or selling inside them is not part of these actions. Finishing an IRA action records the
-contribution for its tax year, so put in exactly the amount the step names, or stop and say why.
+contribution for its tax year, so put in exactly the amount the step names, or stop and say why. When a step says
+to wait for the brokerage's match, convert only after it arrives, and convert everything in the
+traditional IRA, so no pre-tax money is left there.
 
 ## Rules
 

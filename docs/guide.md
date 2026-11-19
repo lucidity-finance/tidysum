@@ -163,6 +163,15 @@ owner's agent carries it out. Plaid can't say which tax year a contribution coun
 finished IRA action records itself in `ira_year`; record other contributions with
 `pnpm tidysum ira set <file>` (`ira.example.json` is the shape).
 
+Some brokerages match IRA contributions with their own money (`src/retirement/iraMatch.ts`, with
+the terms' source and the day they were checked). When the IRA the contribution lands in is at one,
+the finding adds the match to its cost, at the better of the free rate and a paid membership's
+rate less a year of the membership. In a backdoor Roth the match arrives in the traditional IRA
+as earnings, so the action waits for it and converts it too, and its tax is counted. Robinhood:
+1% for everyone, 3% with Gold ($5 a month, kept a year after the first Gold match), only on
+contributions from a linked bank, credited within about a week, and charged back if the money
+leaves Robinhood within 5 years.
+
 ## Your plan
 
 The policy is the numbers; the plan is the why. Write your plan for your money in Markdown (what

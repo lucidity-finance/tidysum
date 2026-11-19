@@ -7,6 +7,7 @@ import type { AgentDb } from "../mcp/agentDb.js";
 import type { Misallocation } from "../misallocation/detect.js";
 import type { SnapshotAccount, SnapshotHolding } from "../policy/snapshot.js";
 import { findOverlaps, WINDOW } from "../portfolio/overlap.js";
+import { bestMatch, type IraMatch, offerAt } from "./iraMatch.js";
 import { electiveDeferralLimit, type FilingStatus, iraLimit } from "./limits.js";
 import type { StoredPlan } from "./workplace.js";
 
@@ -126,6 +127,12 @@ export async function readIraYears(
  */
 export const EXPECTED_RETURN = "0.07";
 
+/** Ordinary income tax rate assumed for a conversion's taxable part when no plan records one. */
+const ASSUMED_ORDINARY_RATE = new Big("0.24");
+
+/** "0.03" as "3%". */
+const pctOf = (f: string) => `${new Big(f).times(100).toFixed()}%`;
+
 /** Federal long-term capital gains rate for most incomes; the 0% and 20% brackets aren't modeled. */
 const GAINS_RATE = new Big("0.15");
 /** Net investment income tax, on modified AGI above a threshold that isn't indexed to inflation. */
@@ -217,6 +224,11 @@ export interface RothIraInputs {
   pretax_accounts: (AccountRef & { balance: string })[];
   /** The workplace plan to roll pre-tax IRA money into first, when there is some. */
   rollover_into: string | null;
+  /** The brokerage's match on the contribution, at its better rate, when it has one. */
+  match: IraMatch | null;
+  /** Ordinary tax rate a backdoor conversion's match is taxed at, and whether it was assumed. */
+  conversion_tax_rate: string;
+  conversion_tax_rate_assumed: boolean;
 }
 
 export interface RothIraDetection {
@@ -312,7 +324,21 @@ export function rothIraFindings(p: {
     }
 
     const rate = gainsTaxRate(magi, filing);
-    const cost = amount.times(EXPECTED_RETURN).times(rate);
+    // The match is paid where the contribution lands; in a backdoor Roth it's converted with the
+    // contribution and taxed as earnings at the ordinary rate.
+    const planRate = p.plans
+      .map((x) => new Big(x.facts.marginal_tax_rate))
+      .reduce<Big | null>((a, b) => (a?.gte(b) ? a : b), null);
+    const conversionRate = route === "backdoor" ? (planRate ?? ASSUMED_ORDINARY_RATE) : new Big(0);
+    const lands = route === "backdoor" ? traditional : roth;
+    const match =
+      kind === "contribute"
+        ? bestMatch(offerAt(lands?.institution_name), amount, conversionRate)
+        : null;
+    const cost = amount
+      .times(EXPECTED_RETURN)
+      .times(rate)
+      .plus(match ? match.net : 0);
     const projected = limit.official ? "" : " (expected; the IRS hasn't announced it yet)";
     const deadline = `${year + 1}-04-15`;
     const how =
@@ -321,6 +347,9 @@ export function rothIraFindings(p: {
         : magi
           ? " Your income is over the direct Roth limit, so it goes in as a backdoor Roth."
           : " A backdoor Roth gets it in at any income.";
+    const matched = match
+      ? ` ${match.provider} adds a ${pctOf(match.rate)} match${match.membership ? ` with ${match.membership}` : ""} if the money stays there ${match.hold_years} years.`
+      : "";
     const inputs: RothIraInputs = {
       kind,
       route,
@@ -348,6 +377,9 @@ export function rothIraFindings(p: {
             .map((a) => ({ ...(ref(a) as AccountRef), balance: money(balance(a)) }))
         : [],
       rollover_into: rollover ? plan : null,
+      match,
+      conversion_tax_rate: conversionRate.toFixed(),
+      conversion_tax_rate_assumed: route === "backdoor" && !planRate,
     };
     out.items.push({
       key: `roth_ira:${year}`,
@@ -355,7 +387,7 @@ export function rothIraFindings(p: {
       detector: "roth_ira",
       summary:
         kind === "contribute"
-          ? `Your ${year} Roth IRA room of ${whole(amount)}${projected} is unused, and it closes on April 15, ${year + 1}. Money there grows tax-free for good.${how}`
+          ? `Your ${year} Roth IRA room of ${whole(amount)}${projected} is unused, and it closes on April 15, ${year + 1}. Money there grows tax-free for good.${how}${matched}`
           : `${whole(amount)} put in a traditional IRA for ${year} hasn't been converted to Roth yet. Until it is, its growth is taxed, and pre-tax money left there on December 31 makes the conversion partly taxable.`,
       annual_cost: money(cost),
       currency: "USD",

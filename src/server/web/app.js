@@ -901,7 +901,10 @@ function describe(m) {
         ? "Until it's converted its growth is taxed, and pre-tax money there on December 31 makes the conversion taxable."
         : `${usd0(i.amount)} of room closes ${day(i.deadline)}. Money there grows tax-free for good.`,
       notes: [
-        `Priced as the tax its growth would pay in a taxable account: ${pct(fractionPct(i.expected_return))} a year at ${pct(fractionPct(i.gains_tax_rate))} tax. The room never comes back.`,
+        `Priced as the tax its growth would pay in a taxable account (${pct(fractionPct(i.expected_return))} a year at ${pct(fractionPct(i.gains_tax_rate))} tax)${i.match && !convert ? ", plus the match" : ""}. The room never comes back.`,
+        i.match && !convert
+          ? `${i.match.membership ?? i.match.provider}'s ${pct(fractionPct(i.match.rate))} match adds ${usd0(i.match.amount)}${cents(i.match.conversion_tax) > 0n ? `, less ${usd0(i.match.conversion_tax)} tax on converting it` : ""}${cents(i.match.membership_fee) > 0n ? ` and ${usd0(i.match.membership_fee)} for a year of ${i.match.membership}` : ""}: ${usd0(i.match.net)}. Taking the money out of ${i.match.provider} within ${i.match.hold_years} years charges the match back.`
+          : null,
         i.limit_official === false
           ? `The ${i.tax_year} limit is the expected one; the IRS hasn't announced it yet.`
           : null,

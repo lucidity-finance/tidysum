@@ -294,7 +294,11 @@ export function rothIraSteps(i: Partial<RothIraInputs>): ActionStep[] {
   const amount = dollars(i.amount);
   const roth = i.roth_account?.name ?? "the Roth IRA";
   const traditional = i.traditional_account?.name ?? "the traditional IRA";
-  const from = i.from_account ? ` from ${i.from_account.name}` : "";
+  const from = i.from_account
+    ? ` from ${i.from_account.name}`
+    : i.match?.bank_funded_only
+      ? " from your bank account"
+      : "";
   const at = i.roth_account?.institution ? ` at ${i.roth_account.institution}` : "";
   const backdoor = i.route !== "direct";
   const steps: ActionStep[] = [];
@@ -306,6 +310,18 @@ export function rothIraSteps(i: Partial<RothIraInputs>): ActionStep[] {
       text: `Open a traditional IRA${at}`,
       by: "agent",
       needs_you: "Identity check and signature",
+    });
+  }
+  const match = i.kind === "convert" ? null : i.match;
+  const matchPct = match ? `${new Big(match.rate).times(100).toFixed()}%` : "";
+  if (match?.membership) {
+    const fee = match.membership_monthly_fee
+      ? ` (${dollars(match.membership_monthly_fee)} a month)`
+      : "";
+    steps.push({
+      text: `Turn on ${match.membership}${fee} if it isn't on, and keep it at least ${match.membership_keep_months ?? 12} months, so the contribution earns the ${matchPct} match`,
+      by: "agent",
+      needs_you: "Confirm the subscription",
     });
   }
   if (i.rollover_into && i.pretax_accounts?.length) {
@@ -339,7 +355,9 @@ export function rothIraSteps(i: Partial<RothIraInputs>): ActionStep[] {
     });
     if (backdoor) {
       steps.push({
-        text: `Once it settles, convert all of it to ${roth}`,
+        text: match
+          ? `Once ${match.provider}'s ${matchPct} match (about ${dollars(match.amount)}) arrives, usually within ${match.credited_within_days} days, convert everything in ${traditional} to ${roth}`
+          : `Once it settles, convert all of it to ${roth}`,
         by: "agent",
         needs_you: "Two-factor code",
       });
@@ -352,7 +370,9 @@ export function rothIraSteps(i: Partial<RothIraInputs>): ActionStep[] {
       by: "agent",
     });
     steps.push({
-      text: "Report it on Form 8606 with your taxes (tax software asks about a backdoor Roth)",
+      text: match
+        ? "Report it on Form 8606 with your taxes; the converted match counts as taxable income (tax software asks about a backdoor Roth)"
+        : "Report it on Form 8606 with your taxes (tax software asks about a backdoor Roth)",
       by: "you",
     });
   }
