@@ -46,6 +46,7 @@ import {
 } from "./db/schema.js";
 import { demoHousehold } from "./demo/household.js";
 import { DEFAULT_DEMO_DATABASE_URL, resetDemoDatabase, seedDemo } from "./demo/seed.js";
+import { writeDemoSite } from "./demo/site.js";
 import { deleteUser, removeItem } from "./exits.js";
 import { importCsv } from "./ingest/csv.js";
 import { refreshVix } from "./market/calm.js";
@@ -102,10 +103,10 @@ import { createUser, resolveUserId } from "./users.js";
 
 const USAGE = `tidysum <command>
 
-  demo                             try Tidysum with a made-up household, no Plaid account needed:
+  demo [--static <dir>]            try Tidysum with a made-up household, no Plaid account needed:
                                    resets its own database (docker compose up -d demo-db), fills
                                    it and serves the page on http://127.0.0.1:8090 (pnpm demo
-                                   does both)
+                                   does both); --static writes the read-only online demo instead
   migrate                          apply database migrations
   link-sandbox [institution_id]    create and link a Plaid Sandbox Item (default ins_109508)
   sync                             sync every active Item once
@@ -330,7 +331,8 @@ async function runServer(h: DbHandle) {
  * `tidysum demo`: a made-up household in a database of its own, through the real sync, detectors
  * and page. Never reads DATABASE_URL or Plaid keys, so it can't touch real data.
  */
-async function runDemo() {
+async function runDemo(args: string[]) {
+  const { values } = parseArgs({ args, options: { static: { type: "string" } } });
   const url = process.env.TIDYSUM_DEMO_DATABASE_URL || DEFAULT_DEMO_DATABASE_URL;
   const port = Number(process.env.TIDYSUM_DEMO_PORT || 8090);
   console.log("Setting up the demo household (every name and number is made up)...");
@@ -358,6 +360,17 @@ async function runDemo() {
     mcp: { token: mcpToken, policy: policyTools(url, userId, agentDb), products },
     demo: true,
   });
+  if (values.static) {
+    // The online demo: the same page, reading a snapshot of this household's API.
+    await writeDemoSite(
+      (path) => Promise.resolve(app.request(path, { headers: { host: "127.0.0.1" } })),
+      values.static,
+    );
+    console.log(`wrote the online demo to ${values.static}`);
+    await agentDb.end();
+    await h.close();
+    process.exit(0);
+  }
   serve({ fetch: app.fetch, hostname: "127.0.0.1", port }, (info) => {
     const base = `http://127.0.0.1:${info.port}`;
     console.log(`\nThe demo is ready: open ${base}\n`);
@@ -1139,7 +1152,7 @@ async function main(argv: string[]) {
     return;
   }
   // These connect as the agent roles, not as the owner.
-  if (command === "demo") return runDemo();
+  if (command === "demo") return runDemo(argv.slice(1));
   if (command === "mcp") return runMcp();
   if (command === "check") return runCheck();
   if (command === "proposals") return runProposals();

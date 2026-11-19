@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Tidysum: the wealth manager's playbook, without the fee</title>
+    <meta
+      name="description"
+      content="Free, open-source software that connects your accounts, finds where your money is costing you and how much a year, and has your own AI agent carry out the fixes you approve."
+    />
+    <meta property="og:title" content="Tidysum: the wealth manager's playbook, without the fee" />
+    <meta
+      property="og:description"
+      content="Finds where your money is costing you, prices it in dollars a year, and has your own AI agent fix what you approve. Open source, runs on your computer."
+    />
+    <meta property="og:image" content="assets/social.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+    <style>
+      :root {
+        --bg: #f6f5f1;
+        --surface: #ffffff;
+        --sunken: #efede6;
+        --line: #e8e6df;
+        --text: #1b1b18;
+        --text-2: #46453f;
+        --muted: #7b796f;
+        --brand: #17785e;
+        --brand-2: #0f5c48;
+        --brand-soft: #e2f1ea;
+        --cost: #c8461c;
+        --you: #b7791f;
+        --agent: #6d4ad6;
+        --shadow: 0 18px 40px -12px rgb(40 36 20 / 0.28), 0 4px 10px -4px rgb(40 36 20 / 0.1);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #121211;
+          --surface: #1b1b1a;
+          --sunken: #232321;
+          --line: #2e2d2a;
+          --text: #f1efe8;
+          --text-2: #cfccc2;
+          --muted: #9a978d;
+          --brand: #3fbf98;
+          --brand-2: #63d1ad;
+          --brand-soft: #173a30;
+          --cost: #f08a5d;
+          --you: #e3a94a;
+          --agent: #a58cf2;
+          --shadow: 0 18px 40px -12px rgb(0 0 0 / 0.6);
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica,
+          Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: var(--brand);
+      }
+      .wrap {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+      header.top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 0;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        font-size: 19px;
+        color: var(--text);
+        text-decoration: none;
+      }
+      .brand img {
+        width: 32px;
+        height: 32px;
+      }
+      nav a {
+        color: var(--text-2);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 15px;
+        margin-left: 22px;
+      }
+      nav a:hover {
+        color: var(--text);
+      }
+      .hero {
+        padding: 56px 0 28px;
+        max-width: 780px;
+      }
+      h1 {
+        font-size: clamp(36px, 6vw, 60px);
+        line-height: 1.04;
+        letter-spacing: -0.035em;
+        margin: 0 0 20px;
+      }
+      h1 em {
+        font-style: normal;
+        color: var(--brand);
+      }
+      .lede {
+        font-size: 20px;
+        color: var(--text-2);
+        margin: 0 0 28px;
+      }
+      .buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 20px;
+        border-radius: 999px;
+        font-weight: 650;
+        text-decoration: none;
+        font-size: 16px;
+      }
+      .btn-primary {
+        background: var(--brand);
+        color: #fff;
+      }
+      @media (prefers-color-scheme: dark) {
+        .btn-primary {
+          color: #0d2a22;
+        }
+      }
+      .btn-primary:hover {
+        background: var(--brand-2);
+      }
+      .btn-quiet {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--text);
+      }
+      .note {
+        font-size: 14px;
+        color: var(--muted);
+        margin-top: 14px;
+      }
+      .shot {
+        margin: 36px 0 12px;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--line);
+        background: var(--surface);
+      }
+      .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .caption {
+        text-align: center;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      section {
+        padding: 56px 0 8px;
+      }
+      h2 {
+        font-size: clamp(26px, 3.6vw, 36px);
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+        margin: 0 0 14px;
+      }
+      .sub {
+        color: var(--text-2);
+        max-width: 720px;
+        margin: 0 0 28px;
+      }
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 22px;
+      }
+      .card h3 {
+        margin: 10px 0 6px;
+        font-size: 19px;
+      }
+      .card p {
+        margin: 0;
+        color: var(--text-2);
+        font-size: 16px;
+      }
+      .who {
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: var(--sunken);
+      }
+      .who.t {
+        color: var(--brand);
+      }
+      .who.y {
+        color: var(--you);
+      }
+      .who.a {
+        color: var(--agent);
+      }
+      .quotes {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      .quote {
+        font-size: 17px;
+      }
+      .quote strong {
+        color: var(--brand);
+      }
+      table {
+        width: 100%;
+        max-width: 640px;
+        border-collapse: collapse;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--line);
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      th {
+        font-size: 14px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      td.cost {
+        color: var(--cost);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .agents {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 0 0 8px;
+        padding: 0;
+        list-style: none;
+      }
+      .agents li {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 16px;
+        font-weight: 600;
+        font-size: 15px;
+      }
+      .safe {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px 28px;
+        padding: 0;
+        list-style: none;
+      }
+      .safe li {
+        padding-left: 28px;
+        position: relative;
+        color: var(--text-2);
+      }
+      .safe li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 7px;
+        width: 14px;
+        height: 8px;
+        border-left: 2.5px solid var(--brand);
+        border-bottom: 2.5px solid var(--brand);
+        transform: rotate(-45deg);
+      }
+      .safe strong {
+        color: var(--text);
+      }
+      pre {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px 20px;
+        overflow-x: auto;
+        font: 14.5px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        margin: 0 0 16px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .fine {
+        max-width: 760px;
+      }
+      footer {
+        margin-top: 72px;
+        padding: 28px 0 48px;
+        border-top: 1px solid var(--line);
+        font-size: 14px;
+        color: var(--muted);
+      }
+      @media (max-width: 760px) {
+        .steps,
+        .quotes,
+        .safe {
+          grid-template-columns: 1fr;
+        }
+        nav a.hide-sm {
+          display: none;
+        }
+        .hero {
+          padding-top: 28px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <a class="brand" href="./"><img src="assets/logo.svg" alt="" />Tidysum</a>
+        <nav>
+          <a href="demo/">Live demo</a>
+          <a class="hide-sm" href="#get-started">Get started</a>
+          <a href="https://github.com/lucidity-finance/tidysum">GitHub</a>
+        </nav>
+      </header>
+
+      <div class="hero">
+        <h1>The wealth manager's playbook, <em>without the wealth manager's fee.</em></h1>
+        <p class="lede">
+          Tidysum connects all your accounts, finds where your money is costing you and how much
+          a year, and has your own AI agent carry out the fixes you approve. You only step in to
+          sign in or press Submit.
+        </p>
+        <div class="buttons">
+          <a class="btn btn-primary" href="demo/">Try the live demo</a>
+          <a class="btn btn-quiet" href="https://github.com/lucidity-finance/tidysum">View the code</a>
+        </div>
+        <p class="note">Free and open source (MIT). Runs on your computer. Works with any AI agent.</p>
+      </div>
+
+      <a class="shot" href="demo/" style="display: block">
+        <picture>
+          <source srcset="assets/screenshot-actions-dark.png" media="(prefers-color-scheme: dark)" />
+          <img
+            src="assets/screenshot-actions.png"
+            width="2560"
+            height="1720"
+            alt="Tidysum's Actions page: 'You're leaving $2,599 a year on the table', with the next fix to approve and a queue of the rest"
+          />
+        </picture>
+      </a>
+      <p class="caption">The demo household. Every name and number is made up.</p>
+
+      <section>
+        <h2>Every finding has a price</h2>
+        <p class="sub">
+          Not "your allocation drifted", but what it costs you a year and the exact fix. Tidysum
+          looks at cash, cards, fees, debt, your 401(k), IRAs and new money to invest.
+        </p>
+        <div class="quotes">
+          <div class="card quote">
+            "Send your paycheck to a high-yield account instead of checking that pays 0%:
+            <strong>about $1,100 a year</strong> more in interest."
+          </div>
+          <div class="card quote">
+            "With what you spend on groceries and dining, this card earns
+            <strong>about $310 a year</strong> more than the one you use."
+          </div>
+          <div class="card quote">
+            "Your 401(k) fund charges 0.65%. The plan's own index funds copy it
+            <strong>for 0.04%</strong>."
+          </div>
+          <div class="card quote">
+            "$18,000 is sitting above your cash cushion. Put it into your index-fund mix,
+            <strong>here's the split</strong>."
+          </div>
+        </div>
+        <p class="note">Illustrative examples. Real findings use your accounts, your rules and published rates.</p>
+      </section>
+
+      <section>
+        <h2>You decide. Your agent does the legwork.</h2>
+        <p class="sub">
+          Tidysum itself is plain, exact code with no AI inside. The thinking and the clicking come
+          from the agent you already use, and nothing happens without your yes.
+        </p>
+        <div class="steps">
+          <div class="card">
+            <span class="who t">Tidysum</span>
+            <h3>Finds and prices</h3>
+            <p>Reads your synced accounts, checks them against your rules, and turns each leak into one plain action card with its yearly cost.</p>
+          </div>
+          <div class="card">
+            <span class="who y">You</span>
+            <h3>Approve, one at a time</h3>
+            <p>Approve, skip, reorder or schedule. Agents can read and suggest, but there is no way for one to approve anything.</p>
+          </div>
+          <div class="card">
+            <span class="who a">Your agent</span>
+            <h3>Carries it out</h3>
+            <p>Opens the account, moves the direct deposit, lines up the trade, right up to the final screen. You sign in and press Submit.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>What 1% a year really costs</h2>
+        <p class="sub">
+          Most advisers charge a percentage of everything you have, every year: a median of about
+          1% on the first $1 million
+          (<a href="https://smartasset.com/financial-advisor/financial-advisor-cost">Kitces Research, via SmartAsset</a>).
+          Compounded over 30 years, that's about a quarter of what you'd otherwise end up with.
+        </p>
+        <table>
+          <thead>
+            <tr><th>You start with</th><th>After 30 years, a 1% yearly fee has cost you</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>$250,000</td><td class="cost">about $351,000</td></tr>
+            <tr><td>$500,000</td><td class="cost">about $701,000</td></tr>
+            <tr><td>$1,000,000</td><td class="cost">about $1.4 million</td></tr>
+          </tbody>
+        </table>
+        <p class="note">
+          6% a year before fees, the same 0.05% index funds either way, no new savings.
+          <a href="https://github.com/lucidity-finance/tidysum/blob/main/docs/what-advice-costs.md">The working and sources.</a>
+        </p>
+      </section>
+
+      <section>
+        <h2>Bring your own AI</h2>
+        <p class="sub">
+          Tidysum speaks <a href="https://modelcontextprotocol.io">MCP</a>, so any agent that
+          does can read your findings and carry out what you approve, running whichever model you
+          choose, including one on your own machine.
+        </p>
+        <ul class="agents">
+          <li>Claude Code</li>
+          <li>Codex</li>
+          <li>Gemini CLI</li>
+          <li>Cursor</li>
+          <li>Any MCP client</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Built to be safe with your money</h2>
+        <ul class="safe">
+          <li><strong>Nothing moves without you.</strong> Only you approve, on Tidysum's own page. On a trade, your agent stops at the review screen.</li>
+          <li><strong>Agents can't see secrets.</strong> They read through a read-only database role with row-level security, never your bank tokens.</li>
+          <li><strong>Your data stays home.</strong> It lives in a Postgres database on your own computer, not in anyone's cloud.</li>
+          <li><strong>No referral money.</strong> Products are ranked only by what they'd gain you, from published terms. No affiliate links.</li>
+          <li><strong>Everything is recorded.</strong> Every proposal, approval and agent step goes in an append-only audit log.</li>
+          <li><strong>Exact money.</strong> Amounts are decimal strings in code and numeric in the database, never floating point.</li>
+        </ul>
+      </section>
+
+      <section id="get-started">
+        <h2>Get started</h2>
+        <p class="sub">
+          Try it on the made-up household first. You need Node 22.19 or newer, pnpm and Docker.
+        </p>
+        <pre>git clone https://github.com/lucidity-finance/tidysum.git && cd tidysum
+pnpm install
+pnpm demo        # then open http://127.0.0.1:8090</pre>
+        <p class="sub">
+          Then connect your own banks, cards and brokerages with a free Plaid account (its free
+          plan covers 10 institutions), or ask your agent to set it all up for you.
+          <a href="https://github.com/lucidity-finance/tidysum#quick-start">Full quick start</a>.
+        </p>
+      </section>
+
+      <footer>
+        <p class="fine">
+          Tidysum is software you run yourself. It is not a financial adviser, and nothing it shows
+          is financial, tax or legal advice. You approve every action, and your own agent carries it
+          out. <a href="https://github.com/lucidity-finance/tidysum/blob/main/DISCLAIMER.md">Disclaimer</a>.
+        </p>
+        <p>
+          MIT licensed ·
+          <a href="https://github.com/lucidity-finance/tidysum">GitHub</a> ·
+          <a href="mailto:hello.tidysum@proton.me">hello.tidysum@proton.me</a>
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

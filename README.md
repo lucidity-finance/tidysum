@@ -17,13 +17,25 @@
 </p>
 
 <p align="center">
+  <a href="https://lucidity-finance.github.io/tidysum/demo/"><strong>Live demo</strong></a> ·
   <a href="#why-tidysum">Why</a> ·
-  <a href="#try-the-demo-first">Try the demo</a> ·
+  <a href="#try-the-demo-first">Try it locally</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="docs/guide.md">Guide</a> ·
   <a href="DISCLAIMER.md">Disclaimer</a> ·
   <a href="LICENSE">MIT License</a>
+</p>
+
+<p align="center">
+  <a href="https://lucidity-finance.github.io/tidysum/demo/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshot-actions-dark.png">
+      <img src="docs/assets/screenshot-actions.png" width="860" alt="Tidysum's Actions page: 'You're leaving $2,599 a year on the table', with the next fix to approve and a queue of the rest">
+    </picture>
+  </a>
+  <br>
+  <sub>The demo household: every name and number is made up. <a href="https://lucidity-finance.github.io/tidysum/demo/">Click through it live</a>.</sub>
 </p>
 
 ---
@@ -109,15 +121,9 @@ Investment checks are off by default and only run for a user with investing turn
 
 Every feature is one step of a single loop ([decision 0003](docs/decisions/0003-misallocation-loop.md)):
 
-```mermaid
-flowchart LR
-    A["Find<br/><sub>detectors read your synced data</sub>"] --> B["Price<br/><sub>dollars per year</sub>"]
-    B --> C["Propose<br/><sub>an action card</sub>"]
-    C --> D["Approve<br/><sub>you, one at a time</sub>"]
-    D --> E["Act<br/><sub>your own agent</sub>"]
-    E --> F["Verify<br/><sub>the next sync checks it</sub>"]
-    F --> A
-```
+<p align="center">
+  <img src="docs/assets/how-it-works.svg" width="860" alt="One loop: Tidysum finds, prices and proposes; you approve, one at a time; your own AI agent acts in your browser; the next sync verifies the result, and the loop repeats every sync">
+</p>
 
 Tidysum itself is plain, deterministic code: the sync, the detectors, the math, your policy, the
 approval gate and an append-only audit log. It has **no AI of its own**. The intelligence comes

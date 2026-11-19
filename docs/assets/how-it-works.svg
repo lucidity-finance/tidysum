@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" width="900" height="300" role="img" aria-label="How Tidysum works: find, price, propose, you approve, your agent acts, the next sync verifies, and the loop repeats">
+<style>
+svg{--bg:#fbfaf6;--ink:#1d1d1b;--quiet:#6b6a64;--line:#d9d6cc;--t:#17785e;--y:#b7791f;--a:#6d4ad6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif}
+@media (prefers-color-scheme:dark){svg{--bg:#1b1b1a;--ink:#f1efe8;--quiet:#a9a69c;--line:#3d3b36;--t:#3fbf98;--y:#e3a94a;--a:#a58cf2}}
+.box{fill:var(--bg);stroke:var(--line);stroke-width:1.25}
+.name{fill:var(--ink);font-size:16px;font-weight:650}
+.sub{fill:var(--quiet);font-size:12.5px}
+.leg{fill:var(--ink);font-size:13px}
+.edge{stroke:var(--quiet);stroke-width:1.4;fill:none}
+</style>
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--quiet)"/></marker></defs>
+<rect x="0" y="0" width="900" height="300" rx="14" fill="var(--bg)"/>
+<text x="22" y="38" class="name" style="font-size:17px">One loop, from finding a leak to checking it's fixed</text>
+<circle cx="28" cy="62" r="5" fill="var(--t)"/><text x="40" y="66.5" class="leg">Tidysum (plain code, no AI)</text>
+<circle cx="254" cy="62" r="5" fill="var(--y)"/><text x="266" y="66.5" class="leg">You</text>
+<circle cx="318" cy="62" r="5" fill="var(--a)"/><text x="330" y="66.5" class="leg">Your own AI agent (any model)</text>
+
+<rect class="box" x="22" y="92" width="130" height="96" rx="10"/>
+<rect x="22" y="92" width="130" height="5" rx="2.5" fill="var(--t)"/>
+<text x="87.0" y="128" text-anchor="middle" class="name">Find</text>
+<text x="87.0" y="152" text-anchor="middle" class="sub">reads your</text>
+<text x="87.0" y="169" text-anchor="middle" class="sub">synced accounts</text>
+<path class="edge" d="M154 140.0H166" marker-end="url(#arr)"/>
+<rect class="box" x="168" y="92" width="130" height="96" rx="10"/>
+<rect x="168" y="92" width="130" height="5" rx="2.5" fill="var(--t)"/>
+<text x="233.0" y="128" text-anchor="middle" class="name">Price</text>
+<text x="233.0" y="152" text-anchor="middle" class="sub">in dollars</text>
+<text x="233.0" y="169" text-anchor="middle" class="sub">a year</text>
+<path class="edge" d="M300 140.0H312" marker-end="url(#arr)"/>
+<rect class="box" x="314" y="92" width="130" height="96" rx="10"/>
+<rect x="314" y="92" width="130" height="5" rx="2.5" fill="var(--t)"/>
+<text x="379.0" y="128" text-anchor="middle" class="name">Propose</text>
+<text x="379.0" y="152" text-anchor="middle" class="sub">one plain</text>
+<text x="379.0" y="169" text-anchor="middle" class="sub">action card</text>
+<path class="edge" d="M446 140.0H458" marker-end="url(#arr)"/>
+<rect class="box" x="460" y="92" width="130" height="96" rx="10"/>
+<rect x="460" y="92" width="130" height="5" rx="2.5" fill="var(--y)"/>
+<text x="525.0" y="128" text-anchor="middle" class="name">Approve</text>
+<text x="525.0" y="152" text-anchor="middle" class="sub">you decide,</text>
+<text x="525.0" y="169" text-anchor="middle" class="sub">one at a time</text>
+<path class="edge" d="M592 140.0H604" marker-end="url(#arr)"/>
+<rect class="box" x="606" y="92" width="130" height="96" rx="10"/>
+<rect x="606" y="92" width="130" height="5" rx="2.5" fill="var(--a)"/>
+<text x="671.0" y="128" text-anchor="middle" class="name">Act</text>
+<text x="671.0" y="152" text-anchor="middle" class="sub">your agent, in</text>
+<text x="671.0" y="169" text-anchor="middle" class="sub">your browser</text>
+<path class="edge" d="M738 140.0H750" marker-end="url(#arr)"/>
+<rect class="box" x="752" y="92" width="130" height="96" rx="10"/>
+<rect x="752" y="92" width="130" height="5" rx="2.5" fill="var(--t)"/>
+<text x="817.0" y="128" text-anchor="middle" class="name">Verify</text>
+<text x="817.0" y="152" text-anchor="middle" class="sub">the next sync</text>
+<text x="817.0" y="169" text-anchor="middle" class="sub">checks the result</text>
+<path class="edge" d="M817.0 190V228H87.0V194" marker-end="url(#arr)"/>
+<text x="452.0" y="222" text-anchor="middle" class="sub">every sync, about every six hours</text>
+<text x="22" y="268" class="sub">Nothing moves without your approval. On a trade, your agent stops at the review screen and you press Submit.</text>
+</svg>

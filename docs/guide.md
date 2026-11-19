@@ -19,6 +19,12 @@ refuses when that Postgres server holds any other database or Tidysum's tables, 
 real data. Linking or removing institutions is refused on the demo page.
 `TIDYSUM_DEMO_DATABASE_URL` and `TIDYSUM_DEMO_PORT` change where it runs.
 
+`tidysum demo --static <dir>` writes the online demo instead of serving: the same page with a
+snapshot of every API response it reads, and a small loader (`static.js`) that answers from the
+snapshot and refuses changes. `.github/workflows/pages.yml` builds the website from `site/`,
+`docs/assets/` and that snapshot, on every push to main and weekly so the demo's dates stay
+current, and deploys it to https://lucidity-finance.github.io/tidysum/.
+
 ## Linking real accounts
 
 `pnpm tidysum serve` runs the admin page, Plaid's webhook endpoint and the scheduled sync in one

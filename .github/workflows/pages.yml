@@ -1,0 +1,71 @@
+name: pages
+
+# The website at https://lucidity-finance.github.io/tidysum/: site/ plus the online demo, built
+# fresh from the made-up household (`tidysum demo --static`). Weekly too, so the demo's dates stay
+# current. Free on GitHub-hosted runners for this public repository.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'lucidity-finance/tidysum'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      # The demo's own throwaway database, as docker-compose.yml's demo-db.
+      demo-db:
+        image: postgres:17
+        env:
+          POSTGRES_USER: tidysum
+          POSTGRES_PASSWORD: tidysum
+          POSTGRES_DB: tidysum_demo
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U tidysum -d tidysum_demo"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.19.0
+          package-manager-cache: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build the site and the online demo
+        run: |
+          mkdir -p _site/assets
+          cp site/index.html _site/
+          cp docs/assets/* _site/assets/
+          pnpm tsx src/cli.ts demo --static _site/demo
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

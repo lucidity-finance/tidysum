@@ -372,6 +372,8 @@ async function act(button, fn, okMessage, reload) {
 
 /** Server errors arrive as "invalid body (400)"; people get a sentence. */
 function friendly(e) {
+  // The demo refuses what would touch real accounts, and says why.
+  if (e.status === 403 && data.items?.demo) return e.message;
   if (e.status === 401 || e.status === 403) return "Your session ended. Reload the page.";
   if (e.status >= 500) return "Something went wrong on the server. Try again in a moment.";
   if (e.status === undefined) return "Couldn't reach Tidysum. Is it still running?";
@@ -4512,8 +4514,24 @@ function renderDisclosure() {
   $("#disclosure").textContent = text ? prose(text) : "";
 }
 
+/** The demo says what it is: a made-up household, and online, a snapshot that can't change. */
+function renderDemoBar() {
+  const demo = ok("items")?.demo;
+  const bar = $("#demo-bar");
+  bar.hidden = !demo;
+  if (!demo || bar.dataset.kind === String(demo)) return;
+  bar.dataset.kind = String(demo);
+  fill(
+    bar,
+    h("strong", {}, "Demo. "),
+    demo === "online"
+      ? "A made-up household, and read-only here. To approve and skip, run it on your computer: pnpm demo."
+      : "A made-up household: every name and number is invented. Approve and skip freely; nothing here is real.",
+  );
+}
+
 function render() {
-  $("#demo-bar").hidden = !ok("items")?.demo;
+  renderDemoBar();
   renderDisclosure();
   renderActions();
   renderConnections();
