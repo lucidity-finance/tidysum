@@ -2,7 +2,7 @@
   "name": "tidysum",
   "version": "0.0.0",
   "private": true,
-  "description": "Self-hosted money hub: finds money in the wrong place, prices it per year, and lets your own AI agent fix what you approve.",
+  "description": "The wealth manager's playbook without the wealth manager's fee: a self-hosted money hub that finds money in the wrong place, prices it per year, and lets your own AI agent fix what you approve.",
   "license": "MIT",
   "type": "module",
   "engines": {

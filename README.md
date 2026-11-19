@@ -5,9 +5,9 @@
 <h1 align="center">Tidysum</h1>
 
 <p align="center">
-  <strong>Your money, in good order, without making investing a second job.</strong><br>
-  A self-hosted money hub that finds money in the wrong place, says what it costs you per year,<br>
-  and lets your own AI agent fix it, one approved action at a time.
+  <strong>The wealth manager's playbook, without the wealth manager's fee.</strong><br>
+  Tidysum connects all your accounts, finds where your money is costing you and how much a year,<br>
+  and has your own AI agent carry out the fixes you approve. You only step in to sign in or press Submit.
 </p>
 
 <p align="center">
@@ -17,6 +17,7 @@
 </p>
 
 <p align="center">
+  <a href="#why-tidysum">Why</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="docs/guide.md">Guide</a> ·
@@ -27,22 +28,47 @@
 ---
 
 > [!IMPORTANT]
-> Tidysum is software you run yourself, not a financial adviser. Nothing it shows or drafts is
-> financial, tax or legal advice. You approve every action, your own AI agent carries it out, and
-> you are responsible for both. Read the [disclaimer](DISCLAIMER.md) before you use it.
+> Tidysum is software you run yourself. It is not a financial adviser or a registered investment
+> adviser, and nothing it shows or drafts is financial, tax or legal advice. You approve every
+> action, your own AI agent carries it out, and you are responsible for both. Read the
+> [disclaimer](DISCLAIMER.md) before you use it.
 
 ## Why Tidysum
 
-Most people have money sitting in the wrong place without knowing it: checking that earns nothing
-while a savings account down the street pays 4%, a card that earns 1% on groceries when another in
-the wallet earns 3%, a 401(k) fund that charges ten times what the plan's own index funds do, a
-contribution rate that misses part of the employer match. Each one is small. Together they cost
-real money every year, and finding them takes the kind of attention most people would rather spend
-on anything else.
+Most people would rather not think about their money. The usual way out is to hire a financial
+adviser or wealth manager, and most of them charge a percentage of everything you have, every
+year: a median of about **1% on the first $1 million**, and more on smaller accounts
+([Kitces Research, via SmartAsset](https://smartasset.com/financial-advisor/financial-advisor-cost)).
+That sounds small. Compounded, it isn't:
+
+| You start with | After 30 years, a 1% yearly fee has cost you |
+| -------------- | -------------------------------------------- |
+| $250,000       | about $351,000                               |
+| $500,000       | about $701,000                               |
+| $1,000,000     | about $1.4 million                           |
+
+That is about a quarter of what you'd otherwise end up with. (6% a year before fees, the same
+0.05% index funds either way, no new savings. The working, other fee models and sources are in
+[What advice costs](docs/what-advice-costs.md).)
+
+Much of what you'd pay for is a well-known playbook that most advisers share, because it works:
+a broad, low-cost index-fund mix, an emergency fund, the full employer match, cash that earns a
+real rate, the right card for how you spend. Tidysum runs that playbook for you with software and
+the AI agent you already use, and shows its working in dollars. It suggests things like:
+
+- _"Send your paycheck to a high-yield savings account instead of checking that pays 0%: about
+  $1,100 a year more in interest."_
+- _"With what you spend on groceries and dining, this card earns about $310 a year more than the
+  one you use."_
+- _"$18,000 is sitting above your cash cushion. Put it into your index-fund mix, here's the split."_
+- _"Your 401(k) fund charges 0.65%. The plan's own index funds copy it for 0.04%."_
+
+<sub>Illustrative examples. Real findings use your accounts, your rules and published rates.</sub>
 
 Tidysum is for people who **don't want investing to be a second job**: who'd like their money looked
-after the way a good adviser would, without watching markets, reading fund fact sheets or logging
-in to six websites. It does the noticing and the arithmetic. You make the calls.
+after the way a good adviser would, without watching markets, reading fund fact sheets, logging
+in to six websites or handing over a percentage. It does the noticing, the arithmetic and, with
+your agent, the legwork. You make the calls.
 
 - **Everything in one place.** Connect your banks, cards, brokerages and retirement plans with a
   free Plaid account, or import a CSV. Your data stays in a Postgres database on your own computer.
@@ -51,8 +77,12 @@ in to six websites. It does the noticing and the arithmetic. You make the calls.
 - **One decision at a time.** Fixes arrive as plain action cards. Approve one, skip one, reorder
   them, or schedule one for a later date.
 - **Your agent does the legwork.** Bring the AI agent you already use, with any model: Claude
-  Code, Codex, Gemini CLI, Cursor or any other MCP client. It reads your data through Tidysum's tools and, once you approve an action, carries out
-  the steps on the institution's own website, handing back to you for sign-ins and codes.
+  Code, Codex, Gemini CLI, Cursor or any other MCP client. Once you approve an action, it carries
+  out the steps on the institution's own website, such as applying for the account, moving the
+  direct deposit or changing a 401(k) election, and only hands back to you for what has to be
+  you: sign-ins, codes, identity checks and final confirmations.
+- **No percentage.** Tidysum is free, open-source software that runs on your computer. It takes no
+  fee on your assets and no referral money from anyone it recommends.
 - **Calm by design.** New money does the rebalancing, so nothing you own gets sold to chase a
   target. Moves that would take money out of the market wait for calm markets.
 
@@ -245,6 +275,8 @@ and a Mac-first setup.
 
 - **[Connect your accounts](docs/connect-your-accounts.md):** the free Plaid account and linking,
   step by step.
+- **[What advice costs](docs/what-advice-costs.md):** what advisers, planners and robo-advisers
+  charge, and what a 1% fee costs over the years.
 - **[Guide](docs/guide.md):** every command, detector and rule, running on a Mac, layout and CI.
 - **[Decisions](docs/decisions):** why Tidysum is built the way it is. Start with
   [the misallocation loop](docs/decisions/0003-misallocation-loop.md) and
