@@ -394,6 +394,9 @@ const sameValue = (a: string | null, b: string | null) =>
 
 /** The finding_key of the investing action, which fixes allocation drift rather than a finding. */
 export const NEW_MONEY_KEY = "new_money";
+
+/** The owner's part of a buy or sell: the agent fills in the order, the owner places it. */
+export const SUBMIT = "Review the order and press Submit";
 const NEW_MONEY_QUIET_DAYS = 30;
 
 // Bucket labels can hold "and" themselves ("bonds and cash"), so several are joined with "+".
@@ -420,6 +423,7 @@ export function newMoneyDraft(allocation: AllocationResult, workplace: StoredPla
         ? `Put the money you invest from each paycheck into ${label(r.bucket)}${r.buy ? ` (${r.buy.ticker})` : ""}`
         : `Put ${r.percent}% of what you invest from each paycheck into ${label(r.bucket)}${r.buy ? ` (${r.buy.ticker})` : ""}`,
     by: "agent",
+    needs_you: SUBMIT,
   }));
   // A workplace plan invests each paycheck by its own election, in its own funds: the same split,
   // in the plan's cheapest fund for each bucket (buckets it has no fund for are left out, and
@@ -941,6 +945,7 @@ function stepsFromActions(actions: ActionRow[]): ActionStep[] {
       return {
         text: `${side} ${dollars(a.amount)} of ${a.symbol}${a.from_account ? ` in ${a.from_account}` : ""}`,
         by: "agent",
+        needs_you: SUBMIT,
       };
     }
     const verb = a.kind === "payment" ? "Pay" : "Move";
@@ -1062,10 +1067,11 @@ export type CarriedBy = "agent" | "tidysum" | "owner";
 const PLAN_ELECTIONS = new Set(["retirement_rate", "fund_fee", "brokerage_window", "roth_ira"]);
 
 /**
- * Who carries out an approved action (decision 0005): trades and other investing go through
- * Tidysum's own executor, workplace-plan elections and anything else with steps for an agent go
- * to the owner's agent, and the rest is the owner's alone. The MCP tools refuse agents anything
- * this doesn't give them.
+ * Who carries out an approved action (decision 0005): anything with steps for an agent goes to
+ * the owner's agent, trades and other investing included (owner, 2026-11-19): the agent fills in
+ * the order in the owner's browser up to the broker's or plan's review screen, and the owner
+ * presses Submit. Investing with no steps for an agent waits for Tidysum's own executor (Phase 4),
+ * and the rest is the owner's alone. The MCP tools refuse agents anything this doesn't give them.
  */
 export function carriedBy(
   a: Pick<Action, "category" | "actions" | "steps"> & {
@@ -1073,13 +1079,15 @@ export function carriedBy(
     finding_key?: string | null;
   },
 ): CarriedBy {
-  if (a.actions.some((x) => x.kind === "trade")) return "tidysum";
+  const forAgent = a.steps.some((s) => s.by === "agent");
   // A scheduled action can be about a finding that isn't (or isn't yet) in the ledger, like next
   // year's 401(k) percent: its key still names the detector.
   const detector = a.finding?.detector ?? a.finding_key?.split(":")[0];
   const election = !!detector && PLAN_ELECTIONS.has(detector);
-  if (a.category === "securities" && !election) return "tidysum";
-  return a.steps.some((s) => s.by === "agent") ? "agent" : "owner";
+  const investing =
+    a.actions.some((x) => x.kind === "trade") || (a.category === "securities" && !election);
+  if (investing && !forAgent) return "tidysum";
+  return forAgent ? "agent" : "owner";
 }
 
 export type Timing = "scheduled" | "waiting" | "due" | "overdue";

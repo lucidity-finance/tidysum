@@ -1365,13 +1365,14 @@ function agentName(source) {
 }
 
 /**
- * Who carries an approved action out (decision 0005): the owner's agent, Tidysum itself for
- * investing, or the owner. The server says; older servers didn't, so the rule is repeated here.
+ * Who carries an approved action out (decision 0005): the owner's agent (trades included, up to
+ * Submit), Tidysum itself for investing with no steps for an agent, or the owner. The server says; older servers didn't, so the rule is repeated here.
  */
 function carriedBy(a) {
   if (a.carried_by) return a.carried_by;
-  if (a.category === "securities") return "tidysum";
-  return a.steps.some((s) => s.by === "agent") ? "agent" : "owner";
+  const forAgent = a.steps.some((s) => s.by === "agent");
+  if (a.category === "securities" && !forAgent) return "tidysum";
+  return forAgent ? "agent" : "owner";
 }
 
 /**

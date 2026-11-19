@@ -42,8 +42,8 @@ const INSTRUCTIONS = `Tidysum is the owner's financial data: every linked bank, 
 synced from Plaid or imported from CSV. Tidysum itself moves no money. You suggest with
 create_proposal; only the owner approves, on Tidysum's Actions page. Once an action is approved,
 you may carry it out for the owner with your own browser tools (start_action, report_step,
-finish_action, stop_action; the carry_out_action prompt has the rules), except trades, which
-Tidysum places itself.
+finish_action, stop_action; the carry_out_action prompt has the rules). For a buy, a sell or a
+fund exchange you fill in the order up to the final review screen, and the owner presses Submit.
 
 Money is always a decimal string, never a float; keep it that way in any arithmetic.
 Transaction amounts follow Plaid's sign: positive is money out of the account, negative is money in.
@@ -522,7 +522,8 @@ function registerPolicyTools(
           "Starts carrying out one action the owner approved (list_actions in_progress), or " +
           "takes it over from another agent. Returns its steps (by: agent is for you, by: you " +
           "is the owner's), the websites it involves and the rules to work by. Read them before " +
-          "doing anything. Investing actions are refused: Tidysum places trades itself. " +
+          "doing anything. For a trade, fill in the order up to the review screen and hand " +
+          "over: the owner presses Submit. " +
           UNTRUSTED,
         inputSchema: { id: actionId },
         annotations: write,

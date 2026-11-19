@@ -177,16 +177,42 @@ describe("an agent carrying out an approved action", () => {
     ]);
   });
 
-  it("refuses an action the owner hasn't approved, and investing ones", async () => {
+  it("refuses an action the owner hasn't approved, and investing with no steps for it", async () => {
     const call = await agent("claude-code");
     const waiting = await action({ state: "proposed" });
     await expect(call("start_action", { id: waiting })).rejects.toThrow(/hasn't approved/);
-    const trade = await action({ category: "securities" });
-    await expect(call("start_action", { id: trade })).rejects.toThrow(/places approved trades/);
+    const trade = await action({
+      category: "securities",
+      steps: [{ text: "Buy $500 of VTI", by: "you" }],
+    });
+    await expect(call("start_action", { id: trade })).rejects.toThrow(/no steps for an agent/);
     const done = await action({ state: "done" });
     await expect(call("start_action", { id: done })).rejects.toThrow(/nothing left/);
     expect(await events(waiting)).toEqual([]);
     expect(await events(trade)).toEqual([]);
+  });
+
+  it("lets the agent prepare a trade for the owner to submit", async () => {
+    const call = await agent("claude-code");
+    const id = await action({
+      category: "securities",
+      title: "Invest new money toward your target mix",
+      steps: [
+        { text: "Buy $500 of VTI", by: "agent", needs_you: "Review the order and press Submit" },
+      ],
+    });
+    const started = (await call("start_action", { id })) as { rules: string[] };
+    expect(started.rules.join(" ")).toMatch(/presses Submit themselves.*Never press the button/);
+    await call("report_step", {
+      id,
+      step: 1,
+      status: "your_turn",
+      note: "The VTI order is on the review screen: press Submit.",
+    });
+    expect(await events(id)).toEqual([
+      "mcp:claude-code action.started",
+      "mcp:claude-code action.your_turn",
+    ]);
   });
 
   it("lets the agent carry out a 401(k) election, which places no trade", async () => {
@@ -207,8 +233,16 @@ describe("an agent carrying out an approved action", () => {
       }),
     ).toBe("agent");
     expect(carriedBy({ category: "securities", actions: [], steps: STEPS, finding: null })).toBe(
-      "tidysum",
+      "agent",
     );
+    expect(
+      carriedBy({
+        category: "securities",
+        actions: [],
+        steps: [{ text: "Buy $500 of VTI", by: "you" }],
+        finding: null,
+      }),
+    ).toBe("tidysum");
   });
 
   it("needs a start, the right agent, real steps, and every agent step before finishing", async () => {

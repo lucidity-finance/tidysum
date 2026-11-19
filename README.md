@@ -79,8 +79,8 @@ your agent, the legwork. You make the calls.
 - **Your agent does the legwork.** Bring the AI agent you already use, with any model: Claude
   Code, Codex, Gemini CLI, Cursor or any other MCP client. Once you approve an action, it does the
   work in your browser, on the institution's own website: filling in the account application,
-  moving the direct deposit, changing your 401(k) contribution, or lining up a fund exchange to
-  rebalance your 401(k). It takes each one as far as the final review screen and hands back to you
+  moving the direct deposit, changing your 401(k) contribution, or preparing the trades that
+  invest idle cash in your index funds or rebalance your 401(k). It takes each one as far as the final review screen and hands back to you
   only for what has to be you: signing in, a code, an identity check, and pressing **Submit**.
 - **No percentage.** Tidysum is free, open-source software that runs on your computer. It takes no
   fee on your assets and no referral money from anyone it recommends.
@@ -133,7 +133,8 @@ from the agent you bring ([decision 0005](docs/decisions/0005-actions.md)):
 ### Built to be safe with your money
 
 - **Nothing moves without your approval.** Agents can read and propose; only you approve, on
-  Tidysum's own Actions page. There is no approve tool an agent could call.
+  Tidysum's own Actions page. There is no approve tool an agent could call. On a trade, your
+  agent stops at the review screen and you press Submit yourself.
 - **Agents can't see your secrets.** Agent queries run as a read-only Postgres role with
   row-level security. Plaid tokens are encrypted at rest and that role is never granted them.
 - **Money is never a float.** Amounts are decimal strings in code and `numeric` in Postgres.
@@ -259,9 +260,10 @@ suggests anything and keeps its suggestions inside it.
 
 Tidysum syncs, finds, prices, proposes and records approvals today. Your agent carries out approved
 actions in your browser: opening accounts, moving a direct deposit, changing 401(k) contributions,
-and exchanging or rebalancing 401(k) funds, which it prepares up to the plan's review screen for
-you to submit. Brokerage buys and sells aren't handed to agents yet, and placing them from Tidysum
-after approval (Phase 4) is not built. **Nothing in this repository can move money on its own.**
+and trades, such as investing idle cash in your index funds at your brokerage or rebalancing your
+401(k). It prepares each order up to the broker's or plan's review screen, and you press Submit.
+**Nothing in this repository can move money on its own**, and placing trades from Tidysum itself,
+through a broker's API (Phase 4), is not built.
 
 | Phase | What                                                         | State                |
 | ----- | ------------------------------------------------------------ | -------------------- |
@@ -269,7 +271,8 @@ after approval (Phase 4) is not built. **Nothing in this repository can move mon
 | 1     | Real accounts, scheduled sync, webhooks, CSV import          | done                 |
 | 2     | Read-only MCP server for agents                              | done                 |
 | 3     | Policy, findings, proposals and approvals; agent-run actions | done                 |
-| 4     | Trades placed by Tidysum after approval                      | not started          |
+| 3b    | Trades prepared by your agent, submitted by you              | done                 |
+| 4     | Trades placed by Tidysum itself, through a broker's API      | not started          |
 
 It is built and used by one person on their own money, so expect rough edges, U.S. accounts only,
 and a Mac-first setup.

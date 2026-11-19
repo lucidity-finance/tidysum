@@ -49,7 +49,7 @@ two permission rules to `~/.claude/settings.json`: `mcp__tidysum` (Tidysum's MCP
 `Bash(pnpm -C <repo> -s tidysum:*)` (its command line). Without them, Claude Code's permission
 checks stop the agent at each step, and an agent can't grant itself permissions, so the owner
 runs this themselves. Neither can move money: only the owner approves actions, on the Actions
-page, and trades wait for them. Agents run Tidysum commands in exactly that form,
+page, and the owner presses Submit on every trade. Agents run Tidysum commands in exactly that form,
 `pnpm -C <repo> -s tidysum <command>`. Other MCP clients: run `pnpm -s --dir <repo> tidysum mcp`
 as a stdio server.
 
@@ -63,9 +63,12 @@ Tidysum has no agent of its own ([decision 0005](decisions/0005-actions.md)). On
 approves an action on the Actions page, their own agent can carry it out with its own browser
 tools: `start_action` (returns the steps, the sites involved and the rules), `report_step` (a
 step done, or `your_turn` when only the owner can do it: identity checks, codes, signatures),
-`finish_action` and `stop_action`. Only an approved action can be started; trades and the
-new-money action are refused, since Tidysum will place trades itself, but 401(k) elections
-(contribution rate, plan funds) are the agent's to do. Reports are append-only audit events
+`finish_action` and `stop_action`. Only an approved action can be started. Trades, the
+new-money action and 401(k) fund exchanges are the agent's to prepare, never to place: it fills
+in the order on the broker's or plan's site up to the final review screen and hands over with
+`your_turn` ("Review the order and press Submit"), and the owner presses Submit. 401(k)
+contribution elections are the agent's to do. An investing action with no steps for an agent is
+refused; it waits for Tidysum's own trading (Phase 4). Reports are append-only audit events
 written as `tidysum_proposer`, and the Actions page shows where the agent is and what it needs.
 A finished action is marked done on the next tick, and a later sync confirms it.
 

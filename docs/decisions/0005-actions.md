@@ -47,15 +47,22 @@ Tidysum.
    action whose finding goes away for another reason is withdrawn (`dismissed`, audited as
    `proposal.withdrawn`).
 7. **Who carries out an approved action.**
-   - **Trades: Tidysum.** On approval, plain code places the order through the broker's API. It
-     re-validates against current data, is idempotent, and is the only holder of the broker
-     login. Agents can propose a trade but can't place one. Of everything here, trades are where
-     a rule must be enforced rather than requested.
+   - **Trades: the owner's agent prepares, the owner submits** (owner, 2026-11-19: "it should be
+     able to also place trades ... you end up clicking the button"). An approved buy, sell or
+     fund exchange, the new-money action included, goes to the owner's agent like any other
+     action. It fills in the order on the broker's or plan's own site, in the owner's browser,
+     up to the final review screen, and hands over (`your_turn`, needs_you "Review the order and
+     press Submit"); the owner checks it and presses Submit. The agent never presses the button
+     that places an order: Tidysum can't see that button, so the human press is the enforcement.
+     This is how the owner's 401(k) rebalance was done on 2026-11-16.
+   - **Later, trades by Tidysum (Phase 4).** Plain code would place the order through the
+     broker's API, re-validate against current data, be idempotent, and be the only holder of
+     the broker login. Only investing actions with no steps for an agent wait for it.
    - **Workplace-plan elections: the owner's agent** (owner, 2026-11-13). Changing the 401(k)
      contribution rate, or which plan funds hold the balance and new paychecks, is done on the
      plan's own site with no brokerage order, so it goes to the owner's agent like any other
      approved action (`carriedBy` in `src/actions/actions.ts`, detectors `retirement_rate` and
-     `fund_fee`). The new-money action stays with Tidysum's executor. Emptying the plan's
+     `fund_fee`). Emptying the plan's
      brokerage window back into the plan (detector `brokerage_window`, owner, 2026-11-16) sells
      mutual funds in the window, but only to put the same mix back in the same plan, tax-free
      and at the day's closing price, so it counts as a plan exchange and goes to the agent too.
@@ -86,8 +93,9 @@ Tidysum.
    `finish_action` and `stop_action`, progress on the Actions page, and the packaged skill
    `skills/tidysum-actions` (also the MCP prompt `carry_out_action`). First job: the operator's agent opens the
    better-paying savings account behind a `deposit_rate` action and moves the spare cash there.
-3. Trades for new money through Tidysum's executor (needs the agentic Robinhood account and the
-   spike).
+3. Trades prepared by the owner's agent up to the review screen, submitted by the owner (done,
+   2026-11-19). Trades placed by Tidysum's own executor stay Phase 4 (needs the agentic
+   Robinhood account and the spike).
    Actions with a day (approve ahead, Tidysum watches the date and can start the owner's agent)
    are [decision 0006](0006-scheduled-actions.md).
 4. Standing rules for the operator ("invest each paycheck by my plan up to $X"). Decision 0003

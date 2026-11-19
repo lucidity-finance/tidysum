@@ -416,13 +416,14 @@ describe("new money action", () => {
     const a = await newMoney();
     expect(a).toMatchObject({
       title: "Invest new money toward your target mix",
-      carried_by: "tidysum",
+      carried_by: "agent",
       category: "securities",
       expected_annual_value: null,
       steps: [
         {
           text: "Put the money you invest from each paycheck into international stocks (VXUS)",
           by: "agent",
+          needs_you: "Review the order and press Submit",
         },
         { text: "Leave everything you already hold as it is", by: "you" },
       ],

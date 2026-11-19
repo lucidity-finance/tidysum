@@ -151,7 +151,7 @@ describe("an action's days", () => {
     ).toBe("agent");
     expect(
       carriedBy({ category: "securities", actions: [], steps, finding_key: "new_money" }),
-    ).toBe("tidysum");
+    ).toBe("agent");
   });
 
   it("reads its settings from the environment", () => {
