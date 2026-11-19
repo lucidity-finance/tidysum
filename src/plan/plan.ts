@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import type { Db } from "../db/client.js";
 import { financialPlan } from "../db/schema.js";
 import type { AgentDb } from "../mcp/agentDb.js";
+import { planLayout } from "./layout.js";
 
 // The owner's written plan for their money: what it is for, the target mix, where each dollar
 // goes and the rules they keep. The owner writes it as Markdown (it can live in a repository) and
@@ -118,7 +119,8 @@ export function parseMarkdown(markdown: string): Block[] {
   };
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] ?? "";
+    // A quote reads as the plain text it holds.
+    const line = (lines[i] ?? "").replace(/^ {0,3}> ?/, "");
     if (!line.trim()) {
       flush();
       continue;
@@ -165,9 +167,9 @@ export function parseMarkdown(markdown: string): Block[] {
   return blocks;
 }
 
-/** What the admin page shows: the plan as blocks, never as HTML. */
+/** What the admin page shows: the plan laid out in sections of plain text runs, never HTML. */
 export function planForPage(r: PlanReport) {
   return r.state === "ready"
-    ? { state: r.state, updated_at: r.updated_at, blocks: parseMarkdown(r.markdown) }
+    ? { state: r.state, updated_at: r.updated_at, ...planLayout(parseMarkdown(r.markdown)) }
     : r;
 }

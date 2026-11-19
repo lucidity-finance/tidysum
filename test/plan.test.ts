@@ -3,6 +3,7 @@ import { afterAll, afterEach, describe, expect, inject, it } from "vitest";
 import { connect } from "../src/db/client.js";
 import { financialPlan } from "../src/db/schema.js";
 import { connectAgent } from "../src/mcp/agentDb.js";
+import { firstSentence, planItem, planLayout } from "../src/plan/layout.js";
 import { parseInline, parseMarkdown, planForPage, readPlan, setPlan } from "../src/plan/plan.js";
 import { ownerUserId } from "./users.js";
 
@@ -82,6 +83,98 @@ const owner = connect(inject("databaseUrl"));
 const userId = await ownerUserId(owner.db);
 const agentDb = connectAgent(inject("databaseUrl"), userId);
 
+describe("planLayout", () => {
+  const t = (spans: { text: string }[]) => spans.map((s) => s.text).join("");
+  const long = (s: string) =>
+    `${s} ${"Then a good deal more detail that the page keeps one click away.".repeat(2)}`;
+
+  it("shows a long item's first sentence and keeps the rest", () => {
+    const { head, more } = firstSentence(
+      parseInline(long("Move the U.S. fund (about 0.27% a year. Really.) now.")),
+    );
+    expect(t(head)).toBe("Move the U.S. fund (about 0.27% a year. Really.) now.");
+    expect(t(more)).toMatch(/^Then a good deal/);
+    expect(firstSentence(parseInline("Short. Stays whole."))).toEqual({
+      head: [{ text: "Short. Stays whole." }],
+      more: [],
+    });
+  });
+
+  it("turns a bold lead ending in a colon into a tag, and a bold sentence into the headline", () => {
+    const tagged = planItem(
+      parseInline(long("**Now, at Principal:** raise the base pay contribution.")),
+    );
+    expect(tagged.tag).toBe("Now, at Principal");
+    expect(t(tagged.head)).toBe("Raise the base pay contribution.");
+    const goal = planItem(parseInline("**Independent by 55.** Savings reach 25 times spending."));
+    expect(goal).toEqual({
+      head: [{ text: "Independent by 55.", bold: true }],
+      more: [{ text: "Savings reach 25 times spending." }],
+    });
+  });
+
+  it("folds each section, reads the review date, and turns tables into a mix or rows", () => {
+    const md = [
+      "# Plan",
+      "",
+      "> Last reviewed: 2026-01-15. Change it once a year.",
+      "",
+      "## Target mix",
+      "",
+      "| Bucket | Target | Where |",
+      "| --- | --- | --- |",
+      "| US stocks | 60% | an index fund |",
+      "| International stocks | 30% | |",
+      "| Bonds and cash | 10% | the 401(k) |",
+      "",
+      "**Glide path.** Bonds rise later.",
+      "",
+      "## Calendar",
+      "",
+      "| When | What |",
+      "| --- | --- |",
+      "| January | Review |",
+      "| April | Taxes |",
+      "",
+      "## Rules",
+      "",
+      "1. Index funds only.",
+      "2. No margin.",
+    ].join("\n");
+    const layout = planLayout(parseMarkdown(md));
+    expect(layout.reviewed).toBe("2026-01-15");
+    expect(layout.intro).toEqual([
+      { type: "note", head: [{ text: "Change it once a year." }], more: [] },
+    ]);
+    const [mix, calendar, rules] = layout.sections;
+    expect(mix?.preview).toEqual({
+      mix: [
+        { label: "US stocks", percent: "60", key: "us_stocks", note: [{ text: "an index fund" }] },
+        { label: "International stocks", percent: "30", key: "intl_stocks", note: [] },
+        {
+          label: "Bonds and cash",
+          percent: "10",
+          key: "bonds_and_cash",
+          note: [{ text: "the 401(k)" }],
+        },
+      ],
+    });
+    expect(mix?.parts[1]).toMatchObject({ type: "note", title: "Glide path" });
+    expect(calendar).toMatchObject({
+      title: "Calendar",
+      count: 2,
+      preview: { text: "January · April" },
+      parts: [{ type: "pairs", header: ["When", "What"] }],
+    });
+    expect(rules).toMatchObject({ count: 2, preview: { text: "Index funds only. · No margin." } });
+  });
+
+  it("keeps a table of percentages that don't add up to a whole as a table", () => {
+    const md = "| Fund | Fee | Yield |\n| - | - | - |\n| A | 1% | 2% |\n| B | 2% | 3% |";
+    expect(planLayout(parseMarkdown(md.replaceAll("| - ", "| --- "))).intro[0]?.type).toBe("table");
+  });
+});
+
 describe("plan storage", () => {
   afterEach(async () => {
     await owner.db.delete(financialPlan).where(eq(financialPlan.userId, userId));
@@ -103,10 +196,9 @@ describe("plan storage", () => {
     expect(r).toMatchObject({ state: "ready", markdown: "# Plan\n\nSecond." });
     expect(planForPage(r)).toMatchObject({
       state: "ready",
-      blocks: [
-        { type: "heading", level: 1, spans: [{ text: "Plan" }] },
-        { type: "paragraph", spans: [{ text: "Second." }] },
-      ],
+      reviewed: null,
+      intro: [{ type: "note", head: [{ text: "Second." }], more: [] }],
+      sections: [],
     });
     await expect(agentDb.query("update financial_plan set markdown = 'x'")).rejects.toThrow(
       /read-only transaction|permission denied/,

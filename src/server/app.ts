@@ -371,7 +371,7 @@ export function createApp(deps: AppDeps) {
     c.json({ mcp: deps.mcp !== undefined, events: await listActivity(deps.agentDb) }),
   );
 
-  // The owner's plan as blocks of text, so the page never renders HTML from it.
+  // The owner's plan laid out as plain text runs, so the page never renders HTML from it.
   app.get("/api/plan", async (c) => c.json(planForPage(await readPlan(deps.agentDb))));
 
   app.get("/api/products", async (c) => {

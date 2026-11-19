@@ -44,6 +44,17 @@ const ICONS = {
   user: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
   copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
   book: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
+  flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
+  pin: '<path d="M20 10c0 5-5.5 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.5 20.2 4 15 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  list: '<path d="M10 6h11"/><path d="M10 12h11"/><path d="M10 18h11"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>',
+  target:
+    '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  pie: '<path d="M21 12c.55 0 1-.45.95-1A10 10 0 0 0 13 2.05c-.55-.05-1 .4-1 .95v8a1 1 0 0 0 1 1z"/><path d="M21.2 15.9A10 10 0 1 1 8 2.83"/>',
+  split:
+    '<path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.17-2.87L3 3"/><path d="m15 9 6-6"/>',
+  calendar:
+    '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  ban: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
   grip: '<circle cx="9" cy="6" r=".6"/><circle cx="15" cy="6" r=".6"/><circle cx="9" cy="12" r=".6"/><circle cx="15" cy="12" r=".6"/><circle cx="9" cy="18" r=".6"/><circle cx="15" cy="18" r=".6"/>',
 };
 
@@ -3617,8 +3628,9 @@ function renderInvestments() {
 }
 
 // Plan --------------------------------------------------------------------------------------
-// The owner's own written plan. The server sends it as blocks of text runs, never HTML, so
-// nothing in it can run on the page. Each "##" section becomes one panel.
+// The owner's own written plan. The server lays it out (src/plan/layout.ts) as sections of plain
+// text runs, never HTML, so nothing in it can run on the page. Each section is a fold with a
+// one-line preview; a long item shows its first sentence and keeps the rest behind "More".
 
 function planSpans(spans) {
   return spans.map((sp) => {
@@ -3635,50 +3647,250 @@ function planSpans(spans) {
   });
 }
 
-function planBlock(b) {
-  switch (b.type) {
-    case "heading":
-      return h(b.level <= 2 ? "h2" : "h3", null, planSpans(b.spans));
-    case "paragraph":
-      return h("p", null, planSpans(b.spans));
-    case "list":
-      return h(
-        b.ordered ? "ol" : "ul",
-        { start: b.ordered && b.start !== 1 ? String(b.start) : null },
-        b.items.map((it) => h("li", null, planSpans(it))),
-      );
-    case "table":
-      return h(
-        "div",
-        { class: "plan-table-wrap" },
+/** The first sentence, then the rest one click away. */
+function planText(head, more) {
+  const wrap = h("span", { class: "plan-text" }, h("span", null, planSpans(head)));
+  if (!more.length) return wrap;
+  const label = h("span", null, "More");
+  const btn = h(
+    "button",
+    {
+      type: "button",
+      class: "plan-more-btn",
+      "aria-expanded": "false",
+      onclick: () => {
+        const open = wrap.classList.toggle("is-open");
+        btn.setAttribute("aria-expanded", String(open));
+        label.textContent = open ? "Less" : "More";
+      },
+    },
+    label,
+    icon("chevron"),
+  );
+  wrap.append(h("span", { class: "plan-more" }, " ", planSpans(more)), " ", btn);
+  return wrap;
+}
+
+/** Bar colors: the money-style color for a bucket it names, otherwise one of four spares. */
+function mixClasses(rows) {
+  const used = new Set();
+  let spare = 0;
+  return rows.map((r) => {
+    if (r.key && !used.has(r.key)) {
+      used.add(r.key);
+      return `seg-${r.key}`;
+    }
+    return `seg-n${spare++ % 4}`;
+  });
+}
+
+function planBar(rows, classes) {
+  return h(
+    "div",
+    {
+      class: "style-bar",
+      role: "img",
+      "aria-label": rows.map((r) => `${r.percent}% ${r.label}`).join(", "),
+    },
+    rows.map((r, i) => h("span", { class: `seg ${classes[i]}`, style: { flexGrow: r.percent } })),
+  );
+}
+
+function planMix(p) {
+  const classes = mixClasses(p.rows);
+  return h(
+    "div",
+    { class: "plan-mix" },
+    planBar(p.rows, classes),
+    h(
+      "ul",
+      { class: "plan-mix-rows" },
+      p.rows.map((r, i) =>
         h(
-          "table",
-          { class: "plan-table" },
+          "li",
+          null,
+          h("span", { class: `swatch ${classes[i]}` }),
+          h("span", { class: "num" }, `${r.percent}%`),
+          h("span", { class: "plan-mix-label" }, r.label),
+          r.note.length ? h("span", { class: "plan-mix-note" }, planSpans(r.note)) : null,
+        ),
+      ),
+    ),
+  );
+}
+
+function planItems(p) {
+  return h(
+    p.ordered ? "ol" : "ul",
+    {
+      class: `plan-items ${p.ordered ? "is-ordered" : ""}`,
+      style: p.ordered ? { counterReset: `plan-step ${p.start - 1}` } : null,
+    },
+    p.items.map((it) =>
+      h(
+        "li",
+        null,
+        h(
+          "div",
+          { class: "plan-item" },
+          it.tag
+            ? h("span", { class: `plan-tag ${/^now\b/i.test(it.tag) ? "is-now" : ""}` }, it.tag)
+            : null,
+          planText(it.head, it.more),
+        ),
+      ),
+    ),
+  );
+}
+
+function planTable(p) {
+  return h(
+    "div",
+    { class: "plan-table-wrap" },
+    h(
+      "table",
+      { class: "plan-table" },
+      h(
+        "thead",
+        null,
+        h(
+          "tr",
+          null,
+          p.header.map((c) => h("th", null, planSpans(c))),
+        ),
+      ),
+      h(
+        "tbody",
+        null,
+        p.rows.map((r) =>
           h(
-            "thead",
+            "tr",
             null,
-            h(
-              "tr",
-              null,
-              b.header.map((c) => h("th", null, planSpans(c))),
-            ),
-          ),
-          h(
-            "tbody",
-            null,
-            b.rows.map((r) =>
-              h(
-                "tr",
-                null,
-                r.map((c) => h("td", null, planSpans(c))),
-              ),
-            ),
+            r.map((c) => h("td", null, planSpans(c))),
           ),
         ),
+      ),
+    ),
+  );
+}
+
+function planPart(p) {
+  switch (p.type) {
+    case "heading":
+      return h("h3", null, planSpans(p.spans));
+    case "note":
+      return p.title
+        ? h(
+            "div",
+            { class: "plan-callout" },
+            h("strong", null, p.title),
+            h("p", null, planText(p.head, p.more)),
+          )
+        : h("p", { class: "plan-note" }, planText(p.head, p.more));
+    case "items":
+      return planItems(p);
+    case "mix":
+      return planMix(p);
+    case "pairs":
+      return h(
+        "dl",
+        { class: "plan-pairs", "aria-label": p.header.join(" and ") },
+        p.rows.flatMap((r) => [h("dt", null, planSpans(r.key)), h("dd", null, planSpans(r.value))]),
       );
+    case "table":
+      return planTable(p);
     default:
       return null;
   }
+}
+
+/** An icon for a section from the words in its title; a book when none fits. */
+const PLAN_ICONS = [
+  [/mission|purpose|vision|why/i, "flag"],
+  [/stand|status|snapshot|today|where i am/i, "pin"],
+  [/next|to-?do|steps|actions/i, "list"],
+  [/goal/i, "target"],
+  [/mix|allocation|portfolio/i, "pie"],
+  [/dollar|order|priorit|flow|budget/i, "split"],
+  [/rule|principle/i, "shield"],
+  [/account/i, "bank"],
+  [/calendar|schedule|when/i, "calendar"],
+  [/against|avoid|rejected|won.t/i, "ban"],
+];
+const planIcon = (title) => PLAN_ICONS.find(([re]) => re.test(title))?.[1] ?? "book";
+
+function planPreview(preview) {
+  if (preview.mix) {
+    const classes = mixClasses(preview.mix);
+    return h(
+      "span",
+      { class: "plan-acc-mix" },
+      planBar(preview.mix, classes),
+      h(
+        "span",
+        { class: "plan-acc-legend" },
+        preview.mix.map((r, i) =>
+          h(
+            "span",
+            null,
+            h("span", { class: `swatch ${classes[i]}` }),
+            h("span", { class: "num" }, `${r.percent}%`),
+            ` ${r.label}`,
+          ),
+        ),
+      ),
+    );
+  }
+  return preview.text ? h("span", { class: "plan-acc-preview" }, preview.text) : null;
+}
+
+// Which sections are open, by title, kept in this browser.
+const PLAN_OPEN_KEY = "tidysum.plan.open";
+let planOpenSet = null;
+function planOpen() {
+  if (!planOpenSet) {
+    try {
+      planOpenSet = new Set(JSON.parse(localStorage.getItem(PLAN_OPEN_KEY) || "[]"));
+    } catch {
+      planOpenSet = new Set();
+    }
+  }
+  return planOpenSet;
+}
+function savePlanOpen() {
+  try {
+    localStorage.setItem(PLAN_OPEN_KEY, JSON.stringify([...planOpen()]));
+  } catch {
+    // Private windows: the folds just start closed next time.
+  }
+}
+
+function planSection(sec, onToggle) {
+  const d = h(
+    "details",
+    { class: "plan-acc", open: planOpen().has(sec.title) },
+    h(
+      "summary",
+      null,
+      h("span", { class: "plan-acc-icon" }, icon(planIcon(sec.title))),
+      h(
+        "span",
+        { class: "plan-acc-main" },
+        h("span", { class: "plan-acc-title" }, sec.title),
+        planPreview(sec.preview),
+      ),
+      sec.count ? h("span", { class: "plan-acc-count" }, String(sec.count)) : h("span"),
+      h("span", { class: "plan-acc-chev" }, icon("chevron")),
+    ),
+    h("div", { class: "plan-acc-body" }, sec.parts.map(planPart)),
+  );
+  d.addEventListener("toggle", () => {
+    if (d.open) planOpen().add(sec.title);
+    else planOpen().delete(sec.title);
+    savePlanOpen();
+    onToggle();
+  });
+  return d;
 }
 
 // Money styles ------------------------------------------------------------------------------
@@ -3978,46 +4190,32 @@ function renderPlan() {
       ),
     );
   }
-  // The page already says "Plan", so a leading title in the document is left out.
-  const blocks =
-    r.blocks[0]?.type === "heading" && r.blocks[0].level === 1 ? r.blocks.slice(1) : r.blocks;
-  const intro = [];
-  const sections = [];
-  for (const b of blocks) {
-    if (b.type === "heading" && b.level <= 2) sections.push([b]);
-    else (sections.at(-1) || intro).push(b);
-  }
-  // A long plan gets an index: one chip per section, which scrolls to it.
-  const text = (b) => b.spans.map((sp) => sp.text).join("");
-  const panels = sections.map((sec) =>
-    h("section", { class: "panel plan-section" }, sec.map(planBlock)),
-  );
-  const index =
-    sections.length > 3
-      ? h(
-          "nav",
-          { class: "plan-index", "aria-label": "Sections of the plan" },
-          sections.map((sec, i) =>
-            h(
-              "button",
-              {
-                type: "button",
-                class: "plan-chip",
-                onclick: () => panels[i].scrollIntoView({ behavior: "smooth", block: "start" }),
-              },
-              text(sec[0]),
-            ),
-          ),
-        )
-      : null;
+  const toggleAll = h("button", { type: "button", class: "btn btn-sm btn-quiet plan-toggle-all" });
+  const syncToggle = () => {
+    const all = folds.length && folds.every((d) => d.open);
+    toggleAll.textContent = all ? "Close all" : "Open all";
+  };
+  const folds = r.sections.map((sec) => planSection(sec, syncToggle));
+  toggleAll.onclick = () => {
+    const open = !folds.every((d) => d.open);
+    for (const d of folds) d.open = open;
+  };
+  syncToggle();
+  const when = r.reviewed
+    ? `Reviewed ${day(r.reviewed)}`
+    : `Updated ${day(r.updated_at.slice(0, 10))}`;
   fill(
     root,
     styles,
-    sectionHead("Your written plan"),
-    intro.length ? h("div", { class: "plan-intro" }, intro.map(planBlock)) : null,
-    index,
-    h("div", { class: "stack" }, panels),
-    h("p", { class: "muted small plan-updated" }, `Updated ${day(r.updated_at.slice(0, 10))}`),
+    h(
+      "div",
+      { class: "section-head plan-top" },
+      h("h2", null, "Your written plan"),
+      h("span", { class: "hint" }, when),
+      folds.length > 1 ? toggleAll : null,
+    ),
+    r.intro.length ? h("div", { class: "plan-intro" }, r.intro.map(planPart)) : null,
+    folds.length ? h("div", { class: "panel plan-accs" }, folds) : null,
   );
 }
 

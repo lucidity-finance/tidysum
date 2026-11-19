@@ -88,7 +88,7 @@ describe("admin auth", () => {
     expect(body.note).toMatch(/research evidence, not target weights/);
   });
 
-  it("serves the owner's plan as blocks of text, behind the admin password", async () => {
+  it("serves the owner's plan laid out as plain text runs, behind the admin password", async () => {
     const { app } = setup();
     expect((await app.request("/api/plan")).status).toBe(401);
     expect(await (await app.request("/api/plan", { headers: auth })).json()).toEqual({
@@ -99,13 +99,13 @@ describe("admin auth", () => {
       const body = await (await app.request("/api/plan", { headers: auth })).json();
       expect(body).toMatchObject({
         state: "ready",
-        blocks: [
-          { type: "heading", level: 1 },
+        intro: [
           {
-            type: "list",
-            items: [[{ text: "Save", bold: true }, { text: " 20%" }]],
+            type: "items",
+            items: [{ head: [{ text: "Save", bold: true }, { text: " 20%" }], more: [] }],
           },
         ],
+        sections: [],
       });
       expect(body).not.toHaveProperty("markdown");
     } finally {
