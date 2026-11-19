@@ -36,6 +36,8 @@ export interface MoneyStyle {
   name: string;
   /** Who is known for it, said as a description only: Tidysum isn't affiliated with any of them. */
   advocates: string;
+  /** A few words for the card, like "Pay off every debt, then invest". */
+  tagline: string;
   summary: string;
   /** What the style says, each with how Tidysum applies it. */
   rules: { rule: string; applied: string }[];
@@ -83,6 +85,7 @@ export const STYLES: readonly MoneyStyle[] = [
     id: "debt_free_first",
     name: "Debt-free first",
     advocates: "Dave Ramsey",
+    tagline: "Pay off every debt, then invest",
     summary:
       "Clear every debt but the house before investing, smallest balance first, with a small " +
       "cash cushion until then. Then a full emergency fund and an all-stock mix.",
@@ -138,6 +141,7 @@ export const STYLES: readonly MoneyStyle[] = [
     id: "index_and_chill",
     name: "Index and chill",
     advocates: "Jack Bogle, the Bogleheads",
+    tagline: "Three index funds, held for good",
     summary:
       "Three low-cost index funds (US stocks, international stocks, bonds), roughly your age in " +
       "bonds, bought and held. Never time the market.",
@@ -197,6 +201,7 @@ export const STYLES: readonly MoneyStyle[] = [
     id: "early_retirement",
     name: "Early retirement",
     advocates: "the FIRE movement, Mr. Money Mustache, JL Collins",
+    tagline: "Save hard, all in stocks",
     summary:
       "A very high savings rate, all in a total US stock market index fund, and a small cash " +
       "cushion, so the money works as hard as it can.",
@@ -239,6 +244,7 @@ export const STYLES: readonly MoneyStyle[] = [
     id: "classic_60_40",
     name: "Classic 60/40",
     advocates: "most wealth managers and balanced funds",
+    tagline: "The balanced adviser mix",
     summary:
       "60% stocks and 40% bonds, rebalanced about once a year: the balanced mix a typical " +
       "adviser starts from.",
@@ -279,6 +285,7 @@ export const STYLES: readonly MoneyStyle[] = [
     id: "all_weather",
     name: "All weather",
     advocates: "Ray Dalio, as popularized by Tony Robbins",
+    tagline: "Steady through any economy",
     summary:
       "Fixed weights that balance risk across growth, recession, inflation and deflation: " +
       "mostly Treasuries, some stocks, gold and commodities.",
@@ -335,6 +342,7 @@ export const STYLES: readonly MoneyStyle[] = [
     id: "safety_first",
     name: "Safety first",
     advocates: "Suze Orman",
+    tagline: "A big cushion before anything",
     summary:
       "A big emergency fund of at least 8 months, no credit card debt, and only then investing.",
     rules: [
@@ -496,7 +504,7 @@ function facts(p: Policy): Record<string, string> {
     "Cash buffer": describeBuffer(p.cash.buffer),
     "While in debt": p.cash.buffer_while_in_debt
       ? `${dollars(p.cash.buffer_while_in_debt.amount)} buffer`
-      : "same buffer",
+      : "no separate buffer",
     "Spare cash": ORDER[p.debt.extra_payments],
     "Credit cards": p.cards.avoid_credit_cards
       ? "avoid them"
@@ -552,15 +560,71 @@ export function styleStatus(policy: Policy): StyleStatus | null {
 }
 
 /** Every style, with what picking it would change in `current`. */
+/** What a policy amounts to, at a glance: the mix as parts of a bar, and its key rules. */
+export interface Glance {
+  /** Buckets with a target, in the policy's order; null without an allocation. */
+  mix: { key: string; label: string; percent: string }[] | null;
+  cash: string;
+  /** "$1,000 until debt-free", when the buffer is smaller until the debt is gone. */
+  while_in_debt: string | null;
+  debt: string | null;
+  cards: string | null;
+}
+
+const bucketLabel = (key: string) =>
+  key
+    .replace(/_and_/g, " & ")
+    .replace(/_/g, " ")
+    .replace(/\bus\b/, "US")
+    .replace(/\bintl\b/, "intl")
+    .replace(/^./, (c) => c.toUpperCase());
+
+export function glance(p: Policy): Glance {
+  const mix = p.allocation
+    ? Object.entries(p.allocation.buckets)
+        .filter(([, b]) => new Big(b.target).gt(0))
+        .map(([key, b]) => ({
+          key,
+          label: bucketLabel(key),
+          percent: new Big(b.target).times(100).toString(),
+        }))
+    : null;
+  const buffer = p.cash.buffer;
+  return {
+    mix,
+    cash:
+      "amount" in buffer
+        ? `${dollars(buffer.amount)} cushion`
+        : `${buffer.months_of_spending}-month cushion`,
+    while_in_debt: p.cash.buffer_while_in_debt
+      ? `${dollars(p.cash.buffer_while_in_debt.amount)} until debt-free`
+      : null,
+    debt:
+      p.debt.extra_payments === "smallest_balance"
+        ? "Smallest debt first"
+        : p.debt.extra_payments === "highest_apr"
+          ? "Highest rate first"
+          : null,
+    cards: p.cards.avoid_credit_cards ? "No credit cards" : null,
+  };
+}
+
 export function listStyles(current: Policy | null, opts: { age?: number } = {}) {
   const age = opts.age ?? current?.style?.age;
   return {
     current: current ? styleStatus(current) : null,
+    /** The owner's rules as they are now, for the "Your own rules" card. */
+    mine: current ? glance(current) : null,
     note: NOT_AFFILIATED,
     styles: STYLES.map((s) => {
       const { preset: _preset, ...about } = s;
-      if (s.needs_age && age === undefined) return { ...about, changes: null };
-      return { ...about, changes: changesBetween(current, applyStyle(current, s.id, { age })) };
+      if (s.needs_age && age === undefined) {
+        // Only the mix depends on the age; the other rules can be shown already.
+        const rules = glance(applyStyle(current, s.id, { age: 40 }));
+        return { ...about, changes: null, result: { ...rules, mix: null } };
+      }
+      const next = applyStyle(current, s.id, { age });
+      return { ...about, changes: changesBetween(current, next), result: glance(next) };
     }),
   };
 }

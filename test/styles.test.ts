@@ -4,6 +4,7 @@ import {
   applyStyle,
   changesBetween,
   describeMix,
+  glance,
   listStyles,
   STYLES,
   styleStatus,
@@ -119,11 +120,29 @@ describe("money styles", () => {
     expect(styleStatus(mine)).toBeNull();
   });
 
+  it("sums a policy up at a glance for the cards", () => {
+    expect(glance(applyStyle(mine, "debt_free_first"))).toEqual({
+      mix: [
+        { key: "us_stocks", label: "US stocks", percent: "75" },
+        { key: "intl_stocks", label: "Intl stocks", percent: "25" },
+      ],
+      cash: "3-month cushion",
+      while_in_debt: "$1,000 until debt-free",
+      debt: "Smallest debt first",
+      cards: "No credit cards",
+    });
+    expect(glance(mine)).toMatchObject({ cash: "$5,000 cushion", debt: null, cards: null });
+  });
+
   it("lists every style with its changes, and asks for an age where it is needed", () => {
     const r = listStyles(mine);
     expect(r.current).toBeNull();
     expect(r.note).toMatch(/isn't affiliated/);
-    expect(r.styles.find((s) => s.id === "index_and_chill")?.changes).toBeNull();
+    const chill = r.styles.find((s) => s.id === "index_and_chill");
+    expect(chill?.changes).toBeNull();
+    // Only the mix waits for the age.
+    expect(chill?.result).toMatchObject({ mix: null, cash: "6-month cushion" });
+    expect(r.mine?.mix?.map((m) => m.percent)).toEqual(["60", "30", "10"]);
     expect(listStyles(mine, { age: 40 }).styles.every((s) => Array.isArray(s.changes))).toBe(true);
   });
 });

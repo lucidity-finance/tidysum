@@ -3683,22 +3683,56 @@ function planBlock(b) {
 
 // Money styles ------------------------------------------------------------------------------
 // Well-known ways of running money. Picking one fills the policy's rules (buffer, cards, debt,
-// target mix); the owner can tweak any of them afterwards.
+// target mix); the owner can tweak any of them afterwards. Each card shows the mix as a bar and
+// the key rules as chips; everything else is one click away in Details.
 
-function changeList(changes) {
+/** The age typed, or the one the owner's current style was set up with. */
+const currentAge = () => styleAge ?? ok("styles")?.current?.age ?? null;
+
+function styleMix(mix) {
+  if (!mix?.length) {
+    return h("div", { class: "style-mix is-empty" }, h("span", null, "Keeps your current mix"));
+  }
   return h(
-    "ul",
-    { class: "style-changes" },
-    changes.map((c) =>
-      h(
-        "li",
-        null,
-        h("span", { class: "muted" }, `${c.rule}: `),
-        h("s", { class: "muted" }, c.from),
-        " → ",
-        h("strong", null, c.to),
+    "div",
+    { class: "style-mix" },
+    h(
+      "div",
+      {
+        class: "style-bar",
+        role: "img",
+        "aria-label": mix.map((m) => `${m.percent}% ${m.label}`).join(", "),
+      },
+      mix.map((m) => h("span", { class: `seg seg-${m.key}`, style: { flexGrow: m.percent } })),
+    ),
+    h(
+      "ul",
+      { class: "style-legend" },
+      mix.map((m) =>
+        h(
+          "li",
+          null,
+          h("span", { class: `swatch seg-${m.key}` }),
+          h("span", { class: "num" }, `${m.percent}%`),
+          m.label,
+        ),
       ),
     ),
+  );
+}
+
+function styleChips(g) {
+  if (!g) return null;
+  const chips = [
+    [icon("shield"), g.cash],
+    g.while_in_debt ? [icon("down"), g.while_in_debt] : null,
+    g.debt ? [icon("arrow"), g.debt] : null,
+    g.cards ? [icon("card"), g.cards] : null,
+  ].filter(Boolean);
+  return h(
+    "ul",
+    { class: "style-chips" },
+    chips.map(([ic, text]) => h("li", null, ic, text)),
   );
 }
 
@@ -3719,11 +3753,46 @@ function ageInput(style) {
     if (!styleAge && input.value) toast("Enter an age from 18 to 90.", "error");
     load("styles");
   });
-  return h("label", { class: "style-age-row" }, "Your age ", input);
+  return h(
+    "label",
+    { class: "style-mix is-empty style-age-row" },
+    h("span", null, "Bonds match your age"),
+    h("span", { class: "style-age-field" }, input),
+  );
 }
 
-/** The age typed, or the one the owner's current style was set up with. */
-const currentAge = () => styleAge ?? ok("styles")?.current?.age ?? null;
+/** "Cash buffer  3 months of spending  instead of $5,000", no strikethrough. */
+function changeRows(changes) {
+  return h(
+    "dl",
+    { class: "style-diff" },
+    changes.flatMap((c) => [
+      h("dt", null, c.rule),
+      h(
+        "dd",
+        null,
+        h("strong", null, c.to),
+        h("span", { class: "muted" }, ` instead of ${c.from}`),
+      ),
+    ]),
+  );
+}
+
+function sourcesLine(style) {
+  return h(
+    "p",
+    { class: "small muted" },
+    "Sources: ",
+    style.sources.flatMap((src, i) => [
+      i ? ", " : "",
+      h(
+        "a",
+        { class: "inline-link", href: src.url, target: "_blank", rel: "noopener noreferrer" },
+        src.title,
+      ),
+    ]),
+  );
+}
 
 async function useStyle(button, style) {
   const lines = style.changes.map((c) => `${c.rule}: ${c.to}`).join("\n");
@@ -3746,70 +3815,109 @@ async function useStyle(button, style) {
   );
 }
 
-function styleCard(style, current) {
+function useButton(style, current, cls = "btn-sm") {
   const isCurrent = current?.id === style.id;
-  const changes = style.changes;
-  let foot;
-  if (!changes) foot = h("p", { class: "muted small" }, "Enter your age to see what it would set.");
-  else if (changes.length === 0)
-    foot = h("p", { class: "muted small" }, "Your rules already match it.");
-  else
-    foot = h("div", null, h("p", { class: "small" }, "Picking it changes:"), changeList(changes));
-  const button = changes?.length
-    ? h(
+  if (!style.changes?.length) return null;
+  return h(
+    "button",
+    {
+      type: "button",
+      class: `btn ${cls} ${isCurrent || cls ? "" : "btn-primary"}`,
+      onclick: (e) => useStyle(e.currentTarget, style),
+    },
+    isCurrent ? "Reset to this style" : "Use this style",
+  );
+}
+
+/** Everything behind a style, in a dialog, so the cards stay short. */
+function openStyleDetails(style, current) {
+  const close = () => dialog.close();
+  const pick = useButton(style, current, "");
+  if (pick) {
+    const run = pick.onclick;
+    pick.onclick = (e) => {
+      close();
+      run(e);
+    };
+  }
+  const dialog = h(
+    "dialog",
+    { class: "dialog style-dialog", "aria-label": style.name },
+    h(
+      "header",
+      { class: "style-dialog-head" },
+      h("div", null, h("h2", null, style.name), h("p", { class: "muted small" }, style.advocates)),
+      h(
         "button",
-        {
-          type: "button",
-          class: `btn btn-sm ${isCurrent ? "" : "btn-primary"}`,
-          onclick: (e) => useStyle(e.currentTarget, style),
-        },
-        isCurrent ? "Reset to this style" : "Use this style",
-      )
-    : null;
+        { type: "button", class: "btn btn-quiet btn-icon", "aria-label": "Close", onclick: close },
+        "✕",
+      ),
+    ),
+    h("p", null, style.summary),
+    style.changes?.length
+      ? h("section", null, h("h3", null, "What changes for you"), changeRows(style.changes))
+      : null,
+    h(
+      "section",
+      null,
+      h("h3", null, "The rules, and how Tidysum follows them"),
+      h(
+        "ul",
+        { class: "style-rules" },
+        style.rules.map((r) =>
+          h("li", null, h("strong", null, r.rule), h("span", null, r.applied)),
+        ),
+      ),
+    ),
+    style.left_to_you.length
+      ? h("section", null, h("h3", null, "Left to you and your AI"), bullets(style.left_to_you))
+      : null,
+    sourcesLine(style),
+    pick ? h("div", { class: "dialog-actions" }, pick) : null,
+  );
+  dialog.addEventListener("close", () => dialog.remove());
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+function styleCard({ name, who, tagline, selected, badge, body, chips, actions }) {
   return h(
     "article",
-    { class: `panel style-card ${isCurrent ? "is-current" : ""}` },
+    { class: `panel style-card ${selected ? "is-current" : ""}` },
     h(
       "header",
       { class: "style-head" },
-      h("h3", null, style.name),
-      isCurrent ? h("span", { class: "pill pill-accent" }, "Your style") : null,
+      h("div", null, h("h3", null, name), who ? h("p", { class: "style-who" }, who) : null),
+      selected ? h("span", { class: "pill pill-accent style-badge" }, icon("check"), badge) : null,
     ),
-    h("p", { class: "muted small style-who" }, `Known from ${style.advocates}`),
-    h("p", null, style.summary),
-    style.needs_age ? ageInput(style) : null,
-    foot,
-    fold(
-      `style-${style.id}`,
-      "How Tidysum applies it",
-      h(
-        "ul",
-        { class: "bullets" },
-        style.rules.map((r) => h("li", null, h("strong", null, r.rule), " ", r.applied)),
-      ),
-      style.left_to_you.length
+    h("p", { class: "style-tagline" }, tagline),
+    body,
+    chips,
+    actions ? h("footer", { class: "style-foot" }, actions) : null,
+  );
+}
+
+/** What the owner runs on now: their own rules or a style, with its mix and key rules. */
+function styleNow(now, mine) {
+  const tweaks = now?.tweaks ?? [];
+  return h(
+    "div",
+    { class: "panel style-now" },
+    h(
+      "div",
+      { class: "style-now-name" },
+      h("span", { class: "style-now-label" }, icon("check"), "Now using"),
+      h("strong", null, now ? now.name : "Your own rules"),
+      tweaks.length
         ? h(
-            "div",
-            null,
-            h("p", { class: "small" }, "Left to you and your AI:"),
-            bullets(style.left_to_you),
+            "span",
+            { class: "muted small" },
+            `With your changes: ${tweaks.map((t) => `${t.rule.toLowerCase()} ${t.to}`).join(", ")}`,
           )
-        : null,
-      h(
-        "p",
-        { class: "small" },
-        "Sources: ",
-        style.sources.flatMap((src, i) => [
-          i ? ", " : "",
-          h(
-            "a",
-            { class: "inline-link", href: src.url, target: "_blank", rel: "noopener noreferrer" },
-            src.title,
-          ),
-        ]),
-      ),
+        : h("span", { class: "muted small" }, now ? now.advocates : "Rules you set yourself"),
     ),
-    button ? h("div", { class: "style-actions" }, button) : null,
+    styleMix(mine.mix),
+    styleChips(mine),
   );
 }
 
@@ -3818,28 +3926,37 @@ function stylePanel() {
   if (!r) return skeleton(1);
   if (r.error) return failed("Money styles", r);
   const now = r.current;
+  const cards = r.styles.map((s) => {
+    const selected = now?.id === s.id;
+    return styleCard({
+      name: s.name,
+      who: s.advocates,
+      tagline: s.tagline,
+      selected,
+      badge: "Current",
+      body: s.needs_age && !s.result?.mix ? ageInput(s) : styleMix(s.result?.mix),
+      chips: styleChips(s.result),
+      actions: [
+        selected ? null : useButton(s, now),
+        h(
+          "button",
+          {
+            type: "button",
+            class: "btn btn-sm btn-quiet",
+            onclick: () => openStyleDetails(s, now),
+          },
+          "Details",
+        ),
+      ],
+    });
+  });
   return h(
     "section",
     { class: "styles" },
-    sectionHead("Money style", "Pick how Tidysum runs your money. You can tweak any rule after."),
-    h(
-      "p",
-      { class: "style-now" },
-      now
-        ? [
-            "You're using ",
-            h("strong", null, now.name),
-            now.tweaks.length ? ", with your own changes:" : ".",
-          ]
-        : [h("strong", null, "Your own rules."), " Pick a style below to start from one instead."],
-    ),
-    now?.tweaks.length ? changeList(now.tweaks) : null,
-    h(
-      "div",
-      { class: "style-grid" },
-      r.styles.map((s) => styleCard(s, now)),
-    ),
-    h("p", { class: "muted small" }, r.note),
+    sectionHead("Money style", "Pick one to fill in your rules. Change any rule later."),
+    r.mine ? styleNow(now, r.mine) : null,
+    h("div", { class: "style-grid" }, cards),
+    h("p", { class: "muted small style-note" }, r.note),
   );
 }
 
