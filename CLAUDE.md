@@ -18,6 +18,6 @@
   failed CI run emails the account owner, so a branch must never be pushed red.
 - CI runs on GitHub-hosted `ubuntu-latest`, free for this public repository. Never add a
   self-hosted runner: on a public repository a fork's pull request could run code on it.
-- Merging to main deploys to the owner's Mac by itself within about a minute
+- Every commit that lands on main deploys to the owner's Mac by itself within about a minute
   (`deploy/auto-deploy.sh`, launchd agent `com.tidysum.auto-deploy`). Don't run deploys by hand;
   to confirm one, read `.deploy/status` in the Mac's clone (`result=ok` and the merge commit).
