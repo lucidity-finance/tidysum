@@ -12,7 +12,7 @@ it asks for any username and `TIDYSUM_ADMIN_TOKEN` as the password), and click
 **Link institutions**. One Link session can add several banks and brokerages in a row (Plaid's
 Multi-Item Link), so Plaid's phone code is entered once per session rather than once per bank;
 Tidysum registers the user with Plaid (`/user/create`) the first time and falls back to one
-institution per session if Plaid refuses. Items that need re-authentication show a **Re-link**
+institution per session if Plaid refuses. Items that need re-authentication show a **Reconnect**
 button, which opens Plaid Link in update mode. Link asks Plaid for 730 days of history.
 
 Webhooks need `TIDYSUM_PUBLIC_URL` (https). Every webhook must carry a valid `Plaid-Verification`
@@ -415,8 +415,9 @@ the new bank paid since the switch, annualized, minus what the old account earne
 days after the switch), or a fee that stopped. Card rewards aren't measured yet.
 `list_misallocations` over MCP reads the record.
 
-Generate `TIDYSUM_TOKEN_KEY` with `openssl rand -base64 32`. Plaid Sandbox keys are on the
-Plaid dashboard under Developers → Keys.
+Generate `TIDYSUM_TOKEN_KEY` with `openssl rand -base64 32`. Plaid keys are on the Plaid
+dashboard under Developers → Keys; [Connect your accounts](connect-your-accounts.md) walks through
+the free Plaid account and linking step by step.
 
 ## Running on your Mac
 

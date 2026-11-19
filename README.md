@@ -11,6 +11,12 @@
 </p>
 
 <p align="center">
+  <strong>Bring your own AI.</strong> Tidysum has no model inside and works with any agent that speaks
+  <a href="https://modelcontextprotocol.io">MCP</a>,<br>
+  running whichever model you choose: Claude, GPT, Gemini, or one on your own machine.
+</p>
+
+<p align="center">
   <a href="#quick-start">Quick start</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="docs/guide.md">Guide</a> ·
@@ -38,14 +44,14 @@ Tidysum is for people who **don't want investing to be a second job**: who'd lik
 after the way a good adviser would, without watching markets, reading fund fact sheets or logging
 in to six websites. It does the noticing and the arithmetic. You make the calls.
 
-- **Everything in one place.** Connect your banks, cards, brokerages and retirement plans through
-  Plaid, or import a CSV. Your data stays in a Postgres database on your own computer.
+- **Everything in one place.** Connect your banks, cards, brokerages and retirement plans with a
+  free Plaid account, or import a CSV. Your data stays in a Postgres database on your own computer.
 - **Every finding has a price.** Not "your allocation drifted" but "this costs you $240 a year,
   and here is the fix".
 - **One decision at a time.** Fixes arrive as plain action cards. Approve one, skip one, reorder
   them, or schedule one for a later date.
-- **Your agent does the legwork.** Bring the AI agent you already use (Claude Code, or any MCP
-  client). It reads your data through Tidysum's tools and, once you approve an action, carries out
+- **Your agent does the legwork.** Bring the AI agent you already use, with any model: Claude
+  Code, Codex, Gemini CLI, Cursor or any other MCP client. It reads your data through Tidysum's tools and, once you approve an action, carries out
   the steps on the institution's own website, handing back to you for sign-ins and codes.
 - **Calm by design.** New money does the rebalancing, so nothing you own gets sold to chase a
   target. Moves that would take money out of the market wait for calm markets.
@@ -111,29 +117,61 @@ from the agent you bring ([decision 0005](docs/decisions/0005-actions.md)):
 
 ## Quick start
 
-You need Node 22.19 or newer, [pnpm](https://pnpm.io), Docker, and a
-[Plaid](https://dashboard.plaid.com/signup) account (the free Sandbox is enough to try it).
+Tidysum connects to your banks, cards, brokerages and retirement plans through
+[Plaid](https://plaid.com). **Anyone can make a free Plaid account**, and its free Trial plan
+connects up to 10 real institutions with no company and no cost. That is the whole setup: install
+Tidysum, make the Plaid account, paste two keys, and sign in to your banks.
+
+### The easy way: ask your agent
+
+Your AI agent can do nearly all of it. In [Claude Code](https://claude.com/claude-code) (with
+[Claude in Chrome](https://claude.com/chrome) for the browser steps), or any agent that can run
+commands and use a browser, paste:
+
+```text
+Set up Tidysum for me: clone https://github.com/lucidity-finance/tidysum, follow
+docs/connect-your-accounts.md, and connect my accounts. Stop and hand over to me
+whenever a step needs my password, a code, my identity or my agreement to terms.
+```
+
+It installs Tidysum, opens Plaid's sign-up for you, puts your keys in place, starts Tidysum and
+opens the page where you link your banks. You only step in for what is yours: your Plaid password
+and codes, Plaid's identity check and terms, and signing in to each bank inside Plaid's window.
+Your bank passwords never pass through your agent or Tidysum.
+
+### By hand
+
+You need Node 22.19 or newer, [pnpm](https://pnpm.io) and Docker.
 
 ```sh
 git clone https://github.com/lucidity-finance/tidysum.git && cd tidysum
 pnpm install
 docker compose up -d                  # Postgres on 127.0.0.1:5432
-cp .env.example .env                  # add your Plaid keys and a token key (see below)
-
-pnpm tidysum migrate
-pnpm tidysum link-sandbox             # a test bank with two years of history
-pnpm tidysum sync
-pnpm tidysum serve                    # open http://127.0.0.1:8080
+cp .env.example .env                  # then fill in the four lines below
 ```
 
-In `.env`, set `PLAID_CLIENT_ID` and `PLAID_SECRET` from Plaid's dashboard (Developers → Keys) and
-generate `TIDYSUM_TOKEN_KEY` with `openssl rand -base64 32`. Keep that key safe: losing it means
-linking every account again.
+1. **Make a free Plaid account** at [dashboard.plaid.com/signup](https://dashboard.plaid.com/signup)
+   and choose **Personal use**. New U.S. and Canadian accounts start on the Trial plan, with real
+   data included.
+2. **Fill in `.env`:** from **Developers → Keys** in the Plaid dashboard, `PLAID_CLIENT_ID` and the
+   Production secret as `PLAID_SECRET`; set `PLAID_ENV=production`; and set `TIDYSUM_TOKEN_KEY` to
+   the output of `openssl rand -base64 32`. Keep that key safe: losing it means linking every
+   account again.
+3. **Start Tidysum:**
 
-When you're ready for real accounts, switch `PLAID_ENV` to `production`, open the admin page and
-click **Link institutions**. Institutions Plaid can't reach can come in as CSV
-(`pnpm tidysum import-csv`). On a Mac, `deploy/macos-setup.sh` runs it all in the background and
-keeps it running ([guide](docs/guide.md#running-on-your-mac)).
+   ```sh
+   pnpm tidysum migrate
+   pnpm tidysum serve                 # open http://127.0.0.1:8080
+   ```
+
+4. **Connect your accounts:** on the **Connections** page, click **Link institutions** and sign in
+   to each bank, card and brokerage in Plaid's window. Tidysum syncs two years of history right
+   away, then every six hours.
+
+[Connect your accounts](docs/connect-your-accounts.md) explains every step, what counts toward the
+10 free connections, and how to try it first with Plaid's test bank. Institutions Plaid can't reach
+can come in as CSV (`pnpm tidysum import-csv`). On a Mac, `deploy/macos-setup.sh` runs it all in
+the background and keeps it running ([guide](docs/guide.md#running-on-your-mac)).
 
 ### Connect your agent
 
@@ -150,8 +188,11 @@ at every step. None of that lets it move money: approvals stay with you.
 Then ask it things like _"What is my money costing me?"_ or _"Carry out my approved Tidysum
 actions."_ For browser steps, give it a browser tool such as Claude in Chrome.
 
-Any other MCP client works too: run `pnpm -s --dir /path/to/tidysum tidysum mcp` as a stdio
-server, or set `TIDYSUM_MCP_TOKEN` and use the Streamable HTTP endpoint at `/mcp`.
+Tidysum doesn't care which agent or model you use. Any other MCP client works the same way: run
+`pnpm -s --dir /path/to/tidysum tidysum mcp` as a stdio server, or set `TIDYSUM_MCP_TOKEN` and use
+the Streamable HTTP endpoint at `/mcp`. Give it
+[skills/tidysum-actions/SKILL.md](skills/tidysum-actions/SKILL.md) as instructions, the way you would
+any agent rules file.
 
 ### Make it yours
 
@@ -186,6 +227,8 @@ and a Mac-first setup.
 
 ## Learn more
 
+- **[Connect your accounts](docs/connect-your-accounts.md):** the free Plaid account and linking,
+  step by step.
 - **[Guide](docs/guide.md):** every command, detector and rule, running on a Mac, layout and CI.
 - **[Decisions](docs/decisions):** why Tidysum is built the way it is. Start with
   [the misallocation loop](docs/decisions/0003-misallocation-loop.md) and
