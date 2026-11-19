@@ -46,6 +46,8 @@ export const IraYearSchema = z
     traditional_contributed: decimal.default("0"),
     /** Traditional IRA money converted to Roth for it. */
     converted: decimal.default("0"),
+    /** Paid memberships the owner already holds that raise a brokerage's IRA match ("Robinhood Gold"). */
+    memberships: z.array(z.string().trim().min(1).max(60)).max(10).optional(),
   })
   .strict();
 
@@ -333,7 +335,7 @@ export function rothIraFindings(p: {
     const lands = route === "backdoor" ? traditional : roth;
     const match =
       kind === "contribute"
-        ? bestMatch(offerAt(lands?.institution_name), amount, conversionRate)
+        ? bestMatch(offerAt(lands?.institution_name), amount, conversionRate, rec?.memberships)
         : null;
     const cost = amount
       .times(EXPECTED_RETURN)

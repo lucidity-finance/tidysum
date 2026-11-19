@@ -4,5 +4,6 @@
   "filing_status": "single",
   "roth_contributed": "0",
   "traditional_contributed": "7500",
-  "converted": "7500"
+  "converted": "7500",
+  "memberships": ["Robinhood Gold"]
 }

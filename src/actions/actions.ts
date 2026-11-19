@@ -314,10 +314,12 @@ export function rothIraSteps(i: Partial<RothIraInputs>): ActionStep[] {
   }
   const match = i.kind === "convert" ? null : i.match;
   const matchPct = match ? `${new Big(match.rate).times(100).toFixed()}%` : "";
-  if (match?.membership) {
-    const fee = match.membership_monthly_fee
-      ? ` (${dollars(match.membership_monthly_fee)} a month)`
-      : "";
+  if (match?.membership && !match.membership_held) {
+    const fee = match.membership_annual_fee
+      ? ` (${dollars(match.membership_annual_fee)} a year)`
+      : match.membership_monthly_fee
+        ? ` (${dollars(match.membership_monthly_fee)} a month)`
+        : "";
     steps.push({
       text: `Turn on ${match.membership}${fee} if it isn't on, and keep it at least ${match.membership_keep_months ?? 12} months, so the contribution earns the ${matchPct} match`,
       by: "agent",

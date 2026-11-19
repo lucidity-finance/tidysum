@@ -168,9 +168,11 @@ the terms' source and the day they were checked). When the IRA the contribution 
 the finding adds the match to its cost, at the better of the free rate and a paid membership's
 rate less a year of the membership. In a backdoor Roth the match arrives in the traditional IRA
 as earnings, so the action waits for it and converts it too, and its tax is counted. Robinhood:
-1% for everyone, 3% with Gold ($5 a month, kept a year after the first Gold match), only on
-contributions from a linked bank, credited within about a week, and charged back if the money
-leaves Robinhood within 5 years.
+1% for everyone, 3% with Gold ($50 a year or $5 a month, kept a year after the first Gold
+match), only on contributions from a linked bank, credited within about a week, and charged back
+if the money leaves Robinhood within 5 years. A membership the owner already pays for
+(`memberships` in the IRA year, like `["Robinhood Gold"]`) isn't counted against the match, and
+the action doesn't ask to turn it on.
 
 ## Your plan
 

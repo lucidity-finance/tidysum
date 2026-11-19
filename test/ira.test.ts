@@ -268,7 +268,7 @@ describe("a brokerage's IRA match", () => {
 
   it("takes the paid membership when its match beats its cost, and converts the match too", () => {
     const [m] = detect({ accounts: at("Robinhood") }).items;
-    // 3% of 7,500 = 225, less 24% tax on converting it (54) and a year of Gold (60): 111.
+    // 3% of 7,500 = 225, less 24% tax on converting it (54) and a year of Gold (50): 121.
     expect(m?.inputs).toMatchObject({
       conversion_tax_rate: "0.24",
       conversion_tax_rate_assumed: false,
@@ -278,18 +278,18 @@ describe("a brokerage's IRA match", () => {
         rate: "0.03",
         amount: "225.00",
         conversion_tax: "54.00",
-        membership_fee: "60.00",
-        net: "111.00",
+        membership_fee: "50.00",
+        net: "121.00",
         hold_years: 5,
       },
     });
     // The growth's tax (78.75) plus the match.
-    expect(m?.annual_cost).toBe("189.75");
+    expect(m?.annual_cost).toBe("199.75");
     expect(m?.summary).toMatch(
       /Robinhood adds a 3% match with Robinhood Gold if the money stays there 5 years\.$/,
     );
     expect(rothIraSteps(m?.inputs as Partial<RothIraInputs>).map((s) => s.text)).toEqual([
-      "Turn on Robinhood Gold ($5 a month) if it isn't on, and keep it at least 12 months, so the contribution earns the 3% match",
+      "Turn on Robinhood Gold ($50 a year) if it isn't on, and keep it at least 12 months, so the contribution earns the 3% match",
       "Check what's already been put in for 2026, and lower the amount to match",
       "Contribute $7,500 to Acme traditional IRA for 2026 from TOTAL CHECKING, keeping checking above your cash buffer",
       "Once Robinhood's 3% match (about $225) arrives, usually within 7 days, convert everything in Acme traditional IRA to Acme Roth IRA",
@@ -298,8 +298,32 @@ describe("a brokerage's IRA match", () => {
     ]);
   });
 
+  it("doesn't count a membership the owner already pays for", () => {
+    const held = new Map([
+      [
+        2026,
+        parseIraYear({ tax_year: 2026, as_of: "2026-11-19", memberships: ["Robinhood Gold"] }),
+      ],
+    ]);
+    const [m] = detect({ accounts: at("Robinhood"), years: held }).items;
+    // 225 less 54 tax, nothing for Gold: 171, plus the growth's tax (78.75).
+    expect(m?.inputs).toMatchObject({
+      recorded: true,
+      match: {
+        membership: "Robinhood Gold",
+        membership_fee: "0.00",
+        membership_held: true,
+        net: "171.00",
+      },
+    });
+    expect(m?.annual_cost).toBe("249.75");
+    expect(rothIraSteps(m?.inputs as Partial<RothIraInputs>)[0]?.text).toMatch(
+      /^Contribute \$7,500/,
+    );
+  });
+
   it("keeps the free match when the membership wouldn't pay for itself", () => {
-    // 3% of 1,500 = 45, less 10.80 tax and 60 for Gold, loses to 1% = 15 less 3.60 tax.
+    // 3% of 1,500 = 45, less 10.80 tax and 50 for Gold, loses to 1% = 15 less 3.60 tax.
     const half = new Map([
       [
         2026,
@@ -326,7 +350,7 @@ describe("a brokerage's IRA match", () => {
     expect(m?.inputs).toMatchObject({
       route: "direct",
       conversion_tax_rate: "0",
-      match: { membership: "Robinhood Gold", conversion_tax: "0.00", net: "165.00" },
+      match: { membership: "Robinhood Gold", conversion_tax: "0.00", net: "175.00" },
     });
   });
 

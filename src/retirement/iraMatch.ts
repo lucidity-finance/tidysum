@@ -18,6 +18,8 @@ export interface IraMatchOffer {
     name: string;
     rate: string;
     monthly_fee: string;
+    /** A yearly price, when the membership can be paid by the year. */
+    annual_fee?: string;
     /** Months the membership must be kept after the first boosted match, or part of it is charged back. */
     keep_months: number;
   };
@@ -37,10 +39,17 @@ export const IRA_MATCH_OFFERS: IraMatchOffer[] = [
     provider: "Robinhood",
     institutions: ["robinhood"],
     base_rate: "0.01",
-    membership: { name: "Robinhood Gold", rate: "0.03", monthly_fee: "5", keep_months: 12 },
+    membership: {
+      name: "Robinhood Gold",
+      rate: "0.03",
+      monthly_fee: "5",
+      annual_fee: "50",
+      keep_months: 12,
+    },
     hold_years: 5,
     credited_within_days: 7,
     bank_funded_only: true,
+    // Match terms; Gold's price ("$5/mo or $50/yr") is on robinhood.com/us/en/support/articles/robinhood-gold-card-waitlist/
     source_url: "https://cdn.robinhood.com/assets/robinhood/legal/Gold%20IRA%20Match%20T&Cs.pdf",
     verified_on: "2026-11-19",
   },
@@ -58,7 +67,10 @@ export interface IraMatch {
   conversion_tax: string;
   /** What the membership costs over the months it must be kept. */
   membership_fee: string;
+  /** The owner already has the membership, so its fee isn't counted and nothing needs turning on. */
+  membership_held: boolean;
   membership_monthly_fee: string | null;
+  membership_annual_fee: string | null;
   membership_keep_months: number | null;
   /** Match less its tax and the membership: what doing the contribution here adds. */
   net: string;
@@ -87,6 +99,8 @@ export function bestMatch(
   contribution: Big,
   /** Tax on the match: the marginal rate for a backdoor Roth's conversion, 0 for a Roth contribution. */
   taxRate: Big,
+  /** Memberships the owner already pays for anyway: they cost the contribution nothing. */
+  held: string[] = [],
 ): IraMatch | null {
   if (!offer || contribution.lte(0)) return null;
   const option = (rate: string, fee: Big, m: IraMatchOffer["membership"] | null) => {
@@ -100,12 +114,21 @@ export function bestMatch(
       fee,
       net: amount.minus(tax).minus(fee),
       monthly: m?.monthly_fee ?? null,
+      annual: m?.annual_fee ?? null,
       keep: m?.keep_months ?? null,
     };
   };
   const base = option(offer.base_rate, new Big(0), null);
   const m = offer.membership;
-  const boosted = m ? option(m.rate, new Big(m.monthly_fee).times(m.keep_months), m) : null;
+  // The months it must be kept, paid monthly or, where cheaper, by the year.
+  const keepCost = (x: NonNullable<IraMatchOffer["membership"]>) => {
+    const monthly = new Big(x.monthly_fee).times(x.keep_months);
+    if (!x.annual_fee) return monthly;
+    const yearly = new Big(x.annual_fee).times(Math.ceil(x.keep_months / 12));
+    return yearly.lt(monthly) ? yearly : monthly;
+  };
+  const alreadyHeld = !!m && held.some((h) => h.toLowerCase() === m.name.toLowerCase());
+  const boosted = m ? option(m.rate, alreadyHeld ? new Big(0) : keepCost(m), m) : null;
   const pick = boosted?.net.gt(base.net) ? boosted : base;
   if (pick.net.lt(1)) return null;
   return {
@@ -116,7 +139,9 @@ export function bestMatch(
     amount: money(pick.amount),
     conversion_tax: money(pick.tax),
     membership_fee: money(pick.fee),
+    membership_held: !!pick.membership && alreadyHeld,
     membership_monthly_fee: pick.monthly,
+    membership_annual_fee: pick.annual,
     membership_keep_months: pick.keep,
     net: money(pick.net),
     hold_years: offer.hold_years,
