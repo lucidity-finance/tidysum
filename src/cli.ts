@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { serve } from "@hono/node-server";
@@ -43,6 +44,8 @@ import {
   syncRun,
   workplacePlan,
 } from "./db/schema.js";
+import { demoHousehold } from "./demo/household.js";
+import { DEFAULT_DEMO_DATABASE_URL, resetDemoDatabase, seedDemo } from "./demo/seed.js";
 import { deleteUser, removeItem } from "./exits.js";
 import { importCsv } from "./ingest/csv.js";
 import { refreshVix } from "./market/calm.js";
@@ -99,6 +102,10 @@ import { createUser, resolveUserId } from "./users.js";
 
 const USAGE = `tidysum <command>
 
+  demo                             try Tidysum with a made-up household, no Plaid account needed:
+                                   resets its own database (docker compose up -d demo-db), fills
+                                   it and serves the page on http://127.0.0.1:8090 (pnpm demo
+                                   does both)
   migrate                          apply database migrations
   link-sandbox [institution_id]    create and link a Plaid Sandbox Item (default ins_109508)
   sync                             sync every active Item once
@@ -316,6 +323,52 @@ async function runServer(h: DbHandle) {
     setInterval(readMiner, minerIntervalHours() * 3_600_000);
   }
   // Keep the pool open for the life of the process.
+  await new Promise(() => {});
+}
+
+/**
+ * `tidysum demo`: a made-up household in a database of its own, through the real sync, detectors
+ * and page. Never reads DATABASE_URL or Plaid keys, so it can't touch real data.
+ */
+async function runDemo() {
+  const url = process.env.TIDYSUM_DEMO_DATABASE_URL || DEFAULT_DEMO_DATABASE_URL;
+  const port = Number(process.env.TIDYSUM_DEMO_PORT || 8090);
+  console.log("Setting up the demo household (every name and number is made up)...");
+  await resetDemoDatabase(url);
+  const h = connect(url);
+  const products = productTools();
+  const { userId, plaid, cipher, agentDb } = await seedDemo(
+    h.db,
+    demoHousehold(today()),
+    products,
+    (id) => connectAgent(url, id),
+  );
+  // An agent can try it too, over MCP, with a token that lasts as long as this process.
+  const mcpToken = randomBytes(32).toString("base64url");
+  const app = createApp({
+    db: h.db,
+    plaid,
+    cipher,
+    scheduler: new SyncScheduler(h.db, plaid, cipher, () => {}),
+    verifier: new PlaidWebhookVerifier(plaid),
+    daysRequested: DAYS_REQUESTED,
+    userId,
+    agentDb,
+    products,
+    mcp: { token: mcpToken, policy: policyTools(url, userId, agentDb), products },
+    demo: true,
+  });
+  serve({ fetch: app.fetch, hostname: "127.0.0.1", port }, (info) => {
+    const base = `http://127.0.0.1:${info.port}`;
+    console.log(`\nThe demo is ready: open ${base}\n`);
+    console.log("Point your own agent at it (Streamable HTTP MCP):");
+    console.log(`  URL:   ${base}/mcp`);
+    console.log(`  Token: Authorization: Bearer ${mcpToken}`);
+    console.log(
+      `  Claude Code: claude mcp add --transport http tidysum-demo ${base}/mcp --header "Authorization: Bearer ${mcpToken}"`,
+    );
+    console.log("\nCtrl+C stops it. Running it again starts a fresh household.");
+  });
   await new Promise(() => {});
 }
 
@@ -1086,6 +1139,7 @@ async function main(argv: string[]) {
     return;
   }
   // These connect as the agent roles, not as the owner.
+  if (command === "demo") return runDemo();
   if (command === "mcp") return runMcp();
   if (command === "check") return runCheck();
   if (command === "proposals") return runProposals();

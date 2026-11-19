@@ -4,6 +4,21 @@ The full reference: every command, detector and rule, and how Tidysum runs. Star
 [README](../README.md) for what Tidysum is and how to set it up, and read
 [DISCLAIMER.md](../DISCLAIMER.md) before relying on anything here.
 
+## The demo
+
+`pnpm demo` starts a throwaway Postgres (`demo-db` in docker-compose.yml, port 5433, kept in
+memory) and runs `tidysum demo` against it: it resets that database, makes up a household
+(`src/demo/household.ts`: two years of checking, savings, two cards, a brokerage and a 401(k),
+ending today), links and syncs it through `DemoPlaid` instead of Plaid, records a 401(k) plan, an
+IRA year, a policy and `docs/plan.example.md`, runs every detector, drafts the actions and serves
+the page on http://127.0.0.1:8090 with a "Demo" bar. It prints an MCP address and a one-run token
+for your agent.
+
+The demo never reads `.env` or `DATABASE_URL`. It only resets a database named `tidysum_demo`, and
+refuses when that Postgres server holds any other database or Tidysum's tables, so it can't reach
+real data. Linking or removing institutions is refused on the demo page.
+`TIDYSUM_DEMO_DATABASE_URL` and `TIDYSUM_DEMO_PORT` change where it runs.
+
 ## Linking real accounts
 
 `pnpm tidysum serve` runs the admin page, Plaid's webhook endpoint and the scheduled sync in one
@@ -478,7 +493,8 @@ sync instead of immediately.
 
 ```
 src/
-  cli.ts                  migrate | link-sandbox | sync | serve | mcp | check | proposals | products | cards | ...
+  cli.ts                  migrate | link-sandbox | sync | serve | mcp | demo | check | proposals | products | cards | ...
+  demo/                   the made-up household, a Plaid stand-in that serves it, and the demo's seeding
   mcp/                    MCP server: tools, queries, tidysum_agent/tidysum_proposer connections
   policy/                 policy file schema, snapshot reads, deterministic checks, proposals
   products/               deposit and credit card catalogs, "what not switching costs" and card math

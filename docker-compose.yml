@@ -15,6 +15,25 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  # `pnpm demo`: a throwaway Postgres for the made-up demo household, kept in memory and apart
+  # from your real data. Starts only when named: docker compose up -d --wait demo-db
+  demo-db:
+    image: postgres:17
+    profiles: ["demo"]
+    environment:
+      POSTGRES_USER: tidysum
+      POSTGRES_PASSWORD: tidysum
+      POSTGRES_DB: tidysum_demo
+    ports:
+      - "127.0.0.1:5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "tidysum", "-d", "tidysum_demo"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
 volumes:
   pgdata:
     name: tidysum-pg

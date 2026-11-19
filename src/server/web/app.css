@@ -172,6 +172,16 @@ h3 {
   border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
 }
 
+.demo-bar {
+  margin: 0;
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-bottom: 1px solid color-mix(in srgb, var(--warn) 18%, transparent);
+}
+
 .top-inner {
   max-width: 1000px;
   margin: 0 auto;

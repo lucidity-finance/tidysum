@@ -2658,27 +2658,30 @@ function institutionRow(it) {
     it.source === "plaid" && it.status === "relink_required"
       ? linkButton("Reconnect", { itemId: it.id, small: true })
       : null,
-    h(
-      "button",
-      {
-        class: "btn btn-sm btn-quiet btn-icon",
-        type: "button",
-        title: `Remove ${name}`,
-        "aria-label": `Remove ${name}`,
-        onclick: async (ev) => {
-          const b = ev.currentTarget;
-          const yes = await confirmDialog(
-            `Remove ${name}?`,
-            "This disconnects it and deletes its accounts and everything synced from them. Only the audit log is kept.",
-            "Remove",
-          );
-          if (yes) {
-            act(b, () => api(`/api/items/${it.id}/remove`, {}), `Removed ${name}.`, ALL);
-          }
-        },
-      },
-      icon("trash"),
-    ),
+    // The demo's made-up banks stay put: there is nothing real to disconnect.
+    ok("items")?.demo
+      ? null
+      : h(
+          "button",
+          {
+            class: "btn btn-sm btn-quiet btn-icon",
+            type: "button",
+            title: `Remove ${name}`,
+            "aria-label": `Remove ${name}`,
+            onclick: async (ev) => {
+              const b = ev.currentTarget;
+              const yes = await confirmDialog(
+                `Remove ${name}?`,
+                "This disconnects it and deletes its accounts and everything synced from them. Only the audit log is kept.",
+                "Remove",
+              );
+              if (yes) {
+                act(b, () => api(`/api/items/${it.id}/remove`, {}), `Removed ${name}.`, ALL);
+              }
+            },
+          },
+          icon("trash"),
+        ),
   );
 }
 
@@ -2780,10 +2783,12 @@ function renderConnections() {
   const r = data.items;
   // The header button is the one way to link; the empty state carries it instead when there's
   // nothing linked yet.
-  $("#link-new").hidden = !r || !!r.error || r.items.length === 0;
+  $("#link-new").hidden = !r || !!r.error || r.items.length === 0 || !!r.demo;
   if (!r) return fill(root, skeleton(1));
   if (r.error) return fill(root, failed("Connections", r));
-  const phone = h("div", { class: "panel list phone-panel" }, phoneRow(r.phoneEnding));
+  const phone = r.demo
+    ? null
+    : h("div", { class: "panel list phone-panel" }, phoneRow(r.phoneEnding));
   if (r.items.length === 0) {
     return fill(
       root,
@@ -4508,6 +4513,7 @@ function renderDisclosure() {
 }
 
 function render() {
+  $("#demo-bar").hidden = !ok("items")?.demo;
   renderDisclosure();
   renderActions();
   renderConnections();

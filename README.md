@@ -18,6 +18,7 @@
 
 <p align="center">
   <a href="#why-tidysum">Why</a> ·
+  <a href="#try-the-demo-first">Try the demo</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="docs/guide.md">Guide</a> ·
@@ -148,6 +149,24 @@ from the agent you bring ([decision 0005](docs/decisions/0005-actions.md)):
   loopback.
 
 ## Quick start
+
+### Try the demo first
+
+See it working on a made-up household before you connect anything: no Plaid account, no keys.
+You need Node 22.19 or newer, [pnpm](https://pnpm.io) and Docker.
+
+```sh
+git clone https://github.com/lucidity-finance/tidysum.git && cd tidysum
+pnpm install
+pnpm demo                             # then open http://127.0.0.1:8090
+```
+
+It runs the real sync, detectors and pages on two years of invented banking, cards, a brokerage
+and a 401(k), in a throwaway database of its own that never touches your real data. It also
+prints an MCP address and token, so you can point your own agent at the demo and ask it what the
+household's money is costing.
+
+### Connect your own accounts
 
 Tidysum connects to your banks, cards, brokerages and retirement plans through
 [Plaid](https://plaid.com). **Anyone can make a free Plaid account**, and its free Trial plan

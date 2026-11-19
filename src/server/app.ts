@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { and, eq } from "drizzle-orm";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { csrf } from "hono/csrf";
 import { HTTPException } from "hono/http-exception";
@@ -86,6 +86,11 @@ export interface AppDeps {
   mcp?: { token: string; policy?: PolicyTools; products?: ProductTools };
   /** Product catalog for the "better accounts" view; omitted means no such view. */
   products?: ProductTools;
+  /**
+   * `tidysum demo`: the data is a made-up household. The page says so, and linking or removing
+   * institutions is refused, so the demo is never mixed with real accounts.
+   */
+  demo?: boolean;
 }
 
 const LinkTokenBody = z.object({ itemId: z.uuid().optional() }).strict();
@@ -221,6 +226,18 @@ export function createApp(deps: AppDeps) {
   });
   app.use("/api/*", csrf(), bodyLimit({ maxSize: 16 * 1024 }));
 
+  if (deps.demo) {
+    const refuse = (c: Context) =>
+      c.json(
+        { error: "This is the demo with a made-up household; it can't connect real accounts." },
+        403,
+      );
+    for (const path of ["/api/phone", "/api/link-token", "/api/link-sessions", "/api/items"]) {
+      app.post(path, refuse);
+    }
+    app.post("/api/items/:id/*", refuse);
+  }
+
   app.get("/", (c) => c.html(INDEX_HTML));
   app.get("/app.js", (c) => c.body(APP_JS, 200, { "Content-Type": "text/javascript" }));
   app.get("/app.css", (c) => c.body(APP_CSS, 200, { "Content-Type": "text/css" }));
@@ -241,7 +258,11 @@ export function createApp(deps: AppDeps) {
       .orderBy(item.createdAt);
     // Only the last digits go back to the page: enough to recognise the number.
     const phone = await readPhone(deps.db, deps.userId);
-    return c.json({ items: rows, phoneEnding: phone ? phone.slice(-4) : null });
+    return c.json({
+      items: rows,
+      phoneEnding: phone ? phone.slice(-4) : null,
+      ...(deps.demo ? { demo: true } : {}),
+    });
   });
 
   // The number Plaid Link pre-fills, so linking asks only for the texted code.

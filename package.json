@@ -11,6 +11,7 @@
   "packageManager": "pnpm@10.28.0",
   "scripts": {
     "tidysum": "tsx --env-file-if-exists=.env src/cli.ts",
+    "demo": "docker compose up -d --wait demo-db && tsx src/cli.ts demo",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome format --write .",
