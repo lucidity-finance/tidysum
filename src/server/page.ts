@@ -11,3 +11,5 @@ export const INDEX_HTML = read("index.html");
 export const APP_CSS = read("app.css");
 export const APP_JS = read("app.js");
 export const FAVICON_SVG = read("favicon.svg");
+/** Source Serif 4 (SIL Open Font License, see web/OFL.txt), for headings. */
+export const SERIF_WOFF2 = readFileSync(new URL("./web/source-serif-4.woff2", import.meta.url));

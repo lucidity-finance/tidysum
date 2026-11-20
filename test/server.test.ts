@@ -78,6 +78,16 @@ describe("admin auth", () => {
     expect(csp).toContain("frame-ancestors 'none'");
   });
 
+  it("serves the heading font from the app itself, with no outside request", async () => {
+    const { app } = setup();
+    const css = await (await app.request("/app.css", { headers: auth })).text();
+    expect(css).toContain('url("source-serif-4.woff2")');
+    const res = await app.request("/source-serif-4.woff2", { headers: auth });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("font/woff2");
+    expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(10_000);
+  });
+
   it("serves the research sleeve behind the admin password, with no dollar amounts", async () => {
     const { app } = setup();
     expect((await app.request("/api/research")).status).toBe(401);

@@ -51,6 +51,7 @@ jobs:
           mkdir -p _site/assets
           cp site/index.html _site/
           cp docs/assets/* _site/assets/
+          cp src/server/web/source-serif-4.woff2 _site/assets/
           pnpm tsx src/cli.ts demo --static _site/demo
       - uses: actions/upload-pages-artifact@v4
         with:

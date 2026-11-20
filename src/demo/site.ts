@@ -71,7 +71,7 @@ export async function writeDemoSite(
   if (!html.includes('src="static.js"')) throw new Error("index.html changed: can't add static.js");
   await writeFile(join(outDir, "index.html"), html);
   await writeFile(join(outDir, "static.js"), STATIC_JS);
-  for (const f of ["app.js", "app.css", "favicon.svg"]) {
+  for (const f of ["app.js", "app.css", "favicon.svg", "source-serif-4.woff2"]) {
     await copyFile(new URL(f, WEB), join(outDir, f));
   }
 }

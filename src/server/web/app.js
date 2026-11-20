@@ -55,6 +55,8 @@ const ICONS = {
   calendar:
     '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
   ban: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
   grip: '<circle cx="9" cy="6" r=".6"/><circle cx="15" cy="6" r=".6"/><circle cx="9" cy="12" r=".6"/><circle cx="15" cy="12" r=".6"/><circle cx="9" cy="18" r=".6"/><circle cx="15" cy="18" r=".6"/>',
 };
 
@@ -64,6 +66,26 @@ const CATEGORIES = {
   debt: { label: "Debt", icon: "down", view: null },
   securities: { label: "Investments", icon: "up", view: "#investments" },
 };
+
+// Light unless the user switched to dark in the top bar; not the system setting.
+const THEME_KEY = "tidysum-theme";
+
+function savedTheme() {
+  try {
+    return localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
+function setTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  const btn = $("#theme");
+  const label = theme === "dark" ? "Switch to light" : "Switch to dark";
+  btn.replaceChildren(icon(theme === "dark" ? "sun" : "moon"));
+  btn.setAttribute("aria-label", label);
+  btn.title = label;
+}
 
 const VIEWS = ["actions", "plan", "cash", "cards", "investments", "connections"];
 
@@ -681,27 +703,6 @@ const NOT_COVERED_LABELS = [
   [/priced by deposit_rate,/, "priced by the cash comparison,"],
 ];
 const tidyNotCovered = (s) => NOT_COVERED_LABELS.reduce((t, [re, to]) => t.replace(re, to), s);
-
-// Count-up: the hero figure runs from zero once per page load, in BigInt cents.
-let heroAnimated = false;
-function countUp(el, total, format) {
-  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  if (heroAnimated || reduce || total <= 0n) {
-    el.textContent = format(total);
-    return;
-  }
-  heroAnimated = true;
-  const start = performance.now();
-  const ms = 900;
-  const frame = (now) => {
-    const t = Math.min(1, (now - start) / ms);
-    const eased = 1 - (1 - t) ** 3;
-    el.textContent = format((total * BigInt(Math.round(eased * 1000))) / 1000n);
-    if (t < 1) requestAnimationFrame(frame);
-  };
-  el.textContent = format(0n);
-  requestAnimationFrame(frame);
-}
 
 // Findings ----------------------------------------------------------------------------------
 
@@ -2279,8 +2280,7 @@ function agentHandoff(going) {
 function hero(r) {
   const total = cents(r.annual_cost);
   const items = ok("items")?.items || [];
-  const figure = h("span", { class: "hero-figure num" });
-  countUp(figure, total, usd0);
+  const figure = h("span", { class: "hero-figure num" }, usd0(total));
   const segments = Object.keys(CATEGORIES)
     .map((k) => ({ key: k, c: cents(r.by_category[k]) }))
     .filter((s) => s.c > 0n);
@@ -2291,17 +2291,17 @@ function hero(r) {
       ? h(
           "h1",
           { class: "hero-title" },
-          h("span", null, "You're leaving ", figure),
-          h("span", null, " a year on the table."),
+          h("span", null, "You could keep about ", figure),
+          h("span", null, " more each year."),
         )
       : items.length
-        ? h("h1", { class: "hero-title is-good" }, "All tidy. Nothing's leaking.")
-        : h("h1", { class: "hero-title" }, "Let's find where your money leaks."),
+        ? h("h1", { class: "hero-title is-good" }, "Everything is in good order.")
+        : h("h1", { class: "hero-title" }, "Let's see where your money could do more."),
     h(
       "p",
       { class: "hero-sub" },
       total > 0n
-        ? `About ${usd0(r.monthly_cost)} a month. Tidysum has a fix for each; approve them one by one.`
+        ? `That's about ${usd0(r.monthly_cost)} a month. Each change below waits for your approval.`
         : items.length
           ? "Tidysum checks again after every sync and drafts a fix for anything it finds."
           : toConnections("Link your banks and cards to start."),
@@ -2558,7 +2558,7 @@ function activityText(e, count) {
       return `finished ${t}`;
     case "misallocation.found":
       return many
-        ? `found ${count} new places money leaks`
+        ? `found ${count} places your money could do more`
         : `found: ${prose(e.title || "a new leak")}`;
     case "misallocation.resolved":
       return `saw it's fixed: ${prose(e.title || "a leak")}`;
@@ -3147,7 +3147,7 @@ function cashHistorySection() {
   return h(
     "section",
     { class: "section" },
-    sectionHead("What idle cash has cost you"),
+    sectionHead("Interest your idle cash missed"),
     h(
       "article",
       { class: "panel hist-panel" },
@@ -3158,7 +3158,7 @@ function cashHistorySection() {
           ? [
               "About ",
               h("span", { class: "cost num" }, usd0(r.lost)),
-              ` of interest lost since ${since}`,
+              ` of interest missed since ${since}`,
             ]
           : "Your idle cash has earned about what a high-yield account would have paid.",
       ),
@@ -4580,6 +4580,14 @@ function route() {
 }
 
 for (const el of document.querySelectorAll("[data-icon]")) el.replaceWith(icon(el.dataset.icon));
+setTheme(savedTheme());
+$("#theme").addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  setTheme(next);
+  try {
+    localStorage.setItem(THEME_KEY, next);
+  } catch {}
+});
 // The one place new institutions are linked. Every other page points here.
 $("#link-new").addEventListener("click", (ev) => startLink(ev.currentTarget));
 window.addEventListener("hashchange", route);

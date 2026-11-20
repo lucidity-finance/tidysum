@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="light" />
     <title>Tidysum: the wealth manager's playbook, without the fee</title>
     <meta
       name="description"
@@ -18,39 +18,28 @@
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
     <style>
-      :root {
-        --bg: #f6f5f1;
-        --surface: #ffffff;
-        --sunken: #efede6;
-        --line: #e8e6df;
-        --text: #1b1b18;
-        --text-2: #46453f;
-        --muted: #7b796f;
-        --brand: #17785e;
-        --brand-2: #0f5c48;
-        --brand-soft: #e2f1ea;
-        --cost: #c8461c;
-        --you: #b7791f;
-        --agent: #6d4ad6;
-        --shadow: 0 18px 40px -12px rgb(40 36 20 / 0.28), 0 4px 10px -4px rgb(40 36 20 / 0.1);
+      @font-face {
+        font-family: "Source Serif 4";
+        src: url("assets/source-serif-4.woff2") format("woff2");
+        font-weight: 200 900;
+        font-display: swap;
       }
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #121211;
-          --surface: #1b1b1a;
-          --sunken: #232321;
-          --line: #2e2d2a;
-          --text: #f1efe8;
-          --text-2: #cfccc2;
-          --muted: #9a978d;
-          --brand: #3fbf98;
-          --brand-2: #63d1ad;
-          --brand-soft: #173a30;
-          --cost: #f08a5d;
-          --you: #e3a94a;
-          --agent: #a58cf2;
-          --shadow: 0 18px 40px -12px rgb(0 0 0 / 0.6);
-        }
+      :root {
+        --bg: #f7f6f2;
+        --surface: #ffffff;
+        --sunken: #f0eee7;
+        --line: #e5e1d7;
+        --text: #17211c;
+        --text-2: #3e4943;
+        --muted: #6c746e;
+        --brand: #1e4d3d;
+        --brand-2: #153a2d;
+        --brand-soft: #e5eee8;
+        --you: #8f6a1c;
+        --agent: #55608f;
+        --serif: "Source Serif 4", "Iowan Old Style", Charter, Georgia, serif;
+        --shadow: 0 1px 2px rgb(23 33 28 / 0.04), 0 18px 40px -22px rgb(23 33 28 / 0.22);
+        color-scheme: light;
       }
       * {
         box-sizing: border-box;
@@ -65,9 +54,10 @@
       }
       a {
         color: var(--brand);
+        text-underline-offset: 3px;
       }
       .wrap {
-        max-width: 1080px;
+        max-width: 1040px;
         margin: 0 auto;
         padding: 0 20px;
       }
@@ -76,48 +66,56 @@
         align-items: center;
         justify-content: space-between;
         padding: 18px 0;
+        border-bottom: 1px solid var(--line);
       }
       .brand {
         display: flex;
         align-items: center;
         gap: 10px;
-        font-weight: 700;
-        font-size: 19px;
+        font: 600 21px/1 var(--serif);
         color: var(--text);
         text-decoration: none;
       }
       .brand img {
-        width: 32px;
-        height: 32px;
+        width: 30px;
+        height: 30px;
       }
       nav a {
         color: var(--text-2);
         text-decoration: none;
-        font-weight: 600;
+        font-weight: 500;
         font-size: 15px;
-        margin-left: 22px;
+        margin-left: 24px;
       }
       nav a:hover {
         color: var(--text);
       }
       .hero {
-        padding: 56px 0 28px;
-        max-width: 780px;
+        padding: 72px 0 32px;
+        max-width: 760px;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: var(--serif);
+        font-weight: 500;
+        letter-spacing: -0.01em;
       }
       h1 {
-        font-size: clamp(36px, 6vw, 60px);
-        line-height: 1.04;
-        letter-spacing: -0.035em;
-        margin: 0 0 20px;
+        font-size: clamp(36px, 5.4vw, 56px);
+        line-height: 1.1;
+        margin: 0 0 22px;
+        text-wrap: balance;
       }
       h1 em {
         font-style: normal;
         color: var(--brand);
       }
       .lede {
-        font-size: 20px;
+        font-size: 19px;
         color: var(--text-2);
-        margin: 0 0 28px;
+        margin: 0 0 30px;
+        max-width: 640px;
       }
       .buttons {
         display: flex;
@@ -128,20 +126,15 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 12px 20px;
-        border-radius: 999px;
-        font-weight: 650;
+        padding: 12px 22px;
+        border-radius: 10px;
+        font-weight: 600;
         text-decoration: none;
         font-size: 16px;
       }
       .btn-primary {
         background: var(--brand);
         color: #fff;
-      }
-      @media (prefers-color-scheme: dark) {
-        .btn-primary {
-          color: #0d2a22;
-        }
       }
       .btn-primary:hover {
         background: var(--brand-2);
@@ -151,14 +144,17 @@
         background: var(--surface);
         color: var(--text);
       }
+      .btn-quiet:hover {
+        border-color: #d4cfc2;
+      }
       .note {
         font-size: 14px;
         color: var(--muted);
-        margin-top: 14px;
+        margin-top: 16px;
       }
       .shot {
-        margin: 36px 0 12px;
-        border-radius: 16px;
+        margin: 40px 0 12px;
+        border-radius: 12px;
         overflow: hidden;
         box-shadow: var(--shadow);
         border: 1px solid var(--line);
@@ -175,17 +171,18 @@
         color: var(--muted);
       }
       section {
-        padding: 56px 0 8px;
+        margin-top: 64px;
+        padding-top: 56px;
+        border-top: 1px solid var(--line);
       }
       h2 {
-        font-size: clamp(26px, 3.6vw, 36px);
-        letter-spacing: -0.02em;
-        line-height: 1.15;
+        font-size: clamp(28px, 3.6vw, 36px);
+        line-height: 1.2;
         margin: 0 0 14px;
       }
       .sub {
         color: var(--text-2);
-        max-width: 720px;
+        max-width: 700px;
         margin: 0 0 28px;
       }
       .steps {
@@ -196,12 +193,13 @@
       .card {
         background: var(--surface);
         border: 1px solid var(--line);
-        border-radius: 14px;
-        padding: 22px;
+        border-radius: 12px;
+        padding: 24px;
       }
       .card h3 {
-        margin: 10px 0 6px;
-        font-size: 19px;
+        margin: 12px 0 6px;
+        font-size: 21px;
+        font-weight: 600;
       }
       .card p {
         margin: 0;
@@ -211,12 +209,9 @@
       .who {
         display: inline-block;
         font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.04em;
+        font-weight: 600;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
-        padding: 3px 9px;
-        border-radius: 999px;
-        background: var(--sunken);
       }
       .who.t {
         color: var(--brand);
@@ -233,10 +228,12 @@
         gap: 16px;
       }
       .quote {
-        font-size: 17px;
+        font: 19px/1.5 var(--serif);
+        color: var(--text-2);
       }
       .quote strong {
-        color: var(--brand);
+        color: var(--text);
+        font-weight: 600;
       }
       table {
         width: 100%;
@@ -244,7 +241,7 @@
         border-collapse: collapse;
         background: var(--surface);
         border: 1px solid var(--line);
-        border-radius: 14px;
+        border-radius: 12px;
         overflow: hidden;
       }
       th,
@@ -259,11 +256,10 @@
       th {
         font-size: 14px;
         color: var(--muted);
-        font-weight: 600;
+        font-weight: 500;
       }
       td.cost {
-        color: var(--cost);
-        font-weight: 700;
+        font-weight: 600;
         font-variant-numeric: tabular-nums;
       }
       .agents {
@@ -277,15 +273,15 @@
       .agents li {
         background: var(--surface);
         border: 1px solid var(--line);
-        border-radius: 999px;
+        border-radius: 8px;
         padding: 8px 16px;
-        font-weight: 600;
+        font-weight: 500;
         font-size: 15px;
       }
       .safe {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 12px 28px;
+        gap: 16px 32px;
         padding: 0;
         list-style: none;
       }
@@ -297,21 +293,22 @@
       .safe li::before {
         content: "";
         position: absolute;
-        left: 0;
+        left: 2px;
         top: 7px;
-        width: 14px;
-        height: 8px;
-        border-left: 2.5px solid var(--brand);
-        border-bottom: 2.5px solid var(--brand);
+        width: 12px;
+        height: 7px;
+        border-left: 2px solid var(--brand);
+        border-bottom: 2px solid var(--brand);
         transform: rotate(-45deg);
       }
       .safe strong {
         color: var(--text);
+        font-weight: 600;
       }
       pre {
         background: var(--surface);
         border: 1px solid var(--line);
-        border-radius: 12px;
+        border-radius: 10px;
         padding: 18px 20px;
         overflow-x: auto;
         font: 14.5px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -340,7 +337,11 @@
           display: none;
         }
         .hero {
-          padding-top: 28px;
+          padding-top: 40px;
+        }
+        section {
+          margin-top: 48px;
+          padding-top: 40px;
         }
       }
     </style>
@@ -371,15 +372,12 @@
       </div>
 
       <a class="shot" href="demo/" style="display: block">
-        <picture>
-          <source srcset="assets/screenshot-actions-dark.png" media="(prefers-color-scheme: dark)" />
-          <img
-            src="assets/screenshot-actions.png"
-            width="2560"
-            height="1720"
-            alt="Tidysum's Actions page: 'You're leaving $2,599 a year on the table', with the next fix to approve and a queue of the rest"
-          />
-        </picture>
+        <img
+          src="assets/screenshot-actions.png"
+          width="2560"
+          height="1720"
+          alt="Tidysum's Actions page: 'You could keep about $2,600 more each year', with the next change to approve and a queue of the rest"
+        />
       </a>
       <p class="caption">The demo household. Every name and number is made up.</p>
 
@@ -420,7 +418,7 @@
           <div class="card">
             <span class="who t">Tidysum</span>
             <h3>Finds and prices</h3>
-            <p>Reads your synced accounts, checks them against your rules, and turns each leak into one plain action card with its yearly cost.</p>
+            <p>Reads your synced accounts, checks them against your rules, and turns each one into a plain action card with its yearly cost.</p>
           </div>
           <div class="card">
             <span class="who y">You</span>

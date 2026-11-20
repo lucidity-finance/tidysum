@@ -31,7 +31,7 @@
   <a href="https://lucidity-finance.github.io/tidysum/demo/">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshot-actions-dark.png">
-      <img src="docs/assets/screenshot-actions.png" width="860" alt="Tidysum's Actions page: 'You're leaving $2,599 a year on the table', with the next fix to approve and a queue of the rest">
+      <img src="docs/assets/screenshot-actions.png" width="860" alt="Tidysum's Actions page: 'You could keep about $2,600 more each year', with the next change to approve and a queue of the rest">
     </picture>
   </a>
   <br>

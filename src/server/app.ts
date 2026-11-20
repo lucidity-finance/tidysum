@@ -54,7 +54,7 @@ import type { ResearchScanner } from "../research/scan.js";
 import { ensurePlaidUser, linkItem, loadAccessToken } from "../sync/items.js";
 import type { SyncScheduler } from "../sync/scheduler.js";
 import { normalizePhone, readPhone, setPhone } from "../users.js";
-import { APP_CSS, APP_JS, FAVICON_SVG, INDEX_HTML } from "./page.js";
+import { APP_CSS, APP_JS, FAVICON_SVG, INDEX_HTML, SERIF_WOFF2 } from "./page.js";
 
 export interface AppDeps {
   db: Db;
@@ -242,6 +242,12 @@ export function createApp(deps: AppDeps) {
   app.get("/app.js", (c) => c.body(APP_JS, 200, { "Content-Type": "text/javascript" }));
   app.get("/app.css", (c) => c.body(APP_CSS, 200, { "Content-Type": "text/css" }));
   app.get("/favicon.svg", (c) => c.body(FAVICON_SVG, 200, { "Content-Type": "image/svg+xml" }));
+  app.get("/source-serif-4.woff2", (c) =>
+    c.body(SERIF_WOFF2, 200, {
+      "Content-Type": "font/woff2",
+      "Cache-Control": "public, max-age=604800",
+    }),
+  );
 
   app.get("/api/items", async (c) => {
     const rows = await deps.db
