@@ -2660,7 +2660,7 @@ function institutionRow(it) {
     it.source === "plaid" && it.status === "relink_required"
       ? linkButton("Reconnect", { itemId: it.id, small: true })
       : null,
-    // The demo's made-up banks stay put: there is nothing real to disconnect.
+    // The demo's banks stay put: there is nothing real of yours to disconnect.
     ok("items")?.demo
       ? null
       : h(
@@ -4514,9 +4514,13 @@ function renderDisclosure() {
   $("#disclosure").textContent = text ? prose(text) : "";
 }
 
-/** The demo says what it is: a made-up household, and online, a snapshot that can't change. */
+/**
+ * The demo says what it is: a made-up person at real banks, with their public rates as of a day,
+ * and online, a snapshot that can't change.
+ */
 function renderDemoBar() {
-  const demo = ok("items")?.demo;
+  const items = ok("items");
+  const demo = items?.demo;
   const bar = $("#demo-bar");
   bar.hidden = !demo;
   if (!demo || bar.dataset.kind === String(demo)) return;
@@ -4524,9 +4528,12 @@ function renderDemoBar() {
   fill(
     bar,
     h("strong", {}, "Demo. "),
-    demo === "online"
-      ? "A made-up household, and read-only here. To approve and skip, run it on your computer: pnpm demo."
-      : "A made-up household: every name and number is invented. Approve and skip freely; nothing here is real.",
+    "A made-up person at real banks",
+    items.demo_checked_on
+      ? `, with their public rates as of ${day(items.demo_checked_on)}. `
+      : ". ",
+    "Not affiliated with any institution named. ",
+    demo === "online" ? "Read-only here; run pnpm demo to approve." : "Approve and skip freely.",
   );
 }
 

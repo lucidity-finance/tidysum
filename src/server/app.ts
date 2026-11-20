@@ -19,6 +19,7 @@ import { isLoopbackHost } from "../config.js";
 import type { TokenCipher } from "../crypto/tokenCipher.js";
 import type { Db } from "../db/client.js";
 import { item } from "../db/schema.js";
+import { CHECKED_ON as DEMO_CHECKED_ON } from "../demo/realWorld.js";
 import { removeItem } from "../exits.js";
 import type { AgentDb } from "../mcp/agentDb.js";
 import { createTidysumMcpServer, type PolicyTools, type ProductTools } from "../mcp/server.js";
@@ -87,7 +88,7 @@ export interface AppDeps {
   /** Product catalog for the "better accounts" view; omitted means no such view. */
   products?: ProductTools;
   /**
-   * `tidysum demo`: the data is a made-up household. The page says so, and linking or removing
+   * `tidysum demo`: the data is a made-up person at real banks. The page says so, and linking or removing
    * institutions is refused, so the demo is never mixed with real accounts.
    */
   demo?: boolean;
@@ -229,7 +230,7 @@ export function createApp(deps: AppDeps) {
   if (deps.demo) {
     const refuse = (c: Context) =>
       c.json(
-        { error: "This is the demo with a made-up household; it can't connect real accounts." },
+        { error: "This is the demo with a made-up person; it can't connect real accounts." },
         403,
       );
     for (const path of ["/api/phone", "/api/link-token", "/api/link-sessions", "/api/items"]) {
@@ -267,7 +268,8 @@ export function createApp(deps: AppDeps) {
     return c.json({
       items: rows,
       phoneEnding: phone ? phone.slice(-4) : null,
-      ...(deps.demo ? { demo: true } : {}),
+      // The demo's banks are real; the page says when their public rates were last checked.
+      ...(deps.demo ? { demo: true, demo_checked_on: DEMO_CHECKED_ON } : {}),
     });
   });
 

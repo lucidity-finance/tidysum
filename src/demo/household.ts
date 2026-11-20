@@ -6,13 +6,17 @@ import type {
   PlaidSecurity,
   PlaidTransaction,
 } from "../plaid/gateway.js";
+import { CHASE, CITI, FIDELITY, PRICES, SUBSCRIPTIONS, VANGUARD } from "./realWorld.js";
 
 /**
- * A made-up household for `tidysum demo`: two years of ordinary life, ending today, with the
- * kinds of money in the wrong place Tidysum looks for (cash earning nothing, a card that doesn't
- * fit the spending, foreign fees, a missed 401(k) match, an expensive target-date fund, unused
- * Roth IRA room, cash above the buffer). Every name and number here is invented. The same day
- * always gives the same household.
+ * The household for `tidysum demo`: a made-up person in Denver with real, ordinary accounts
+ * (checking, savings and a card at Chase, a Citi card, a Vanguard brokerage account, a 401(k) at
+ * Fidelity) and two years of ordinary life, ending today, at real merchants. It has the kinds of
+ * money in the wrong place Tidysum looks for (cash earning nothing, a card that doesn't fit the
+ * spending, foreign fees, a missed 401(k) match, an expensive target-date fund, unused Roth IRA
+ * room, cash above the buffer). The person, their employer and their amounts are invented; every
+ * public rate, fee, fund and price is real and comes from realWorld.ts, with its source. The same
+ * day always gives the same household.
  */
 
 export interface DemoInstitution {
@@ -36,6 +40,10 @@ export interface DemoHousehold {
   ira: unknown;
   policy: unknown;
 }
+
+/** Made up, like the person: their employer, whose 401(k) Fidelity keeps. */
+const EMPLOYER = "Larkspur Software";
+const PLAN_NAME = `${EMPLOYER} 401(k) Plan`;
 
 const DAY_MS = 86_400_000;
 const HISTORY_DAYS = 730;
@@ -74,28 +82,24 @@ interface Spend {
   perMonth: number;
 }
 
+// Card spending at real, everyday merchants. The household lives in Denver.
 const CHASE_SPEND: Spend[] = [
+  { merchant: "Chipotle", category: "FOOD_AND_DRINK_FAST_FOOD", min: 1150, max: 2600, perMonth: 3 },
   {
-    merchant: "Bistro Verde",
+    merchant: "Sweetgreen",
+    category: "FOOD_AND_DRINK_RESTAURANT",
+    min: 1350,
+    max: 2400,
+    perMonth: 2,
+  },
+  {
+    merchant: "DoorDash",
     category: "FOOD_AND_DRINK_RESTAURANT",
     min: 2400,
-    max: 7800,
-    perMonth: 5,
-  },
-  {
-    merchant: "Corner Coffee Co",
-    category: "FOOD_AND_DRINK_COFFEE",
-    min: 450,
-    max: 900,
-    perMonth: 6,
-  },
-  {
-    merchant: "Noodle House",
-    category: "FOOD_AND_DRINK_RESTAURANT",
-    min: 1800,
-    max: 4200,
+    max: 6800,
     perMonth: 3,
   },
+  { merchant: "Starbucks", category: "FOOD_AND_DRINK_COFFEE", min: 475, max: 1150, perMonth: 6 },
   {
     merchant: "Amazon",
     category: "GENERAL_MERCHANDISE_ONLINE_MARKETPLACES",
@@ -104,14 +108,14 @@ const CHASE_SPEND: Spend[] = [
     perMonth: 4,
   },
   {
-    merchant: "Wellway Pharmacy",
+    merchant: "CVS Pharmacy",
     category: "MEDICAL_PHARMACIES_AND_SUPPLEMENTS",
     min: 900,
     max: 3200,
     perMonth: 1.5,
   },
   {
-    merchant: "Threadline",
+    merchant: "Uniqlo",
     category: "GENERAL_MERCHANDISE_CLOTHING_AND_ACCESSORIES",
     min: 3000,
     max: 12000,
@@ -121,29 +125,43 @@ const CHASE_SPEND: Spend[] = [
 
 const CITI_SPEND: Spend[] = [
   {
-    merchant: "FreshMart",
+    merchant: "King Soopers",
     category: "FOOD_AND_DRINK_GROCERIES",
     min: 6500,
     max: 16500,
-    perMonth: 4.3,
+    perMonth: 3.3,
   },
   {
-    merchant: "Green Basket Market",
+    merchant: "Trader Joe's",
+    category: "FOOD_AND_DRINK_GROCERIES",
+    min: 3200,
+    max: 7400,
+    perMonth: 2,
+  },
+  {
+    merchant: "Whole Foods Market",
     category: "FOOD_AND_DRINK_GROCERIES",
     min: 1800,
     max: 5500,
-    perMonth: 2,
+    perMonth: 1,
   },
-  { merchant: "Speedy Fuel", category: "TRANSPORTATION_GAS", min: 3500, max: 5800, perMonth: 3 },
+  { merchant: "Shell", category: "TRANSPORTATION_GAS", min: 3500, max: 5800, perMonth: 3 },
   {
-    merchant: "RideNow",
+    merchant: "Uber",
     category: "TRANSPORTATION_TAXIS_AND_RIDE_SHARES",
     min: 1200,
     max: 3400,
-    perMonth: 2,
+    perMonth: 1.2,
   },
   {
-    merchant: "Cinema Ten",
+    merchant: "Lyft",
+    category: "TRANSPORTATION_TAXIS_AND_RIDE_SHARES",
+    min: 1100,
+    max: 2900,
+    perMonth: 0.8,
+  },
+  {
+    merchant: "AMC Theatres",
     category: "ENTERTAINMENT_OTHER_ENTERTAINMENT",
     min: 1600,
     max: 4200,
@@ -151,17 +169,37 @@ const CITI_SPEND: Spend[] = [
   },
 ];
 
-/** Monthly subscriptions on the Citi card: [merchant, cents, day]. */
-const CITI_SUBSCRIPTIONS: [string, number, number][] = [
-  ["StreamFlix", 1549, 9],
-  ["TuneBox Music", 1199, 14],
+/** Trips abroad, as days before today, on the Chase card, which charges 3% on foreign purchases. */
+const TRIPS = [
+  {
+    startsDaysAgo: 160,
+    nights: 5,
+    airline: "United Airlines",
+    hotel: "Hotel Avenida Palace Lisboa",
+    restaurants: [
+      "Time Out Market Lisboa",
+      "Cervejaria Ramiro",
+      "Pasteis de Belem",
+      "Taberna da Rua das Flores",
+    ],
+    taxi: "Bolt",
+  },
+  {
+    startsDaysAgo: 520,
+    nights: 4,
+    airline: "Delta Air Lines",
+    hotel: "Condesa DF Mexico City",
+    restaurants: ["Contramar", "Taqueria Orinoco", "Panaderia Rosetta", "Cafe de Tacuba"],
+    taxi: "Uber",
+  },
 ];
 
-/** Trips abroad, as days before today: the card used has a foreign transaction fee. */
-const TRIPS = [
-  { startsDaysAgo: 160, city: "Lisbon", nights: 5 },
-  { startsDaysAgo: 520, city: "Mexico City", nights: 4 },
-];
+/** A subscription's price on a day, from the dated prices in realWorld.ts. */
+function priceOn(prices: [string, number][], date: string): number {
+  let cents = prices[0]?.[1] ?? 0;
+  for (const [from, c] of prices) if (from <= date) cents = c;
+  return cents;
+}
 
 export function demoHousehold(today: string): DemoHousehold {
   const rand = prng(Number(today.replaceAll("-", "")) % 100_000);
@@ -271,38 +309,46 @@ export function demoHousehold(today: string): DemoHousehold {
     };
     pick(CHASE_SPEND, chase, chaseByMonth, "demo-chase");
     pick(CITI_SPEND, citi, citiByMonth, "demo-citi");
-    for (const [merchant, amount, d] of CITI_SUBSCRIPTIONS) {
+    for (const sub of SUBSCRIPTIONS) {
+      const date = day(year, month, sub.day);
       spendOn(
         citi,
         citiByMonth,
         "demo-citi",
-        day(year, month, d),
-        amount,
-        merchant,
-        "ENTERTAINMENT_TV_AND_MOVIES",
+        date,
+        priceOn(sub.prices, date),
+        sub.merchant,
+        sub.merchant === "Spotify"
+          ? "ENTERTAINMENT_MUSIC_AND_AUDIO"
+          : "ENTERTAINMENT_TV_AND_MOVIES",
       );
     }
 
     // The bank account: pay, rent and bills.
-    const bank = (d: number, amount: number, name: string, category: string) => {
+    const bank = (
+      d: number,
+      amount: number,
+      name: string,
+      category: string,
+      merchant: string | null = name,
+    ) => {
       const date = day(year, month, d);
-      if (inWindow(date)) checking.push(txn("demo-checking", date, amount, name, category));
+      if (inWindow(date)) {
+        checking.push(txn("demo-checking", date, amount, name, category, merchant));
+      }
     };
-    bank(1, -355000, "Northwind Labs payroll", "INCOME_WAGES");
-    bank(15, -355000, "Northwind Labs payroll", "INCOME_WAGES");
-    bank(1, 265000, "Oakview Apartments", "RENT_AND_UTILITIES_RENT");
-    bank(3, 4900, "Ironworks Gym", "PERSONAL_CARE_GYMS_AND_FITNESS_CENTERS");
-    bank(5, between(7800, 15200), "City Power & Light", "RENT_AND_UTILITIES_GAS_AND_ELECTRICITY");
-    bank(8, 7500, "Bluewave Internet", "RENT_AND_UTILITIES_INTERNET_AND_CABLE");
-    bank(12, 6500, "Pinecone Mobile", "RENT_AND_UTILITIES_TELEPHONE");
-    bank(20, 12800, "Steady Auto Insurance", "GENERAL_SERVICES_INSURANCE");
-    bank(
-      16,
-      150000,
-      "Transfer to Harbor Brokerage",
-      "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS",
-    );
-    bank(17, 20000, "Transfer to Rainy Day Savings", "TRANSFER_OUT_SAVINGS");
+    // The paychecks are direct deposits, so Total Checking's $15 monthly fee never applies.
+    bank(1, -355000, `${EMPLOYER} payroll`, "INCOME_WAGES", EMPLOYER);
+    bank(15, -355000, `${EMPLOYER} payroll`, "INCOME_WAGES", EMPLOYER);
+    bank(1, 265000, "RentCafe rent payment", "RENT_AND_UTILITIES_RENT", "RentCafe");
+    bank(3, 4499, "Anytime Fitness", "PERSONAL_CARE_GYMS_AND_FITNESS_CENTERS");
+    bank(5, between(5800, 13200), "Xcel Energy", "RENT_AND_UTILITIES_GAS_AND_ELECTRICITY");
+    bank(8, 8000, "Xfinity", "RENT_AND_UTILITIES_INTERNET_AND_CABLE");
+    bank(12, 7000, "T-Mobile", "RENT_AND_UTILITIES_TELEPHONE");
+    bank(20, 13600, "GEICO", "GENERAL_SERVICES_INSURANCE");
+    bank(16, 150000, "Transfer to Vanguard", "TRANSFER_OUT_INVESTMENT_AND_RETIREMENT_FUNDS", null);
+    // An automatic transfer of $25 or more keeps Chase Savings' $5 monthly fee away.
+    bank(17, 20000, "Transfer to Chase Savings", "TRANSFER_OUT_SAVINGS", null);
     const toSavings = day(year, month, 17);
     if (inWindow(toSavings)) {
       savings.push(
@@ -310,8 +356,9 @@ export function demoHousehold(today: string): DemoHousehold {
           "demo-savings",
           toSavings,
           -20000,
-          "Transfer from Everyday Checking",
+          "Transfer from Chase Total Checking",
           "TRANSFER_IN_SAVINGS",
+          null,
         ),
       );
     }
@@ -326,12 +373,14 @@ export function demoHousehold(today: string): DemoHousehold {
       "demo-chase",
       addDays(first, -30),
       between(52000, 78000),
-      "SkyBridge Airlines",
+      trip.airline,
       "TRAVEL_FLIGHTS",
     );
     const abroad = (date: string, amount: number, name: string, category: string) => {
       spendOn(chase, chaseByMonth, "demo-chase", date, amount, name, category);
-      const fee = Math.round(amount * 0.03);
+      const fee = Number(
+        new Big(amount).times(CHASE.card.foreignFee).round(0, Big.roundHalfUp).toFixed(0),
+      );
       spendOn(
         chase,
         chaseByMonth,
@@ -342,18 +391,18 @@ export function demoHousehold(today: string): DemoHousehold {
         "BANK_FEES_FOREIGN_TRANSACTION_FEES",
       );
     };
-    abroad(first, between(62000, 84000), `Hotel ${trip.city}`, "TRAVEL_LODGING");
+    abroad(first, between(62000, 84000), trip.hotel, "TRAVEL_LODGING");
     for (let n = 0; n < trip.nights; n++) {
       abroad(
         addDays(first, n),
         between(2200, 6800),
-        `Restaurant ${trip.city}`,
+        trip.restaurants[n % trip.restaurants.length] ?? trip.hotel,
         "FOOD_AND_DRINK_RESTAURANT",
       );
       abroad(
         addDays(first, n),
         between(800, 2600),
-        `Taxi ${trip.city}`,
+        trip.taxi,
         "TRANSPORTATION_TAXIS_AND_RIDE_SHARES",
       );
     }
@@ -365,30 +414,28 @@ export function demoHousehold(today: string): DemoHousehold {
     accountId: string,
     list: PlaidTransaction[],
     payee: string,
+    thanks: string,
   ) => {
     for (const [ym, amount] of totals) {
       const [y, m] = ym.split("-").map(Number) as [number, number];
       const date = day(y, m, 25); // month index m is the next month
       if (!inWindow(date)) continue;
       checking.push(
-        txn("demo-checking", date, amount, `${payee} autopay`, "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT"),
+        txn("demo-checking", date, amount, payee, "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT", null),
       );
-      list.push(
-        txn(
-          accountId,
-          date,
-          -amount,
-          "Payment, thank you",
-          "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT",
-          null,
-        ),
-      );
+      list.push(txn(accountId, date, -amount, thanks, "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT", null));
     }
   };
-  payCards(chaseByMonth, "demo-chase", chase, "Chase card");
-  payCards(citiByMonth, "demo-citi", citi, "Citi card");
+  payCards(
+    chaseByMonth,
+    "demo-chase",
+    chase,
+    "Payment to Chase card ending in 1882",
+    "Payment Thank You - Web",
+  );
+  payCards(citiByMonth, "demo-citi", citi, "Citi autopay payment", "Autopay payment - thank you");
 
-  // Interest at the end of each month: next to nothing on checking, a little on savings.
+  // Interest at the end of each month: none on Total Checking, next to nothing on Chase Savings.
   const startChecking = new Big("6400.00");
   const startSavings = new Big("7600.00");
   const balanceOn = (list: PlaidTransaction[], opening: Big, through: string) =>
@@ -410,8 +457,8 @@ export function demoHousehold(today: string): DemoHousehold {
       );
       if (c > 0) list.push(txn(id, date, -c, name, "INCOME_INTEREST_EARNED", null));
     };
-    interest(checking, startChecking, "0.01", "Interest paid", "demo-checking");
-    interest(savings, startSavings, "0.05", "Interest paid", "demo-savings");
+    interest(checking, startChecking, CHASE.checking.apy, "Interest payment", "demo-checking");
+    interest(savings, startSavings, CHASE.savings.apy, "Interest payment", "demo-savings");
   }
 
   const closing = (list: PlaidTransaction[], opening: Big) => balanceOn(list, opening, today);
@@ -505,30 +552,30 @@ export function demoHousehold(today: string): DemoHousehold {
       currency: "USD",
     };
   };
-  const vti = security("demo-sec-vti", "Vanguard Total Stock Market ETF", "VTI", "etf", "301.40");
+  const vti = security("demo-sec-vti", "Vanguard Total Stock Market ETF", "VTI", "etf", PRICES.VTI);
   const vxus = security(
     "demo-sec-vxus",
     "Vanguard Total International Stock ETF",
     "VXUS",
     "etf",
-    "68.90",
+    PRICES.VXUS,
   );
-  const bnd = security("demo-sec-bnd", "Vanguard Total Bond Market ETF", "BND", "etf", "72.60");
-  const mmf = security("demo-sec-mmf", "Harbor Cash Sweep", null, "cash", "1.00");
+  const bnd = security("demo-sec-bnd", "Vanguard Total Bond Market ETF", "BND", "etf", PRICES.BND);
+  const mmf = security("demo-sec-mmf", VANGUARD.settlementFund, "VMFXX", "cash", "1.00");
   const tdf = security(
     "demo-sec-tdf",
-    "Northwind 2055 Target Date Fund",
-    null,
+    FIDELITY.targetDate.name,
+    FIDELITY.targetDate.ticker,
     "mutual fund",
-    "41.20",
+    PRICES.FDEEX,
   );
   const brokerageHoldings = [
-    holding("demo-brokerage", vti, "52", "12480.00"),
-    holding("demo-brokerage", vxus, "61", "3910.00"),
-    holding("demo-brokerage", bnd, "18", "1330.00"),
+    holding("demo-brokerage", vti, "52", "13240.00"),
+    holding("demo-brokerage", vxus, "61", "4180.00"),
+    holding("demo-brokerage", bnd, "18", "1310.00"),
     holding("demo-brokerage", mmf, "1240.55", "1240.55"),
   ];
-  const k401Holdings = [holding("demo-401k", tdf, "1388.274", "48200.00")];
+  const k401Holdings = [holding("demo-401k", tdf, "2987.412", "48200.00")];
   const total = (hs: PlaidHolding[]) => hs.reduce((s, h) => s.plus(h.institutionValue), new Big(0));
   const investment = (
     accountId: string,
@@ -549,38 +596,29 @@ export function demoHousehold(today: string): DemoHousehold {
 
   const institutions: DemoInstitution[] = [
     {
-      token: "demo-maple",
-      itemId: "demo-item-maple",
-      institutionId: "ins_demo_maple",
-      name: "Maple Street Bank",
+      // One Chase sign-in holds the checking, the savings and the card, as it does in Plaid.
+      token: "demo-chase",
+      itemId: "demo-item-chase",
+      institutionId: "ins_demo_chase",
+      name: CHASE.institution,
       accounts: [
         depository(
           "demo-checking",
-          "Everyday Checking",
+          CHASE.checking.name,
           "checking",
           "4410",
           closing(checking, startChecking),
         ),
         depository(
           "demo-savings",
-          "Rainy Day Savings",
+          CHASE.savings.name,
           "savings",
           "4428",
           closing(savings, startSavings),
         ),
+        credit("demo-chase", CHASE.card.name, "1882", chaseOwed, "12000.00"),
       ],
-      transactions: [...checking, ...savings].map(fix),
-      holdings: [],
-      securities: [],
-      liabilities: [],
-    },
-    {
-      token: "demo-chase",
-      itemId: "demo-item-chase",
-      institutionId: "ins_demo_chase",
-      name: "Chase",
-      accounts: [credit("demo-chase", "Chase Freedom Unlimited", "1882", chaseOwed, "12000.00")],
-      transactions: chase.map(fix),
+      transactions: [...checking, ...savings, ...chase].map(fix),
       holdings: [],
       securities: [],
       liabilities: [statement("demo-chase", chaseByMonth, "24.99")],
@@ -589,26 +627,20 @@ export function demoHousehold(today: string): DemoHousehold {
       token: "demo-citi",
       itemId: "demo-item-citi",
       institutionId: "ins_demo_citi",
-      name: "Citi",
-      accounts: [credit("demo-citi", "Citi Double Cash", "7731", citiOwed, "9000.00")],
+      name: CITI.institution,
+      accounts: [credit("demo-citi", CITI.card.name, "7731", citiOwed, "9000.00")],
       transactions: citi.map(fix),
       holdings: [],
       securities: [],
       liabilities: [statement("demo-citi", citiByMonth, "26.24")],
     },
     {
-      token: "demo-harbor",
-      itemId: "demo-item-harbor",
-      institutionId: "ins_demo_harbor",
-      name: "Harbor Brokerage",
+      token: "demo-vanguard",
+      itemId: "demo-item-vanguard",
+      institutionId: "ins_demo_vanguard",
+      name: VANGUARD.institution,
       accounts: [
-        investment(
-          "demo-brokerage",
-          "Individual Brokerage",
-          "brokerage",
-          "3307",
-          brokerageHoldings,
-        ),
+        investment("demo-brokerage", VANGUARD.account, "brokerage", "3307", brokerageHoldings),
       ],
       transactions: [],
       holdings: brokerageHoldings,
@@ -616,11 +648,11 @@ export function demoHousehold(today: string): DemoHousehold {
       liabilities: [],
     },
     {
-      token: "demo-summit",
-      itemId: "demo-item-summit",
-      institutionId: "ins_demo_summit",
-      name: "Summit Retirement",
-      accounts: [investment("demo-401k", "Northwind Labs 401(k)", "401k", "0915", k401Holdings)],
+      token: "demo-fidelity",
+      itemId: "demo-item-fidelity",
+      institutionId: "ins_demo_fidelity",
+      name: FIDELITY.institution,
+      accounts: [investment("demo-401k", PLAN_NAME, "401k", "0915", k401Holdings)],
       transactions: [],
       holdings: k401Holdings,
       securities: [tdf],
@@ -629,6 +661,7 @@ export function demoHousehold(today: string): DemoHousehold {
   ];
 
   const year = Number(today.slice(0, 4));
+  const tdfName = FIDELITY.targetDate.name;
   const paychecksSoFar = Math.max(
     1,
     Math.floor(((Date.parse(today) - Date.parse(`${year}-01-01`)) / DAY_MS / 365) * 24),
@@ -639,8 +672,8 @@ export function demoHousehold(today: string): DemoHousehold {
     workplace: {
       plaidAccountId: "demo-401k",
       facts: {
-        plan_name: "Northwind Labs 401(k)",
-        site_url: "https://example.com/retirement",
+        plan_name: PLAN_NAME,
+        site_url: FIDELITY.siteUrl,
         as_of: today,
         pay: { salary: "140000", paychecks_per_year: 24 },
         contributions: {
@@ -652,45 +685,22 @@ export function demoHousehold(today: string): DemoHousehold {
         match: { up_to_percent: "6", rate: "1", true_up: false },
         prefer: "pretax",
         marginal_tax_rate: "0.22",
-        paycheck_investments: [{ fund: "Northwind 2055 Target Date Fund", percent: "100" }],
+        paycheck_investments: [{ fund: tdfName, percent: "100" }],
         lineup: [
           {
-            name: "Northwind 2055 Target Date Fund",
-            expense_ratio: "0.52",
+            name: tdfName,
+            expense_ratio: FIDELITY.targetDate.expenseRatio,
             kind: "target_date",
-            mix: {
-              "us_stocks.large": "0.46",
-              "us_stocks.small_mid": "0.12",
-              intl_stocks: "0.31",
-              bonds: "0.11",
-            },
-            mix_source: "Northwind 2055 Target Date Fund fact sheet (made up for the demo)",
-            mix_as_of: today,
+            mix: FIDELITY.targetDate.mix,
+            mix_source: FIDELITY.targetDate.mixSource,
+            mix_as_of: FIDELITY.targetDate.mixAsOf,
           },
-          {
-            name: "Summit US Large Cap Index Fund",
-            expense_ratio: "0.02",
+          ...FIDELITY.index.map((f) => ({
+            name: f.name,
+            expense_ratio: f.expenseRatio,
             kind: "index",
-            mix: { "us_stocks.large": "1" },
-          },
-          {
-            name: "Summit US Small/Mid Cap Index Fund",
-            expense_ratio: "0.03",
-            kind: "index",
-            mix: { "us_stocks.small_mid": "1" },
-          },
-          {
-            name: "Summit International Index Fund",
-            expense_ratio: "0.05",
-            kind: "index",
-            mix: { intl_stocks: "1" },
-          },
-          {
-            name: "Summit Bond Index Fund",
-            expense_ratio: "0.03",
-            kind: "index",
-            mix: { bonds: "1" },
-          },
+            mix: f.mix,
+          })),
         ],
       },
     },

@@ -7,7 +7,7 @@ import {
 import type { DemoHousehold, DemoInstitution } from "./household.js";
 
 /**
- * Plaid for `tidysum demo`: serves the made-up household instead of calling Plaid, so the demo
+ * Plaid for `tidysum demo`: serves the demo household instead of calling Plaid, so the demo
  * runs the real sync, detectors and pages with no Plaid account or keys. Linking a real bank is
  * refused: the demo is never mixed with real data.
  */
@@ -69,7 +69,7 @@ export class DemoPlaid implements PlaidGateway {
     throw new PlaidApiError(
       "INVALID_REQUEST",
       "DEMO_MODE",
-      "This is the demo with a made-up household; it can't link real accounts. Run Tidysum without `demo` to connect yours.",
+      "This is the demo with a made-up person; it can't link real accounts. Run Tidysum without `demo` to connect yours.",
     );
   }
 

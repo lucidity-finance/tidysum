@@ -103,7 +103,7 @@ import { createUser, resolveUserId } from "./users.js";
 
 const USAGE = `tidysum <command>
 
-  demo [--static <dir>]            try Tidysum with a made-up household, no Plaid account needed:
+  demo [--static <dir>]            try Tidysum on a made-up person at real banks, no Plaid needed:
                                    resets its own database (docker compose up -d demo-db), fills
                                    it and serves the page on http://127.0.0.1:8090 (pnpm demo
                                    does both); --static writes the read-only online demo instead
@@ -328,14 +328,14 @@ async function runServer(h: DbHandle) {
 }
 
 /**
- * `tidysum demo`: a made-up household in a database of its own, through the real sync, detectors
+ * `tidysum demo`: a made-up person at real banks, in a database of its own, through the real sync, detectors
  * and page. Never reads DATABASE_URL or Plaid keys, so it can't touch real data.
  */
 async function runDemo(args: string[]) {
   const { values } = parseArgs({ args, options: { static: { type: "string" } } });
   const url = process.env.TIDYSUM_DEMO_DATABASE_URL || DEFAULT_DEMO_DATABASE_URL;
   const port = Number(process.env.TIDYSUM_DEMO_PORT || 8090);
-  console.log("Setting up the demo household (every name and number is made up)...");
+  console.log("Setting up the demo household (a made-up person at real banks)...");
   await resetDemoDatabase(url);
   const h = connect(url);
   const products = productTools();

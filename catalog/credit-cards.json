@@ -100,7 +100,7 @@
       "notes": "Rewards are Ultimate Rewards points worth 1 cent each as cash back. Leaves out 5% on travel booked through Chase Travel.",
       "match": ["freedom unlimited"],
       "source_url": "https://creditcards.chase.com/cash-back-credit-cards/freedom/unlimited",
-      "verified_on": "2026-10-30"
+      "verified_on": "2026-11-20"
     },
     {
       "id": "chase-freedom-flex",
@@ -118,7 +118,7 @@
       "notes": "Leaves out 5% on up to $1,500 a quarter in rotating categories you activate, and 5% on Chase Travel.",
       "match": ["freedom flex"],
       "source_url": "https://creditcards.chase.com/cash-back-credit-cards/freedom/flex",
-      "verified_on": "2026-10-30"
+      "verified_on": "2026-11-20"
     },
     {
       "id": "chase-sapphire-preferred",
@@ -142,7 +142,7 @@
       "notes": "Points valued at 1 cent, their cash value; transfers to airlines and hotels can be worth more. Leaves out 5x on Chase Travel, 3x on online grocery and the $100 hotel credit.",
       "match": ["sapphire preferred"],
       "source_url": "https://creditcards.chase.com/rewards-credit-cards/sapphire/preferred",
-      "verified_on": "2026-10-30"
+      "verified_on": "2026-11-20"
     },
     {
       "id": "citi-double-cash",
@@ -156,7 +156,7 @@
       "notes": "1% when you buy plus 1% as you pay. Leaves out the extra 3% on travel booked through Citi Travel.",
       "match": ["double cash"],
       "source_url": "https://www.citi.com/credit-cards/citi-double-cash-credit-card",
-      "verified_on": "2026-10-30"
+      "verified_on": "2026-11-20"
     },
     {
       "id": "fidelity-rewards-visa",
@@ -170,7 +170,7 @@
       "requires": "Rewards deposited into an eligible Fidelity account",
       "match": ["fidelity rewards"],
       "source_url": "https://www.fidelity.com/spend-save/visa-signature-card",
-      "verified_on": "2026-10-30"
+      "verified_on": "2026-11-20"
     },
     {
       "id": "amex-blue-cash-preferred",
@@ -195,7 +195,7 @@
       "notes": "$0 annual fee the first year. Amex isn't accepted everywhere; Costco warehouses take only Visa.",
       "match": ["blue cash preferred"],
       "source_url": "https://www.americanexpress.com/us/credit-cards/card/blue-cash-preferred/",
-      "verified_on": "2026-10-30"
+      "verified_on": "2026-11-20"
     },
     {
       "id": "amex-blue-cash-everyday",
@@ -229,7 +229,7 @@
       "notes": "Amex isn't accepted everywhere; Costco warehouses take only Visa.",
       "match": ["blue cash everyday"],
       "source_url": "https://www.americanexpress.com/us/credit-cards/card/blue-cash-everyday/",
-      "verified_on": "2026-10-30"
+      "verified_on": "2026-11-20"
     },
     {
       "id": "capital-one-savor",
@@ -249,7 +249,7 @@
       "notes": "Leaves out 8% on Capital One Entertainment and 5% on Capital One Travel bookings.",
       "match": ["savor"],
       "source_url": "https://www.capitalone.com/credit-cards/savor/",
-      "verified_on": "2026-10-30"
+      "verified_on": "2026-11-20"
     },
     {
       "id": "capital-one-ventureone",
@@ -263,7 +263,7 @@
       "notes": "Miles valued at 1 cent, their value as a statement credit against travel purchases; redeemed as cash back they are worth less. Leaves out 5 miles per dollar on hotels, vacation rentals and rental cars booked through Capital One Travel.",
       "match": ["ventureone", "venture one"],
       "source_url": "https://www.capitalone.com/credit-cards/ventureone/",
-      "verified_on": "2026-11-01"
+      "verified_on": "2026-11-20"
     },
     {
       "id": "amazon-prime-visa",
@@ -288,7 +288,7 @@
       "notes": "The Prime membership fee isn't counted, on the assumption you'd have Prime anyway.",
       "match": ["prime visa", "amazon prime"],
       "source_url": "https://creditcards.chase.com/cash-back-credit-cards/amazon-prime-rewards",
-      "verified_on": "2026-10-30"
+      "verified_on": "2026-11-20"
     },
     {
       "id": "paypal-debit",

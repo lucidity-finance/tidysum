@@ -46,10 +46,10 @@ describe("demo household", () => {
     const dates = all.map((t) => t.date).sort();
     expect(dates[0] && dates[0] <= "2024-11-21").toBe(true);
 
-    const maple = must(hh.institutions.find((i) => i.name === "Maple Street Bank"));
-    const checking = must(maple.accounts.find((a) => a.subtype === "checking"));
+    const chase = must(hh.institutions.find((i) => i.name === "Chase"));
+    const checking = must(chase.accounts.find((a) => a.subtype === "checking"));
     // Walk back from today's balance: every day-end balance stays above zero.
-    const flows = maple.transactions
+    const flows = chase.transactions
       .filter((t) => t.accountId === checking.accountId)
       .sort((a, b) => b.date.localeCompare(a.date));
     let balance = new Big(must(checking.balances.current));

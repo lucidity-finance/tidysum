@@ -31,11 +31,11 @@
   <a href="https://lucidity-finance.github.io/tidysum/demo/">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshot-actions-dark.png">
-      <img src="docs/assets/screenshot-actions.png" width="860" alt="Tidysum's Actions page: 'You could keep about $2,600 more each year', with the next change to approve and a queue of the rest">
+      <img src="docs/assets/screenshot-actions.png" width="860" alt="Tidysum's Actions page: 'You could keep about $2,800 more each year', with the next change to approve and a queue of the rest">
     </picture>
   </a>
   <br>
-  <sub>The demo household: every name and number is made up. <a href="https://lucidity-finance.github.io/tidysum/demo/">Click through it live</a>.</sub>
+  <sub>The demo household: A made-up person at real banks (Chase, Citi, Vanguard, Fidelity), with their public rates and fees as of November 2026. Tidysum isn't affiliated with any institution named. <a href="https://lucidity-finance.github.io/tidysum/demo/">Click through it live</a>.</sub>
 </p>
 
 ---
@@ -159,6 +159,7 @@ from the agent you bring ([decision 0005](docs/decisions/0005-actions.md)):
 ### Try the demo first
 
 See it working on a made-up household before you connect anything: no Plaid account, no keys.
+The person is invented; their banks, cards, funds and rates are real.
 You need Node 22.19 or newer, [pnpm](https://pnpm.io) and Docker.
 
 ```sh
@@ -167,8 +168,9 @@ pnpm install
 pnpm demo                             # then open http://127.0.0.1:8090
 ```
 
-It runs the real sync, detectors and pages on two years of invented banking, cards, a brokerage
-and a 401(k), in a throwaway database of its own that never touches your real data. It also
+It runs the real sync, detectors and pages on two years of ordinary life at real institutions
+(checking and savings at Chase, a Citi card, a Vanguard brokerage account, a 401(k) at Fidelity),
+with their real public rates, fees and funds, in a throwaway database of its own that never touches your real data. It also
 prints an MCP address and token, so you can point your own agent at the demo and ask it what the
 household's money is costing.
 

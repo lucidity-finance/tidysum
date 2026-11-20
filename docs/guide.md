@@ -500,7 +500,7 @@ sync instead of immediately.
 ```
 src/
   cli.ts                  migrate | link-sandbox | sync | serve | mcp | demo | check | proposals | products | cards | ...
-  demo/                   the made-up household, a Plaid stand-in that serves it, and the demo's seeding
+  demo/                   the demo household (realWorld.ts: its real rates and sources), a Plaid stand-in that serves it, and the demo's seeding
   mcp/                    MCP server: tools, queries, tidysum_agent/tidysum_proposer connections
   policy/                 policy file schema, snapshot reads, deterministic checks, proposals
   products/               deposit and credit card catalogs, "what not switching costs" and card math

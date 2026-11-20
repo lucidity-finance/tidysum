@@ -18,7 +18,7 @@
       "notes": "Comes with SoFi Checking (0.50% APY). Leaves out the temporary 1.10% APY boost for new members.",
       "source_url": "https://www.sofi.com/legal/banking-rate-sheet",
       "rates_as_of": "2026-10-20",
-      "verified_on": "2026-10-30"
+      "verified_on": "2026-11-20"
     },
     {
       "id": "sofi-checking",
@@ -33,7 +33,7 @@
       "notes": "Comes with SoFi Savings. No account, service or maintenance fees.",
       "source_url": "https://www.sofi.com/legal/banking-rate-sheet",
       "rates_as_of": "2026-10-20",
-      "verified_on": "2026-10-30"
+      "verified_on": "2026-11-20"
     },
     {
       "id": "ally-savings",
@@ -47,8 +47,8 @@
       "overdraft_fees": false,
       "notes": "Same APY on every balance tier. 10 withdrawals per statement cycle.",
       "source_url": "https://www.ally.com/bank/online-savings-account/",
-      "rates_as_of": "2026-10-29",
-      "verified_on": "2026-10-30"
+      "rates_as_of": "2026-11-19",
+      "verified_on": "2026-11-20"
     },
     {
       "id": "ally-spending",
@@ -62,8 +62,8 @@
       "overdraft_fees": false,
       "notes": "Interest checking. The tier rate applies to the whole balance.",
       "source_url": "https://www.ally.com/bank/interest-checking-account/",
-      "rates_as_of": "2026-10-29",
-      "verified_on": "2026-10-30"
+      "rates_as_of": "2026-11-18",
+      "verified_on": "2026-11-20"
     },
     {
       "id": "wealthfront-cash",
@@ -81,8 +81,8 @@
       "overdraft_fees": false,
       "notes": "Debit card, direct deposit and bill pay, so it can replace checking. Leaves out the 3-month 0.65% boost for new clients.",
       "source_url": "https://www.wealthfront.com/cash",
-      "rates_as_of": "2026-10-01",
-      "verified_on": "2026-10-30"
+      "rates_as_of": "2026-11-13",
+      "verified_on": "2026-11-20"
     }
   ]
 }
