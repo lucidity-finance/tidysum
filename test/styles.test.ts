@@ -5,6 +5,7 @@ import {
   changesBetween,
   describeMix,
   glance,
+  glidePath,
   listStyles,
   STYLES,
   styleStatus,
@@ -99,25 +100,59 @@ describe("money styles", () => {
   });
 
   it("says what changed in plain words, and what the owner tweaked since", () => {
-    const p = applyStyle(mine, "classic_60_40");
+    const p = applyStyle(mine, "adviser_standard", { age: 30 });
     expect(changesBetween(mine, p)).toEqual(
       expect.arrayContaining([
-        { rule: "Cash buffer", from: "$5,000", to: "6 months of spending" },
+        { rule: "Cash buffer", from: "$5,000", to: "3 months of spending" },
         { rule: "Spare cash", from: "stays as cash", to: "goes to the highest-rate debt" },
         {
           rule: "Target mix",
           from: "60% US stocks, 30% international stocks, 10% bonds and cash",
-          to: "36% US stocks, 24% international stocks, 40% bonds and cash",
+          to: "54% US stocks, 36% international stocks, 10% bonds and cash",
         },
       ]),
     );
-    expect(styleStatus(p)).toMatchObject({ id: "classic_60_40", tweaks: [] });
+    expect(styleStatus(p)).toMatchObject({ id: "adviser_standard", age: 30, tweaks: [] });
     const tweaked = parsePolicy({ ...p, cash: { ...p.cash, buffer: { amount: "9000.00" } } });
     expect(styleStatus(tweaked.policy)?.tweaks).toEqual([
-      { rule: "Cash buffer", from: "6 months of spending", to: "$9,000" },
+      { rule: "Cash buffer", from: "3 months of spending", to: "$9,000" },
     ]);
     // Rules set by hand, with no style: the owner's own.
     expect(styleStatus(mine)).toBeNull();
+  });
+
+  it("follows Vanguard Target Retirement's glide path for Adviser standard", () => {
+    expect(() => applyStyle(mine, "adviser_standard")).toThrow(/age/);
+    const stocks = (age: number) => glidePath(age).times(100).toString();
+    // 90% until 40, 1.6 points a year to 50% at 65, then to 30% at 72 and after.
+    expect([25, 40, 45, 50, 55, 60, 65, 70, 72, 85].map(stocks)).toEqual([
+      "90",
+      "90",
+      "82",
+      "74",
+      "66",
+      "58",
+      "50",
+      "36",
+      "30",
+      "30",
+    ]);
+    const targets = (age: number) =>
+      Object.fromEntries(
+        Object.entries(applyStyle(mine, "adviser_standard", { age }).allocation?.buckets ?? {})
+          .filter(([, b]) => b.target !== "0")
+          .map(([k, b]) => [k, b.target]),
+      );
+    // 40% of the stocks abroad, rounded to whole percents that still add up to 100.
+    expect(targets(45)).toEqual({ us_stocks: "0.49", intl_stocks: "0.33", bonds_and_cash: "0.18" });
+    expect(targets(68)).toEqual({ us_stocks: "0.25", intl_stocks: "0.16", bonds_and_cash: "0.59" });
+  });
+
+  it("reads a policy filled from the retired Classic 60/40 as the owner's own rules", () => {
+    const old = parsePolicy({ ...mine, style: { id: "classic_60_40" } }).policy;
+    expect(old.style).toBeUndefined();
+    expect(old.allocation).toEqual(mine.allocation);
+    expect(styleStatus(old)).toBeNull();
   });
 
   it("sums a policy up at a glance for the cards", () => {

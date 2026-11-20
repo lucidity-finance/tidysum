@@ -39,15 +39,45 @@ asks them to choose a buffer, a debt order and a target mix one number at a time
 
 | Style            | Buffer                              | Spare cash          | Cards       | Mix                                                                                             | Sources                                    |
 | ---------------- | ----------------------------------- | ------------------- | ----------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Adviser standard | 3 months                            | highest rate first  | unchanged   | stocks by age: 90% until 40, 50% at 65, 30% from 72; 60% US / 40% intl                          | Vanguard Target Retirement prospectuses    |
 | Debt-free first  | $1,000 while in debt, then 3 months | smallest debt first | avoid       | 75% US, 25% intl (four fund types, 25% each)                                                    | Ramsey Solutions: 7 Baby Steps, fund types |
 | Index and chill  | 6 months                            | highest rate first  | unchanged   | age in bonds; stocks 60% US / 40% intl                                                          | Bogleheads three-fund; Bogle Center        |
 | Early retirement | 1 month                             | highest rate first  | unchanged   | 100% US stocks (JL Collins' wealth-building phase)                                              | JL Collins; Early Retirement Now           |
-| Classic 60/40    | 6 months                            | highest rate first  | unchanged   | 36% US, 24% intl, 40% bonds (Vanguard LifeStrategy MG)                                          | VSMGX prospectus                           |
 | All weather      | unchanged                           | unchanged           | unchanged   | 30% stocks, 40% long and 15% intermediate Treasuries, 7.5% gold, 7.5% commodities; 2-point band | Dalio via Tony Robbins                     |
 | Safety first     | 8 months                            | highest rate first  | pay in full | unchanged                                                                                       | Suze Orman                                 |
 
 Where a source gives a range (Ramsey's 3 to 6 months, Orman's 8 to 12), the style starts at the
 low end; the owner can raise it.
+
+## Update 2026-11-20: "Adviser standard" replaces "Classic 60/40"
+
+The owner: "the classic 60/40 isn't actually representative of what most money managers/financial
+advisors/wealth managers would do. we need that card to represent the strategy that nearly all
+financial advisors/wealth managers/money managers do."
+
+A fixed 60/40 is a benchmark and the mix of balanced funds, not what a typical adviser sets up for
+a saver. The industry's default is an age-based glide path: it is how target-date funds work
+($4.8 trillion at the end of 2025, Morningstar's 2026 Target-Date Fund Landscape), and advisers,
+robo-advisers and their model portfolios start from the same idea (more stocks when retirement is
+far away, steadily more bonds as it nears), then nudge it for the client's risk tolerance.
+
+The style copies the largest series, Vanguard Target Retirement (37% of target-date assets), from
+its own documents:
+
+- **Stocks by age**, retiring at 65: 90% until 40, then a straight line to 50% at 65, then to
+  30% seven years after retirement, where the Income fund stays (Vanguard's 2026 series fact
+  sheet). Its January 2026 summary prospectuses (allocations at 2025-09-30) sit on that line
+  within about 1.5 points of market drift: 2045 fund 83.5% stocks, 2040 76.2%, 2035 68.6%, 2030
+  60.8%, 2025 50.7%, 2020 36.5%, Income 31.4%. Morningstar's median for the youngest savers is 93%.
+- **40% of the stocks international** (every vintage: 37.1 of 91.5, 33.8 of 83.5, 20.6 of 50.7).
+  Bonds, hedged international and inflation-protected ones included, are one bucket.
+- **Cash and debt:** three to six months of expenses for an income shock (Vanguard); the style
+  starts at 3, as with the other ranges here. Spare cash goes to the highest-rate debt.
+- Stock share is rounded to a whole percent, and the US part too, so the card reads cleanly.
+
+The mix is fixed at the age given when the style is picked; picking it again with a new age steps
+it down. A stored `style: { id: "classic_60_40" }` label is dropped on read, so such a policy keeps
+its rules and shows as the owner's own.
 
 ## New policy rules
 
@@ -63,7 +93,7 @@ saving that wasn't there.
 
 ## Not done
 
-- Rebalancing by selling on a schedule (Classic 60/40, All weather): Tidysum still steers new
+- Rebalancing by selling on a schedule (Adviser standard, All weather): Tidysum still steers new
   money first and suggests sells only when asked. The style says so in `left_to_you`.
 - Ramsey's pause on investing while in debt, and savings-rate targets: advice for the agent, not
   enforced.

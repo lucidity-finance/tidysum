@@ -263,10 +263,10 @@ rules for you. Pick one on the Plan page, or with `pnpm tidysum policy style <id
 
 | Style            | Known from                                        | In short                                                    |
 | ---------------- | ------------------------------------------------- | ----------------------------------------------------------- |
+| Adviser standard | most advisers and target-date funds               | Stocks by age (90% until 40, 50% at 65), 3 months of cash   |
 | Debt-free first  | Dave Ramsey                                       | $1,000 cushion, smallest debt first, no cards, 75/25 stocks |
 | Index and chill  | Jack Bogle, the Bogleheads                        | Three index funds, your age in bonds                        |
 | Early retirement | the FIRE movement, Mr. Money Mustache, JL Collins | 1 month of cash, 100% US stock index                        |
-| Classic 60/40    | most wealth managers and balanced funds           | 60% stocks, 40% bonds, 6 months of cash                     |
 | All weather      | Ray Dalio, as popularized by Tony Robbins         | 30% stocks, 55% Treasuries, 7.5% gold, 7.5% commodities     |
 | Safety first     | Suze Orman                                        | 8 months of cash, no card debt                              |
 

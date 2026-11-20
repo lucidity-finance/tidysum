@@ -58,14 +58,18 @@ const Bucket = z
 
 /** The money styles a policy can start from (src/policy/styles.ts, decision 0009). */
 export const STYLE_IDS = [
+  "adviser_standard",
   "debt_free_first",
   "index_and_chill",
   "early_retirement",
-  "classic_60_40",
   "all_weather",
   "safety_first",
 ] as const;
 export type StyleId = (typeof STYLE_IDS)[number];
+
+const RETIRED_STYLE_IDS = new Set(["classic_60_40"]);
+const isRetiredStyle = (v: unknown) =>
+  typeof v === "object" && v !== null && RETIRED_STYLE_IDS.has(String((v as { id?: unknown }).id));
 
 export const PolicySchema = z
   .object({
@@ -74,14 +78,19 @@ export const PolicySchema = z
      * The money style this policy was filled from, so the page can say which one it is and what
      * was changed since. Only a label: the rules below are what the checks read.
      */
-    style: z
-      .object({
-        id: z.enum(STYLE_IDS),
-        /** The age a style's mix was worked out for ("Index and chill" holds your age in bonds). */
-        age: z.number().int().min(18).max(90).optional(),
-      })
-      .strict()
-      .optional(),
+    style: z.preprocess(
+      // "Classic 60/40" was replaced by "Adviser standard" (2026-11-20). A policy filled from it
+      // keeps its rules and reads as the owner's own, since they no longer match any style.
+      (v) => (isRetiredStyle(v) ? undefined : v),
+      z
+        .object({
+          id: z.enum(STYLE_IDS),
+          /** The age a style's mix was worked out for (both age-based styles' mixes follow it). */
+          age: z.number().int().min(18).max(90).optional(),
+        })
+        .strict()
+        .optional(),
+    ),
     cash: z
       .object({
         /** Keep this much across the cash accounts: a fixed amount or months of average spending. */

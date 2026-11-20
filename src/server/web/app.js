@@ -4011,7 +4011,7 @@ function ageInput(style) {
   return h(
     "label",
     { class: "style-mix is-empty style-age-row" },
-    h("span", null, "Bonds match your age"),
+    h("span", null, style.age_note ?? "The mix follows your age"),
     h("span", { class: "style-age-field" }, input),
   );
 }

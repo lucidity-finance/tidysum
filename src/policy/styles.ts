@@ -46,6 +46,8 @@ export interface MoneyStyle {
   sources: { title: string; url: string }[];
   /** The style's mix depends on the owner's age. */
   needs_age?: boolean;
+  /** Said beside the age field, like "Bonds match your age". */
+  age_note?: string;
   preset(opts: { age?: number }): StylePreset;
 }
 
@@ -80,7 +82,102 @@ const mix = (u: string, i: string, b: string) => ({
   commodities: commodities("0"),
 });
 
+/**
+ * The share in stocks at an age, as a whole percent: Vanguard Target Retirement's glide path, for
+ * someone retiring at 65. 90% until 40, then a straight line to 50% at 65 (its funds 5, 10, 15
+ * and 20 years out sit on that line, give or take market drift), then to 30% seven years after
+ * retirement, where the Income fund stays.
+ */
+export function glidePath(age: number): Big {
+  let pct: Big;
+  if (age <= 40) pct = new Big(90);
+  else if (age <= 65) pct = new Big(90).minus(new Big(age - 40).times("1.6"));
+  else if (age < 72) pct = new Big(50).minus(new Big(age - 65).times(20).div(7));
+  else pct = new Big(30);
+  return pct.round(0, Big.roundHalfUp).div(100);
+}
+
 export const STYLES: readonly MoneyStyle[] = [
+  {
+    id: "adviser_standard",
+    name: "Adviser standard",
+    advocates: "most advisers and target-date funds",
+    tagline: "An adviser's plan, without the fee",
+    summary:
+      "The age-based mix the industry treats as best practice: mostly stocks while you're young, " +
+      "steadily more bonds as retirement nears, with a share of the stocks abroad.",
+    rules: [
+      {
+        rule: "Hold more stocks the further you are from retirement: about 90% until 40, 50% at 65, and 30% from about 72.",
+        applied:
+          "Your age sets the stock share on the glide path of Vanguard Target Retirement, the largest target-date series: " +
+          "90% until 40, 1.6 points less each year to 50% at 65, then down to 30% at 72.",
+      },
+      {
+        rule: "Keep about 40% of the stocks international, and the rest of the money in a broad bond mix.",
+        applied:
+          "Stocks are split 60% US and 40% international. Bonds, including inflation-protected ones near retirement, are one bucket.",
+      },
+      {
+        rule: "Keep three to six months of expenses in an emergency fund, and pay off high-interest debt.",
+        applied:
+          "The buffer is 3 months of your average spending (raise it to 6 if your income is uneven); spare cash goes to the highest-rate debt first.",
+      },
+      {
+        rule: "Rebalance when the mix drifts, checking about once a year.",
+        applied:
+          "New money goes to whatever is under target. A bucket is flagged when it drifts 5 points.",
+      },
+    ],
+    left_to_you: [
+      "The path assumes you stop working around 65. An adviser would also nudge it a step up or down for how much risk you can live with; change the targets if you want that.",
+      "The mix is worked out for the age you give. Pick the style again with your new age each year or so and it steps down.",
+      "Advisers also harvest tax losses and put bonds in tax-advantaged accounts first.",
+      "Rebalancing may mean selling; Tidysum suggests sells only when you ask for them.",
+    ],
+    sources: [
+      {
+        title: "Vanguard Target Retirement 2045 Fund, summary prospectus (January 2026)",
+        url: "https://www.sec.gov/Archives/edgar/data/752177/000119312526025002/f43868d1.htm",
+      },
+      {
+        title: "Vanguard Target Retirement Income Fund, summary prospectus (January 2026)",
+        url: "https://www.sec.gov/Archives/edgar/data/752177/000119312526025010/f43862d1.htm",
+      },
+      {
+        title: "Vanguard Target Retirement series fact sheet (2026)",
+        url: "https://workplace.vanguard.com/content/dam/inst/iig-transformation/tdf/TDF_table_2026.pdf",
+      },
+      {
+        title: "Morningstar: 2026 Target-Date Fund Landscape",
+        url: "https://www.morningstar.com/content/cs-assets/v3/assets/blt9415ea4cc4157833/blte992700d742269f9/69b06bd2cb63a70008937aaf/Target_Date_Fund_Landscape_2026.pdf",
+      },
+      {
+        title: "Vanguard: What's the right emergency fund amount?",
+        url: "https://investor.vanguard.com/investor-resources-education/emergency-fund/whats-the-right-emergency-fund-amount",
+      },
+    ],
+    needs_age: true,
+    age_note: "The mix follows your age",
+    preset: ({ age }) => {
+      if (age === undefined)
+        throw new Error("Adviser standard needs your age: its mix follows your age");
+      const stocks = glidePath(age);
+      const u = stocks.times("0.6").round(2, Big.roundHalfUp);
+      return {
+        cash: { buffer: { months_of_spending: 3 } },
+        debt: { extra_payments: "highest_apr" },
+        allocation: {
+          drift_band: "0.05",
+          buckets: mix(
+            u.toString(),
+            stocks.minus(u).toString(),
+            new Big(1).minus(stocks).toString(),
+          ),
+        },
+      };
+    },
+  },
   {
     id: "debt_free_first",
     name: "Debt-free first",
@@ -181,6 +278,7 @@ export const STYLES: readonly MoneyStyle[] = [
       },
     ],
     needs_age: true,
+    age_note: "Bonds match your age",
     preset: ({ age }) => {
       if (age === undefined)
         throw new Error("Index and chill needs your age: it holds your age in bonds");
@@ -238,47 +336,6 @@ export const STYLES: readonly MoneyStyle[] = [
       cash: { buffer: { months_of_spending: 1 } },
       debt: { extra_payments: "highest_apr" },
       allocation: { drift_band: "0.05", buckets: mix("1", "0", "0") },
-    }),
-  },
-  {
-    id: "classic_60_40",
-    name: "Classic 60/40",
-    advocates: "most wealth managers and balanced funds",
-    tagline: "The balanced adviser mix",
-    summary:
-      "60% stocks and 40% bonds, rebalanced about once a year: the balanced mix a typical " +
-      "adviser starts from.",
-    rules: [
-      {
-        rule: "Hold 60% stocks and 40% bonds, with a share of the stocks abroad.",
-        applied:
-          "36% US stocks, 24% international and 40% bonds and cash, the split of Vanguard's LifeStrategy Moderate Growth fund.",
-      },
-      {
-        rule: "Keep several months of expenses in cash and pay off high-interest debt.",
-        applied:
-          "The buffer is 6 months of your average spending; spare cash goes to the highest-rate debt first.",
-      },
-      {
-        rule: "Rebalance about once a year.",
-        applied:
-          "New money goes to whatever is under target. A bucket is flagged when it drifts 5 points.",
-      },
-    ],
-    left_to_you: [
-      "Advisers also harvest tax losses and put bonds in tax-advantaged accounts first.",
-      "A yearly rebalance may mean selling; Tidysum suggests sells only when you ask for them.",
-    ],
-    sources: [
-      {
-        title: "Vanguard LifeStrategy Moderate Growth Fund, summary prospectus (2024)",
-        url: "https://www.sec.gov/Archives/edgar/data/736054/000168386324000913/f37625d1.htm",
-      },
-    ],
-    preset: () => ({
-      cash: { buffer: { months_of_spending: 6 } },
-      debt: { extra_payments: "highest_apr" },
-      allocation: { drift_band: "0.05", buckets: mix("0.36", "0.24", "0.4") },
     }),
   },
   {

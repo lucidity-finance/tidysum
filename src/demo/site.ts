@@ -20,6 +20,12 @@ export const SNAPSHOT_ENDPOINTS = [
 const WEB = new URL("../server/web/", import.meta.url);
 
 /**
+ * The made-up person's age, for the money styles whose mix follows it: a static page can't ask.
+ * Their 401(k) is in a 2055 target-date fund, which fits someone born around 1990.
+ */
+const DEMO_AGE = 36;
+
+/**
  * Loaded before app.js on the online demo: answers the page's API calls from the saved snapshot,
  * and refuses every change, since a static page has nowhere to keep one.
  */
@@ -53,7 +59,7 @@ export async function writeDemoSite(
 ): Promise<void> {
   await mkdir(join(outDir, "api"), { recursive: true });
   for (const name of SNAPSHOT_ENDPOINTS) {
-    const res = await request(`/api/${name}`);
+    const res = await request(`/api/${name}${name === "styles" ? `?age=${DEMO_AGE}` : ""}`);
     if (!res.ok) throw new Error(`/api/${name}: ${res.status}`);
     const body = (await res.json()) as Record<string, unknown>;
     // The page tells visitors this copy can't be changed.

@@ -282,7 +282,7 @@ limits, research sleeve and asset location stay. The policy records which style 
 
 ```sh
 pnpm tidysum policy styles [--age 35]                 # every style and what it would change
-pnpm tidysum policy style index_and_chill --age 35 --dry-run
+pnpm tidysum policy style adviser_standard --age 35 --dry-run
 pnpm tidysum policy style debt_free_first             # fill the policy from it
 ```
 

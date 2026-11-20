@@ -423,8 +423,8 @@ function registerPolicyTools(
     {
       title: "List money styles",
       description:
-        "Well-known ways of running money (Debt-free first, Index and chill, Early retirement, " +
-        "Classic 60/40, All weather, Safety first), each with its rules, how Tidysum applies them, " +
+        "Well-known ways of running money (Adviser standard, Debt-free first, Index and chill, " +
+        "Early retirement, All weather, Safety first), each with its rules, how Tidysum applies them, " +
         "what it leaves to the owner, its sources, and what picking it would change in the " +
         "owner's policy. Read-only: only the owner switches styles, on Tidysum's Plan page or " +
         "with `tidysum policy style <id>`. Pass age for styles whose mix depends on it.",

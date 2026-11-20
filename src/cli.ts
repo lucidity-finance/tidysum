@@ -130,7 +130,7 @@ const USAGE = `tidysum <command>
   policy set <file> [--if-missing] make a policy file the user's active policy (stored in the
                                    database; --if-missing only if the user has none yet)
   policy show                      print the active policy
-  policy styles [--age <n>]        the money styles (Debt-free first, Index and chill, ...) and
+  policy styles [--age <n>]        the money styles (Adviser standard, Debt-free first, ...) and
                                    what picking each would change in your policy
   policy style <id> [--age <n>] [--dry-run]
                                    fill your policy from a money style: its cash buffer, card,
