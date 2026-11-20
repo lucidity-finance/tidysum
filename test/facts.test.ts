@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { connect } from "../src/db/client.js";
 import {
@@ -24,7 +24,12 @@ import {
   readTreasuryBenchmark,
   searchCardTerms,
 } from "../src/facts/read.js";
-import { refreshFacts, TREASURY_SERIES } from "../src/facts/refresh.js";
+import {
+  EURO_CASH_SERIES,
+  refreshFacts,
+  TREASURY_SERIES,
+  UK_CASH_SERIES,
+} from "../src/facts/refresh.js";
 import { filesToImport, parseDataSet, parseDataSetPage } from "../src/facts/secFunds.js";
 import { readFirstSheet } from "../src/facts/xlsx.js";
 import { unzipFile, zipNames } from "../src/facts/zip.js";
@@ -230,6 +235,18 @@ const fetchers = {
       }),
     ),
   }),
+  bankOfEngland: fakeFetch({
+    "_iadb-fromshowcolumns.asp": text(
+      "DATE,IUDSOIA\n17 Nov 2026,3.984\n18 Nov 2026,3.9841\n19 Nov 2026,n/a\n",
+    ),
+  }),
+  ecb: fakeFetch({
+    "EST/B.EU000A2X2A25.WT": text(
+      "KEY,FREQ,BENCHMARK_ITEM,DATA_TYPE_EST,TIME_PERIOD,OBS_VALUE,OBS_STATUS,TITLE\n" +
+        'EST.B.EU000A2X2A25.WT,B,EU000A2X2A25,WT,2026-11-18,2.442,A,"Euro short-term rate, volume"\n' +
+        'EST.B.EU000A2X2A25.WT,B,EU000A2X2A25,WT,2026-11-19,2.441,A,"Euro short-term rate, volume"\n',
+    ),
+  }),
 };
 
 const deposits = parseCatalog({
@@ -404,6 +421,19 @@ describe("refreshing public facts", () => {
       ["cfpb_cards", "imported", 2],
       ["treasury", "imported", 2],
       ["bank_of_canada", "imported", 2],
+      ["bank_of_england", "imported", 2],
+      ["ecb", "imported", 2],
+    ]);
+    const cash = await owner.db
+      .select({ series: marketReading.series, day: marketReading.day, value: marketReading.value })
+      .from(marketReading)
+      .where(inArray(marketReading.series, [UK_CASH_SERIES, EURO_CASH_SERIES]))
+      .orderBy(marketReading.series, marketReading.day);
+    expect(cash).toEqual([
+      { series: "EU_ESTR", day: "2026-11-18", value: "2.4420" },
+      { series: "EU_ESTR", day: "2026-11-19", value: "2.4410" },
+      { series: "GB_SONIA", day: "2026-11-17", value: "3.9840" },
+      { series: "GB_SONIA", day: "2026-11-18", value: "3.9841" },
     ]);
     const fees = await owner.db.select().from(fundFee).orderBy(fundFee.ticker);
     // The quarter's file has only the older filing; it never overwrites the newer fee.
@@ -413,12 +443,14 @@ describe("refreshing public facts", () => {
     ]);
 
     const again = await refreshFacts(owner.db, TODAY, { fetchers, now });
-    expect(again.map((r) => r.status)).toEqual(["skipped", "skipped", "skipped", "skipped"]);
+    expect(again.map((r) => r.status)).toEqual(Array(6).fill("skipped"));
     const forced = await refreshFacts(owner.db, TODAY, { fetchers, now, force: true });
     // Files already imported aren't fetched again; the Treasury's month of readings is re-recorded.
     expect(forced.map((r) => r.status)).toEqual([
       "nothing_new",
       "nothing_new",
+      "imported",
+      "imported",
       "imported",
       "imported",
     ]);

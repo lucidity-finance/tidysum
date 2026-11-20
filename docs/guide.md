@@ -45,7 +45,9 @@ JWT (ES256, body hash, at most 5 minutes old) or it is rejected with 401.
 counts in, which countries Plaid Link offers banks from, which catalog products and money-style
 funds they see, and whether US-only checks run. Canada works with Plaid's free plan; UK and EU banks
 connect through Enable Banking (`src/enableBanking/`, `ENABLE_BANKING_*` in `.env`), or through
-Plaid with `PLAID_EUROPE=true` for a Plaid team with European access.
+Plaid with `PLAID_EUROPE=true` for a Plaid team with European access. Funds and the cash
+yardstick follow the country too: UCITS ETFs and SONIA in the UK, Xetra-listed UCITS ETFs and €STR
+in the EU.
 See [decision 0011](decisions/0011-countries.md) for what each country still needs.
 
 ## Institutions Plaid can't reach

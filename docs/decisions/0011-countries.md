@@ -35,18 +35,21 @@ What it takes to link accounts differs by country (checked 2026-11-20):
    amounts with its symbol. Converting other currencies at a public reference rate can come later.
 3. **Plaid Link offers banks from where the user lives:** US and Canada together on the free plan;
    a UK or EU country only with `PLAID_EUROPE=true` (a Plaid team with European access). Otherwise
-   the page says why and points to CSV import.
+   the page says why and points to Enable Banking (below) or CSV import.
 4. **US-only advice switches off elsewhere instead of being wrong.** Bank and card catalog entries
    carry a `country` (default US) and users only see their own country's. The 401(k), IRA and
-   backdoor Roth detectors only run in the US. The cash yardstick is the user's own government's
-   bill yield: the US Treasury's, or the Bank of Canada's.
+   backdoor Roth detectors only run in the US. The cash yardstick is a public short-term rate in
+   the user's own currency: the US Treasury's or the Bank of Canada's 3-month bill, the Bank of
+   England's SONIA, or the ECB's euro short-term rate (€STR). Other EU currencies have none yet.
 5. **Funds are facts wherever the reader lives.** The security catalog lists Canadian-listed funds
-   (`country: CA`) beside US ones, Canadian stocks are a sleeve of international stocks (these
-   styles split US and non-US), and a money style picked in Canada puts Canadian-listed funds first
-   in each bucket. Only US funds take their fee from the SEC.
-6. **Order:** Canada first, then the UK and EU bank connector (Enable Banking, below), then UK
-   funds and rules (UCITS funds, ISA and SIPP, FSCS-protected savings, Bank of England rate), then
-   the EU's (UCITS, the €100k deposit guarantee, ECB rate; tax wrappers country by country later).
+   (`country: CA`), London-listed UCITS ETFs (`GB`) and the Xetra-listed UCITS ETFs EU brokers sell
+   (`EU`, for every EU country) beside US ones. Canadian and UK stocks are sleeves of international
+   stocks (these styles split US and non-US), and a money style picked outside the US puts funds
+   sold there first in each bucket (`fundMarket` in `src/region.ts`). World funds (FTSE All-World,
+   MSCI World) are split US and non-US by their published country weights. Only US funds take
+   their fee from the SEC.
+6. **Order:** Canada first, then the UK and EU bank connector (Enable Banking, below), then UK and
+   EU funds and cash yardsticks (done), then savings catalogs and tax wrappers (below).
 7. **Using Tidysum for your own money is fine anywhere.** Offering advice to other people in these
    countries needs local authorization (FCA, Canadian securities regulators, MiFID firms), as the
    US needs SEC registration (decision 0002, principle 8).
@@ -62,7 +65,22 @@ holdings or liabilities. Banks only send people back to https addresses, so the 
 Pages site has a forwarding page (`site/bank-callback.html`) that passes the answer on to a
 Tidysum on 127.0.0.1 and nowhere else.
 
-## Still to do for Canada
+## Still to do
+
+UK:
+
+- Savings accounts in the catalog (FSCS-protected up to £85,000 per bank), with their sources.
+- ISA (£20,000 a year) and SIPP or workplace pension checks, the way the IRA checks work in the US.
+- Vanguard LifeStrategy and other funds with no exchange ticker.
+
+EU:
+
+- Savings accounts per country (deposits guaranteed up to €100,000 per bank).
+- Tax wrappers and allowances country by country (the PEA in France, the saver's allowance in
+  Germany...).
+- Cash yardsticks for the non-euro currencies (PLN, SEK, CZK, DKK, HUF, RON).
+
+Canada:
 
 - Canadian savings accounts (CDIC) and cards in the catalogs, with their sources.
 - TFSA, RRSP and FHSA room, the way the IRA checks work in the US.

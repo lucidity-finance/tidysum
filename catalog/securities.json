@@ -12,7 +12,8 @@
     "us_stocks.small_mid": "US small- and mid-cap stocks",
     "us_stocks.real_estate": "US real-estate stocks",
     "intl_stocks.real_estate": "International real-estate stocks",
-    "intl_stocks.canada": "Canadian stocks"
+    "intl_stocks.canada": "Canadian stocks",
+    "intl_stocks.uk": "UK stocks"
   },
   "default_buy": {
     "us_stocks": "VTI",
@@ -22,7 +23,9 @@
     "commodities": "GLDM"
   },
   "default_buy_by_country": {
-    "CA": { "us_stocks": "XUU", "intl_stocks": "XEF", "bonds": "ZAG", "cash": "ZMMK" }
+    "CA": { "us_stocks": "XUU", "intl_stocks": "XEF", "bonds": "ZAG", "cash": "ZMMK" },
+    "GB": { "us_stocks": "VUAG", "intl_stocks": "XMWX", "bonds": "VGOV", "cash": "CSH2" },
+    "EU": { "us_stocks": "VUAA", "intl_stocks": "EXUS", "bonds": "EUNA", "cash": "XEON" }
   },
   "securities": [
     { "ticker": "VTI", "name": "Vanguard Total Stock Market ETF", "mix": { "us_stocks": "1" } },
@@ -308,6 +311,228 @@
       "name": "CI High Interest Savings ETF",
       "country": "CA",
       "mix": { "cash": "1" }
+    },
+    {
+      "ticker": "VUAG",
+      "name": "Vanguard S&P 500 UCITS ETF (USD) Accumulating",
+      "country": "GB",
+      "mix": { "us_stocks.large": "1" }
+    },
+    {
+      "ticker": "VUSA",
+      "name": "Vanguard S&P 500 UCITS ETF (USD) Distributing",
+      "country": "GB",
+      "mix": { "us_stocks.large": "1" }
+    },
+    {
+      "ticker": "CSP1",
+      "name": "iShares Core S&P 500 UCITS ETF USD (Acc)",
+      "country": "GB",
+      "mix": { "us_stocks.large": "1" }
+    },
+    {
+      "ticker": "XMWX",
+      "name": "Xtrackers MSCI World ex USA UCITS ETF 1C",
+      "country": "GB",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "EMIM",
+      "name": "iShares Core MSCI Emerging Markets IMI UCITS ETF (Acc)",
+      "country": "GB",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "VFEG",
+      "name": "Vanguard FTSE Emerging Markets UCITS ETF (USD) Accumulating",
+      "country": "GB",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "VEUA",
+      "name": "Vanguard FTSE Developed Europe UCITS ETF (EUR) Accumulating",
+      "country": "GB",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "VUKG",
+      "name": "Vanguard FTSE 100 UCITS ETF (GBP) Accumulating",
+      "country": "GB",
+      "mix": { "intl_stocks.uk": "1" }
+    },
+    {
+      "ticker": "VUKE",
+      "name": "Vanguard FTSE 100 UCITS ETF (GBP) Distributing",
+      "country": "GB",
+      "mix": { "intl_stocks.uk": "1" }
+    },
+    {
+      "ticker": "CUKX",
+      "name": "iShares Core FTSE 100 UCITS ETF GBP (Acc)",
+      "country": "GB",
+      "mix": { "intl_stocks.uk": "1" }
+    },
+    {
+      "ticker": "ISF",
+      "name": "iShares Core FTSE 100 UCITS ETF GBP (Dist)",
+      "country": "GB",
+      "mix": { "intl_stocks.uk": "1" }
+    },
+    {
+      "ticker": "VGOV",
+      "name": "Vanguard U.K. Gilt UCITS ETF (GBP) Distributing",
+      "country": "GB",
+      "mix": { "bonds": "1" }
+    },
+    {
+      "ticker": "IGLT",
+      "name": "iShares Core UK Gilts UCITS ETF",
+      "country": "GB",
+      "mix": { "bonds": "1" }
+    },
+    {
+      "ticker": "CSH2",
+      "name": "Amundi Smart Overnight Return UCITS ETF GBP Hedged Acc",
+      "country": "GB",
+      "mix": { "cash": "1" }
+    },
+    {
+      "ticker": "XSTR",
+      "name": "Xtrackers II GBP Overnight Rate Swap UCITS ETF 1D",
+      "country": "GB",
+      "mix": { "cash": "1" }
+    },
+    {
+      "ticker": "VWRP",
+      "name": "Vanguard FTSE All-World UCITS ETF (USD) Accumulating",
+      "country": "GB",
+      "mix": { "us_stocks": "0.6033", "intl_stocks": "0.3967" },
+      "expense_ratio": "0.14",
+      "notes": "FTSE All-World: US 60.33%, the rest of the world 39.67% (Japan 6.04%, Taiwan 3.53%, UK 3.16% the largest), by country weight on 2026-09-30.",
+      "source_url": "https://www.justetf.com/en/etf-profile.html?isin=IE00BK5BQT80",
+      "mix_as_of": "2026-09-30",
+      "verified_on": "2026-11-20"
+    },
+    {
+      "ticker": "VWRL",
+      "name": "Vanguard FTSE All-World UCITS ETF (USD) Distributing",
+      "country": "GB",
+      "mix": { "us_stocks": "0.6033", "intl_stocks": "0.3967" },
+      "expense_ratio": "0.14",
+      "notes": "FTSE All-World: US 60.33%, the rest of the world 39.67% (Japan 6.04%, Taiwan 3.53%, UK 3.16% the largest), by country weight on 2026-09-30.",
+      "source_url": "https://www.justetf.com/en/etf-profile.html?isin=IE00B3RBWM25",
+      "mix_as_of": "2026-09-30",
+      "verified_on": "2026-11-20"
+    },
+    {
+      "ticker": "SWDA",
+      "name": "iShares Core MSCI World UCITS ETF USD (Acc)",
+      "country": "GB",
+      "mix": { "us_stocks": "0.7081", "intl_stocks": "0.2919" },
+      "expense_ratio": "0.20",
+      "notes": "MSCI World (developed markets only): US 70.81%, the rest 29.19% (Japan 5.91%, UK 3.60%, Canada 3.24% the largest), by country weight on 2026-09-30.",
+      "source_url": "https://www.justetf.com/en/etf-profile.html?isin=IE00B4L5Y983",
+      "mix_as_of": "2026-09-30",
+      "verified_on": "2026-11-20"
+    },
+    {
+      "ticker": "VUAA",
+      "name": "Vanguard S&P 500 UCITS ETF (USD) Accumulating",
+      "country": "EU",
+      "mix": { "us_stocks.large": "1" }
+    },
+    {
+      "ticker": "SXR8",
+      "name": "iShares Core S&P 500 UCITS ETF USD (Acc)",
+      "country": "EU",
+      "mix": { "us_stocks.large": "1" }
+    },
+    {
+      "ticker": "EXUS",
+      "name": "Xtrackers MSCI World ex USA UCITS ETF 1C",
+      "country": "EU",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "IS3N",
+      "name": "iShares Core MSCI Emerging Markets IMI UCITS ETF (Acc)",
+      "country": "EU",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "VFEA",
+      "name": "Vanguard FTSE Emerging Markets UCITS ETF (USD) Accumulating",
+      "country": "EU",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "VWCG",
+      "name": "Vanguard FTSE Developed Europe UCITS ETF (EUR) Accumulating",
+      "country": "EU",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "EUNK",
+      "name": "iShares Core MSCI Europe UCITS ETF EUR (Acc)",
+      "country": "EU",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "EUNA",
+      "name": "iShares Core Global Aggregate Bond UCITS ETF EUR Hedged (Acc)",
+      "country": "EU",
+      "mix": { "bonds": "1" }
+    },
+    {
+      "ticker": "VAGF",
+      "name": "Vanguard Global Aggregate Bond UCITS ETF EUR Hedged Accumulating",
+      "country": "EU",
+      "mix": { "bonds": "1" }
+    },
+    {
+      "ticker": "EUNH",
+      "name": "iShares Core Euro Government Bond UCITS ETF (Dist)",
+      "country": "EU",
+      "mix": { "bonds": "1" }
+    },
+    {
+      "ticker": "XEON",
+      "name": "Xtrackers II EUR Overnight Rate Swap UCITS ETF 1C",
+      "country": "EU",
+      "mix": { "cash": "1" }
+    },
+    {
+      "ticker": "VWCE",
+      "name": "Vanguard FTSE All-World UCITS ETF (USD) Accumulating",
+      "country": "EU",
+      "mix": { "us_stocks": "0.6033", "intl_stocks": "0.3967" },
+      "expense_ratio": "0.14",
+      "notes": "FTSE All-World: US 60.33%, the rest of the world 39.67% (Japan 6.04%, Taiwan 3.53%, UK 3.16% the largest), by country weight on 2026-09-30.",
+      "source_url": "https://www.justetf.com/en/etf-profile.html?isin=IE00BK5BQT80",
+      "mix_as_of": "2026-09-30",
+      "verified_on": "2026-11-20"
+    },
+    {
+      "ticker": "VGWL",
+      "name": "Vanguard FTSE All-World UCITS ETF (USD) Distributing",
+      "country": "EU",
+      "mix": { "us_stocks": "0.6033", "intl_stocks": "0.3967" },
+      "expense_ratio": "0.14",
+      "notes": "FTSE All-World: US 60.33%, the rest of the world 39.67% (Japan 6.04%, Taiwan 3.53%, UK 3.16% the largest), by country weight on 2026-09-30.",
+      "source_url": "https://www.justetf.com/en/etf-profile.html?isin=IE00B3RBWM25",
+      "mix_as_of": "2026-09-30",
+      "verified_on": "2026-11-20"
+    },
+    {
+      "ticker": "EUNL",
+      "name": "iShares Core MSCI World UCITS ETF USD (Acc)",
+      "country": "EU",
+      "mix": { "us_stocks": "0.7081", "intl_stocks": "0.2919" },
+      "expense_ratio": "0.20",
+      "notes": "MSCI World (developed markets only): US 70.81%, the rest 29.19% (Japan 5.91%, UK 3.60%, Canada 3.24% the largest), by country weight on 2026-09-30.",
+      "source_url": "https://www.justetf.com/en/etf-profile.html?isin=IE00B4L5Y983",
+      "mix_as_of": "2026-09-30",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "XEQT",

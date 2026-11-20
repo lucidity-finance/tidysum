@@ -1,4 +1,5 @@
 import Big from "big.js";
+import { fundMarket } from "../region.js";
 import { type Policy, PolicySchema, STYLE_IDS, type StyleId } from "./policy.js";
 
 // Money styles (decision 0009): well-known ways of running your money, each a preset that fills
@@ -79,7 +80,9 @@ const commodities = (target: string): PresetBucket => ({ target, tickers: METALS
  * contribution buys them (the first ticker held, or else the first one, is what gets bought).
  * The US tickers stay, so what the owner already holds is still counted. In Canada, Canadian
  * stocks sit in the international bucket: everything outside the US is international to these
- * styles' mixes. Each fund's make-up is in catalog/securities.json.
+ * styles' mixes; the same goes for UK stocks in the UK. Owners anywhere in the EU get the UCITS
+ * ETFs EU brokers sell (src/region.ts fundMarket). Each fund's make-up is in
+ * catalog/securities.json.
  */
 const LOCAL: Record<string, Map<string[], string[]>> = {
   CA: new Map([
@@ -87,10 +90,20 @@ const LOCAL: Record<string, Map<string[], string[]>> = {
     [INTL, ["XEF", "VIU", "XEC", "VEE", "XIC", "VCN", "ZCN"]],
     [BONDS, ["ZAG", "VAB", "XBB"]],
   ]),
+  GB: new Map([
+    [US, ["VUAG", "VUSA", "CSP1"]],
+    [INTL, ["XMWX", "EMIM", "VFEG", "VEUA", "VUKG", "VUKE", "CUKX", "ISF"]],
+    [BONDS, ["VGOV", "IGLT", "CSH2", "XSTR"]],
+  ]),
+  EU: new Map([
+    [US, ["VUAA", "SXR8", "VUSA"]],
+    [INTL, ["EXUS", "IS3N", "VFEA", "VWCG", "EUNK"]],
+    [BONDS, ["EUNA", "VAGF", "EUNH", "XEON"]],
+  ]),
 };
 
 function localize(preset: StylePreset, country: string | undefined): StylePreset {
-  const local = country ? LOCAL[country] : undefined;
+  const local = country ? LOCAL[fundMarket(country)] : undefined;
   if (!local || !preset.allocation) return preset;
   const buckets = Object.fromEntries(
     Object.entries(preset.allocation.buckets).map(([name, b]) => {
@@ -494,7 +507,7 @@ export function applyStyle(
     style: {
       id,
       ...(style.needs_age && opts.age !== undefined ? { age: opts.age } : {}),
-      ...(country && LOCAL[country] ? { country } : {}),
+      ...(country && LOCAL[fundMarket(country)] ? { country } : {}),
     },
   };
   if (preset.cash) {

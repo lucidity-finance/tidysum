@@ -7,8 +7,9 @@ import { fetchDataSet, fetchDataSetPage, filesToImport } from "./secFunds.js";
 
 // Public product facts, fetched on the owner side (`tidysum facts refresh`, and `serve` once a
 // day): fund fees from the SEC, card fees and APRs from the CFPB, and the 13-week Treasury bill yield
-// as a neutral benchmark for cash, plus the Bank of Canada's 3-month bill yield for users in
-// Canada. All are government data, free to use, with no key and no referral money behind them.
+// as a neutral benchmark for cash, plus the same yardstick elsewhere: the Bank of Canada's 3-month
+// bill yield, the Bank of England's SONIA and the ECB's euro short-term rate. All are government or
+// central-bank data, free to use, with no key and no referral money behind them.
 // Each source fails on its own and is logged in fact_import.
 
 /** The 13-week Treasury bill's coupon-equivalent yield, in market_reading. */
@@ -17,7 +18,19 @@ export const TREASURY_SERIES = "TBILL13W";
 /** The Government of Canada 3-month treasury bill's average auction yield, in market_reading. */
 export const CANADA_TBILL_SERIES = "CA_TBILL3M";
 
-export type FactSource = "sec_funds" | "cfpb_cards" | "treasury" | "bank_of_canada";
+/** SONIA, the Bank of England's overnight sterling rate: what cash in pounds earns, in market_reading. */
+export const UK_CASH_SERIES = "GB_SONIA";
+
+/** The ECB's euro short-term rate (€STR): what cash in euros earns, in market_reading. */
+export const EURO_CASH_SERIES = "EU_ESTR";
+
+export type FactSource =
+  | "sec_funds"
+  | "cfpb_cards"
+  | "treasury"
+  | "bank_of_canada"
+  | "bank_of_england"
+  | "ecb";
 
 /** How often each source is worth fetching: the SEC adds a file a month, the CFPB two a year. */
 const EVERY_HOURS: Record<FactSource, number> = {
@@ -26,6 +39,8 @@ const EVERY_HOURS: Record<FactSource, number> = {
   treasury: 12,
   // Auctions are every other week.
   bank_of_canada: 24,
+  bank_of_england: 24,
+  ecb: 24,
 };
 
 export interface Fetchers {
@@ -33,6 +48,8 @@ export interface Fetchers {
   cfpb?: typeof fetch;
   treasury?: typeof fetch;
   bankOfCanada?: typeof fetch;
+  bankOfEngland?: typeof fetch;
+  ecb?: typeof fetch;
 }
 
 export interface RefreshResult {
@@ -264,6 +281,88 @@ async function refreshBankOfCanada(
   return { source: "bank_of_canada", status: n ? "imported" : "nothing_new", files: [], rows: n };
 }
 
+/** The Bank of England's database, as CSV: one series, by its code. */
+export const BOE_IADB =
+  "https://www.bankofengland.co.uk/boeapps/database/_iadb-fromshowcolumns.asp";
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** The Bank of England's CSV ("DATE,IUDSOIA" then "18 Nov 2026,3.984") as readings. */
+export function parseBoeCsv(text: string): Reading[] {
+  return text.split(/\r?\n/).flatMap((line): Reading[] => {
+    const m = /^(\d{2}) ([A-Z][a-z]{2}) (\d{4}),(\d{1,2}(?:\.\d{1,4})?)$/.exec(line.trim());
+    const month = m ? MONTHS.indexOf(m[2] as string) + 1 : 0;
+    if (!m || month === 0) return [];
+    return [{ day: `${m[3]}-${String(month).padStart(2, "0")}-${m[1]}`, value: m[4] as string }];
+  });
+}
+
+async function refreshBankOfEngland(
+  db: Db,
+  at: Date,
+  today: string,
+  fetcher: typeof fetch = fetch,
+): Promise<RefreshResult> {
+  const from = new Date(at.getTime() - 21 * 86_400_000);
+  const q = new URLSearchParams({
+    "csv.x": "yes",
+    Datefrom: `${String(from.getUTCDate()).padStart(2, "0")}/${MONTHS[from.getUTCMonth()]}/${from.getUTCFullYear()}`,
+    Dateto: "now",
+    SeriesCodes: "IUDSOIA",
+    CSVF: "TN",
+    UsingCodes: "Y",
+    VPD: "Y",
+    VFD: "N",
+  });
+  const res = await fetcher(`${BOE_IADB}?${q}`, {
+    headers: { "user-agent": "tidysum" },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`Bank of England SONIA: HTTP ${res.status}`);
+  const rows = parseBoeCsv(await res.text()).filter((r) => r.day <= today);
+  const n = await recordReadings(db, UK_CASH_SERIES, rows);
+  await log(db, at, "bank_of_england", true, n);
+  return { source: "bank_of_england", status: n ? "imported" : "nothing_new", files: [], rows: n };
+}
+
+/** The ECB's data API: the euro short-term rate, volume-weighted, each business day. */
+export const ECB_ESTR = "https://data-api.ecb.europa.eu/service/data/EST/B.EU000A2X2A25.WT";
+
+/** The ECB's CSV, by its TIME_PERIOD and OBS_VALUE columns, as readings. */
+export function parseEcbCsv(text: string): Reading[] {
+  const [head, ...lines] = text.split(/\r?\n/);
+  const cols = (head ?? "").split(",");
+  const dayAt = cols.indexOf("TIME_PERIOD");
+  const valueAt = cols.indexOf("OBS_VALUE");
+  if (dayAt < 0 || valueAt < 0) return [];
+  return lines.flatMap((line): Reading[] => {
+    // The columns before these two never hold commas; later ones (titles) may.
+    const cells = line.split(",");
+    const day = cells[dayAt];
+    const value = cells[valueAt];
+    if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return [];
+    if (!value || !/^-?\d{1,2}(\.\d{1,4})?$/.test(value)) return [];
+    return [{ day, value }];
+  });
+}
+
+async function refreshEcb(
+  db: Db,
+  at: Date,
+  today: string,
+  fetcher: typeof fetch = fetch,
+): Promise<RefreshResult> {
+  const res = await fetcher(`${ECB_ESTR}?lastNObservations=15&format=csvdata`, {
+    headers: { "user-agent": "tidysum" },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`ECB euro short-term rate: HTTP ${res.status}`);
+  const rows = parseEcbCsv(await res.text()).filter((r) => r.day <= today);
+  const n = await recordReadings(db, EURO_CASH_SERIES, rows);
+  await log(db, at, "ecb", true, n);
+  return { source: "ecb", status: n ? "imported" : "nothing_new", files: [], rows: n };
+}
+
 /**
  * Fetches each public source that is due (or every one, with `force`). One failing source doesn't
  * stop the others; its error is logged and returned.
@@ -279,6 +378,8 @@ export async function refreshFacts(
     cfpb_cards: () => refreshCards(db, now, opts.fetchers?.cfpb),
     treasury: () => refreshTreasury(db, now, today, opts.fetchers?.treasury),
     bank_of_canada: () => refreshBankOfCanada(db, now, today, opts.fetchers?.bankOfCanada),
+    bank_of_england: () => refreshBankOfEngland(db, now, today, opts.fetchers?.bankOfEngland),
+    ecb: () => refreshEcb(db, now, today, opts.fetchers?.ecb),
   };
   const results: RefreshResult[] = [];
   for (const source of opts.only ?? (Object.keys(run) as FactSource[])) {

@@ -11,7 +11,7 @@ import {
 } from "../src/db/schema.js";
 import { forUserRegion } from "../src/facts/catalogs.js";
 import { readTreasuryBenchmark } from "../src/facts/read.js";
-import { CANADA_TBILL_SERIES } from "../src/facts/refresh.js";
+import { CANADA_TBILL_SERIES, EURO_CASH_SERIES, UK_CASH_SERIES } from "../src/facts/refresh.js";
 import { connectAgent } from "../src/mcp/agentDb.js";
 import { detectMisallocations } from "../src/misallocation/detect.js";
 import { parsePolicy } from "../src/policy/policy.js";
@@ -20,7 +20,7 @@ import { applyStyle, styleStatus } from "../src/policy/styles.js";
 import { loadSecurityCatalogFile } from "../src/portfolio/securityCatalog.js";
 import { parseCardCatalog } from "../src/products/cardCatalog.js";
 import { parseCatalog } from "../src/products/catalog.js";
-import { formatMoney, plaidCountries, regionOf } from "../src/region.js";
+import { formatMoney, fundMarket, plaidCountries, regionOf } from "../src/region.js";
 import { createUser, parseCountry, readAgentRegion, setCountry } from "../src/users.js";
 
 const TODAY = "2026-11-20";
@@ -237,5 +237,72 @@ describe("money styles outside the US", () => {
       for (const t of b.tickers.slice(0, 3)) expect(known, t).toContain(t);
     }
     expect(catalog.default_buy_by_country.CA?.us_stocks).toBe("XUU");
+  });
+});
+
+describe("the UK and the EU", () => {
+  const url = inject("databaseUrl");
+  const owner = connect(url);
+  const users: string[] = [];
+  const agents: ReturnType<typeof connectAgent>[] = [];
+
+  afterAll(async () => {
+    for (const a of agents) await a.end();
+    for (const id of users) await owner.db.delete(appUser).where(eq(appUser.id, id));
+    await owner.close();
+  });
+
+  it("buys the UCITS funds sold where the owner lives", async () => {
+    expect([fundMarket("US"), fundMarket("CA"), fundMarket("GB")]).toEqual(["US", "CA", "GB"]);
+    expect([fundMarket("DE"), fundMarket("PL"), fundMarket("IE")]).toEqual(["EU", "EU", "EU"]);
+
+    const uk = parsePolicy(applyStyle(null, "adviser_standard", { age: 40, country: "GB" })).policy;
+    expect(uk.style?.country).toBe("GB");
+    expect(uk.allocation?.buckets.us_stocks?.tickers[0]).toBe("VUAG");
+    expect(uk.allocation?.buckets.intl_stocks?.tickers).toContain("VUKG");
+    expect(uk.allocation?.buckets.bonds_and_cash?.tickers[0]).toBe("VGOV");
+    const de = parsePolicy(applyStyle(null, "adviser_standard", { age: 40, country: "DE" })).policy;
+    expect(de.style?.country).toBe("DE");
+    expect(de.allocation?.buckets.us_stocks?.tickers[0]).toBe("VUAA");
+    expect(de.allocation?.buckets.bonds_and_cash?.tickers[0]).toBe("EUNA");
+    expect(styleStatus(de)?.tweaks).toEqual([]);
+
+    const catalog = await loadSecurityCatalogFile("catalog/securities.json");
+    const byTicker = new Map(catalog.securities.map((s) => [s.ticker, s]));
+    for (const p of [uk, de]) {
+      for (const b of Object.values(p.allocation?.buckets ?? {})) {
+        for (const t of b.tickers.slice(0, 3)) expect(byTicker.has(t), t).toBe(true);
+      }
+    }
+    for (const market of ["GB", "EU"]) {
+      for (const t of Object.values(catalog.default_buy_by_country[market] ?? {})) {
+        expect(byTicker.get(t)?.country, t).toBe(market);
+      }
+    }
+    // A world fund is split by its published country weights, not guessed.
+    expect(byTicker.get("VWCE")?.mix).toEqual({ us_stocks: "0.6033", intl_stocks: "0.3967" });
+    expect(byTicker.get("VWRP")?.source_url).toContain("IE00BK5BQT80");
+  });
+
+  it("measures cash against SONIA in pounds and €STR in euros", async () => {
+    const { db } = owner;
+    await db
+      .insert(marketReading)
+      .values([
+        { series: UK_CASH_SERIES, day: "2026-11-18", value: "3.9840" },
+        { series: EURO_CASH_SERIES, day: "2026-11-19", value: "2.4410" },
+      ])
+      .onConflictDoNothing();
+    const benchmark = async (country: string) => {
+      const id = await createUser(db, `${country} test`, false, country);
+      users.push(id);
+      const agent = connectAgent(url, id);
+      agents.push(agent);
+      return readTreasuryBenchmark(agent);
+    };
+    expect(await benchmark("GB")).toMatchObject({ name: expect.stringContaining("SONIA") });
+    expect(await benchmark("FR")).toMatchObject({ name: expect.stringContaining("€STR") });
+    // Zloty savings have no yardstick yet, rather than a euro one.
+    expect(await benchmark("PL")).toBeNull();
   });
 });

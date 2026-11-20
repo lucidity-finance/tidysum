@@ -1,7 +1,12 @@
 import Big from "big.js";
 import type { AgentDb } from "../mcp/agentDb.js";
 import { readAgentRegion } from "../users.js";
-import { CANADA_TBILL_SERIES, TREASURY_SERIES } from "./refresh.js";
+import {
+  CANADA_TBILL_SERIES,
+  EURO_CASH_SERIES,
+  TREASURY_SERIES,
+  UK_CASH_SERIES,
+} from "./refresh.js";
 
 // The public facts as agents and the page read them, through the read-only agent role.
 
@@ -159,14 +164,23 @@ export async function readCardSurvey(db: AgentDb): Promise<CardTermsFact[]> {
   return rows;
 }
 
+/** Each home currency's cash yardstick, by the series it is kept under in market_reading. */
+const CASH_SERIES: Record<string, string> = {
+  USD: TREASURY_SERIES,
+  CAD: CANADA_TBILL_SERIES,
+  GBP: UK_CASH_SERIES,
+  EUR: EURO_CASH_SERIES,
+};
+
 /**
- * The latest short government bill yield where the session user lives: a neutral yardstick for
- * what cash can earn. The US Treasury's 13-week bill, or the Government of Canada's 3-month bill;
- * null elsewhere until a source is added there.
+ * The latest short-term rate in the session user's currency: a neutral yardstick for what cash can
+ * earn. The US Treasury's 13-week bill, the Government of Canada's 3-month bill, the Bank of
+ * England's SONIA, or the ECB's euro short-term rate; null in other currencies until a source is
+ * added for them.
  */
 export async function readTreasuryBenchmark(db: AgentDb) {
-  const { country } = await readAgentRegion(db);
-  const series = country === "CA" ? CANADA_TBILL_SERIES : country === "US" ? TREASURY_SERIES : null;
+  const { currency } = await readAgentRegion(db);
+  const series = CASH_SERIES[currency];
   if (!series) return null;
   const { rows } = await db.query<{ day: string; value: string }>(
     `select day, value::text from market_reading where series = $1 order by day desc limit 1`,
@@ -174,7 +188,30 @@ export async function readTreasuryBenchmark(db: AgentDb) {
   );
   const r = rows[0];
   if (!r) return null;
-  if (country === "CA") {
+  if (series === UK_CASH_SERIES) {
+    return {
+      name: "SONIA (Sterling Overnight Index Average)",
+      yield: new Big(r.value).toFixed(2),
+      as_of: r.day,
+      source_url: "https://www.bankofengland.co.uk/markets/sonia-benchmark",
+      note:
+        "What banks pay each other to borrow pounds overnight, from the Bank of England; money " +
+        "market funds earn about this. A yardstick, not a bank account: compare cash rates with it.",
+    };
+  }
+  if (series === EURO_CASH_SERIES) {
+    return {
+      name: "Euro short-term rate (€STR)",
+      yield: new Big(r.value).toFixed(2),
+      as_of: r.day,
+      source_url:
+        "https://www.ecb.europa.eu/stats/financial_markets_and_interest_rates/euro_short-term_rate/html/index.en.html",
+      note:
+        "What banks pay to borrow euros overnight, from the European Central Bank; money market " +
+        "funds earn about this. A yardstick, not a bank account: compare cash rates with it.",
+    };
+  }
+  if (series === CANADA_TBILL_SERIES) {
     return {
       name: "3-month Government of Canada treasury bill yield",
       yield: new Big(r.value).toFixed(2),
@@ -214,7 +251,8 @@ export async function readFactSources(db: AgentDb) {
        (select error from fact_import f where f.source = s.source and not ok
           and f.at > coalesce((select max(at) from fact_import where source = s.source and ok), '-infinity')
          order by at desc limit 1) as last_error
-     from (values ('sec_funds'), ('cfpb_cards'), ('treasury'), ('bank_of_canada')) s(source)`,
+     from (values ('sec_funds'), ('cfpb_cards'), ('treasury'), ('bank_of_canada'),
+       ('bank_of_england'), ('ecb')) s(source)`,
   );
   return rows;
 }

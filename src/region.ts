@@ -85,6 +85,17 @@ export function features(region: Region) {
   };
 }
 
+/**
+ * Which funds suit an owner here: "US", "CA" and "GB" for funds listed at home, and "EU" for the
+ * UCITS ETFs EU brokers sell (Xetra listings, in euros) to anyone in the EU. Keys of
+ * catalog/securities.json's `default_buy_by_country` and of the styles' local tickers.
+ */
+export function fundMarket(country: string | null | undefined): "US" | "CA" | "GB" | "EU" {
+  const c = regionOf(country).country;
+  if (c === "US" || c === "CA" || c === "GB") return c;
+  return "EU";
+}
+
 /** Plaid's free Trial plan reaches US and Canadian institutions only (docs/connect-your-accounts.md). */
 export const PLAID_TRIAL_COUNTRIES = ["US", "CA"] as const;
 
@@ -129,7 +140,8 @@ export function plaidCountries(
   return {
     unavailable:
       `Plaid's free plan only connects US and Canadian banks, so accounts in ${COUNTRIES[c].name} ` +
-      "can't be linked through it. Import them from a CSV export instead (`tidysum import-csv`). " +
+      "can't be linked through it. Link them through Enable Banking instead " +
+      "(docs/connect-your-accounts.md, UK and EU banks), or import a CSV export (`tidysum import-csv`). " +
       "If your Plaid team has Plaid's European production access, set PLAID_EUROPE=true.",
   };
 }

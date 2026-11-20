@@ -3,6 +3,7 @@ import type { AgentDb } from "../mcp/agentDb.js";
 import type { Policy } from "../policy/policy.js";
 import { readSnapshot, type Snapshot, type SnapshotHolding } from "../policy/snapshot.js";
 import { loadActivePolicy } from "../policy/store.js";
+import { fundMarket } from "../region.js";
 import { investableHoldings, sleevePosition, splitSleeve } from "./investable.js";
 import type { Overlap } from "./overlap.js";
 import { classMix, type SecurityCatalog, targetDateMix } from "./securityCatalog.js";
@@ -560,7 +561,7 @@ export function buildAllocationReport(
     const fallback = bucketClasses(key, b)
       .map(
         (cls) =>
-          catalog?.default_buy_by_country[snapshot.country ?? "US"]?.[cls] ??
+          catalog?.default_buy_by_country[fundMarket(snapshot.country)]?.[cls] ??
           catalog?.default_buy[cls],
       )
       .find((t): t is string => !!t);

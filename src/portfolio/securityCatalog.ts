@@ -27,8 +27,9 @@ const Security = z
     ticker: z.string().regex(/^[A-Z0-9.-]{1,12}$/),
     name: z.string().min(1).max(120),
     /**
-     * Where it is listed, as an ISO country code (src/region.ts), when not the US. Only US funds
-     * take their fee from the SEC's data.
+     * Where it is listed, when not the US: an ISO country code (src/region.ts), or "EU" for the
+     * UCITS ETFs sold across the EU (src/region.ts fundMarket). Only US funds take their fee from
+     * the SEC's data.
      */
     country: z
       .string()
@@ -101,7 +102,7 @@ export const SecurityCatalogSchema = z
     sleeves: z.record(sleeveName, z.string().min(1).max(60)).default({}),
     /** A broad, low-cost fund to buy for each class when a policy bucket names none. */
     default_buy: z.record(className, z.string().regex(/^[A-Z0-9.-]{1,12}$/)),
-    /** The same, for owners in another country (src/region.ts): funds listed where they live. */
+    /** The same, for owners elsewhere, by src/region.ts fundMarket: funds sold where they live. */
     default_buy_by_country: z
       .record(
         z.string().regex(/^[A-Z]{2}$/),
