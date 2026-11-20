@@ -39,6 +39,14 @@ button, which opens Plaid Link in update mode. Link asks Plaid for 730 days of h
 Webhooks need `TIDYSUM_PUBLIC_URL` (https). Every webhook must carry a valid `Plaid-Verification`
 JWT (ES256, body hash, at most 5 minutes old) or it is rejected with 401.
 
+## Outside the US
+
+`tidysum user country <code>` sets where the user lives (US by default): the currency Tidysum
+counts in, which countries Plaid Link offers banks from, which catalog products and money-style
+funds they see, and whether US-only checks run. Canada works with Plaid's free plan; UK and EU banks
+need `PLAID_EUROPE=true` (Plaid's European access) or CSV import until a connector for them lands.
+See [decision 0011](decisions/0011-countries.md) for what each country still needs.
+
 ## Institutions Plaid can't reach
 
 ```sh
@@ -571,6 +579,11 @@ docs/                     decisions and spikes
 
 - **Money is never a float.** Plaid's JSON numbers become decimal strings at the gateway
   edge and are stored as Postgres `numeric`.
+- **Money is never added across currencies.** Each user has a country and home currency
+  (`src/region.ts`, [decision 0011](decisions/0011-countries.md)); the policy snapshot leaves
+  accounts in other currencies out, and findings are in the home currency.
+- **US-only advice stays in the US.** Catalog entries carry a `country`, users see only their own,
+  and US tax-law checks (401(k), IRA) run only for US users.
 - **Amount sign follows Plaid:** positive is money out of the account, negative is money in.
 - **Only the ingest side holds Plaid tokens.** They live encrypted in `item_secret`, which
   the `tidysum_agent` role is never granted. That role is read-only and table grants are

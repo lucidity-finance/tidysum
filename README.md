@@ -230,6 +230,11 @@ cp .env.example .env                  # then fill in the four lines below
    to each bank, card and brokerage in Plaid's window. Tidysum syncs two years of history right
    away, then every six hours.
 
+**Outside the US?** Canada works with the same free Plaid account: run
+`pnpm tidysum user country CA` after `migrate`, and amounts, banks and funds follow. In the UK and
+EU, Plaid's free plan can't reach your banks yet, so accounts come in as CSV for now
+([outside the US](docs/connect-your-accounts.md#outside-the-us)).
+
 [Connect your accounts](docs/connect-your-accounts.md) explains every step, what counts toward the
 10 free connections, and how to try it first with Plaid's test bank. Institutions Plaid can't reach
 can come in as CSV (`pnpm tidysum import-csv`). On a Mac, `deploy/macos-setup.sh` runs it all in

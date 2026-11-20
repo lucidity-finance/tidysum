@@ -99,8 +99,12 @@ Never commit `.env` or paste the secret anywhere else. Git already ignores the f
 
 ```sh
 pnpm tidysum migrate
+pnpm tidysum user country CA          # only if you don't live in the US: CA, GB, DE, FR, ...
 pnpm tidysum serve                    # open http://127.0.0.1:8080
 ```
+
+Your country sets the currency Tidysum counts in, which banks Plaid offers, and which advice
+applies (see [Outside the US](#outside-the-us)).
 
 On a Mac, `bash deploy/macos-setup.sh` does this in the background instead, and keeps Tidysum
 running after restarts ([guide](guide.md#running-on-your-mac)).
@@ -136,8 +140,21 @@ me?"_. To connect your agent to Tidysum, see [Connect your agent](../README.md#c
   your computer. Tidysum sends nothing anywhere else. Plaid's own
   [end user privacy policy](https://plaid.com/legal/#end-user-privacy-policy) covers what Plaid does
   with it.
-- **Outside the U.S. and Canada,** Plaid's free plan isn't available, and Tidysum's detectors are
-  built for U.S. accounts.
+- **Outside the U.S. and Canada,** Plaid's free plan isn't available. See below.
+
+## Outside the US
+
+- **Canada** works with the free Plaid account. Run `pnpm tidysum user country CA` first: amounts
+  are then in Canadian dollars, Plaid offers Canadian (and US) banks, money styles buy
+  Canadian-listed funds, and cash is measured against the Bank of Canada's 3-month bill yield.
+  The 401(k) and IRA checks are US tax law, so they stay off; TFSA and RRSP checks, and Canadian
+  savings accounts and cards to compare with, aren't in yet.
+- **UK and EU:** Plaid's free plan doesn't reach banks there, so for now import CSV exports
+  (`pnpm tidysum import-csv --currency GBP ...`) after setting your country
+  (`pnpm tidysum user country GB`). A free connector for UK and EU banks (Enable Banking) is next.
+  If your Plaid team already has Plaid's European production access, set `PLAID_EUROPE=true`.
+- **Accounts in another currency** (a US dollar account in Canada, say) are synced and listed, but
+  left out of totals and findings rather than added up as if they were the same money.
 
 ## Notes for agents
 
@@ -149,5 +166,7 @@ If you are an agent following this page for someone:
   accepting Plaid's terms, and every bank sign-in inside Plaid Link. Don't type those for them.
 - Never remove a connection to fix it: that spends one of the 10 free connections. Use
   **Reconnect**.
+- If the person doesn't live in the US, run `pnpm tidysum user country <code>` right after
+  `migrate`, before linking.
 - After the first sync, run `pnpm tidysum agent setup --dry-run`, show the person what it would
   change, and ask them to run `pnpm tidysum agent setup` in their own terminal.
