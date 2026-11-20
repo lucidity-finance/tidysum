@@ -288,7 +288,9 @@ describe("compare_products", () => {
       "Euro Savings",
       "Total Checking",
     ]);
-    expect(r.accounts.find((a) => a.account_name === "Euro Savings")?.skipped).toMatch(/US dollar/);
+    expect(r.accounts.find((a) => a.account_name === "Euro Savings")?.skipped).toMatch(
+      /no accounts in EUR/,
+    );
     expect(r.warnings).toEqual([expect.stringMatching(/^Fee Checking was last verified 90 days/)]);
   });
 

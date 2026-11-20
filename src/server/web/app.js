@@ -157,11 +157,21 @@ function cents(s) {
 const asCents = (s) => (typeof s === "bigint" ? s : cents(s));
 const groups = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
+/**
+ * The user's own currency symbol ("$", "£", "€"), from /api/items. Every amount the page shows is
+ * in it: the server leaves accounts in other currencies out of totals.
+ */
+let moneySign = "$";
+const SIGNS = { USD: "$", CAD: "$", GBP: "£", EUR: "€" };
+function setCurrency(code) {
+  moneySign = SIGNS[code] ?? `${code} `;
+}
+
 /** "$9,257.43". */
 function usd(s) {
   const c = asCents(s);
   const abs = c < 0n ? -c : c;
-  return `${c < 0n ? "−" : ""}$${groups(abs / 100n)}.${(abs % 100n).toString().padStart(2, "0")}`;
+  return `${c < 0n ? "−" : ""}${moneySign}${groups(abs / 100n)}.${(abs % 100n).toString().padStart(2, "0")}`;
 }
 
 /** "$9,257": whole dollars, rounded half up, for headlines and lists. Exact figures sit in the details. */
@@ -169,8 +179,8 @@ function usd0(s) {
   const c = asCents(s);
   const abs = c < 0n ? -c : c;
   const dollars = (abs + 50n) / 100n;
-  if (abs > 0n && dollars === 0n) return `${c < 0n ? "−" : ""}<$1`;
-  return `${c < 0n ? "−" : ""}$${groups(dollars)}`;
+  if (abs > 0n && dollars === 0n) return `${c < 0n ? "−" : ""}<${moneySign}1`;
+  return `${c < 0n ? "−" : ""}${moneySign}${groups(dollars)}`;
 }
 
 /** "0.188" as "18.8", for a fraction shown as a percent (not money). */
@@ -457,6 +467,7 @@ async function load(...keys) {
       try {
         const src = SOURCES[k];
         data[k] = await api(typeof src === "function" ? src() : src);
+        if (k === "items" && data.items.currency) setCurrency(data.items.currency);
       } catch (e) {
         data[k] = { error: e.message, status: e.status };
       }

@@ -1,4 +1,5 @@
 import type { AgentDb } from "../mcp/agentDb.js";
+import { regionOf } from "../region.js";
 import { findFund, readWorkplacePlans } from "../retirement/workplace.js";
 
 // The numbers the policy engine works from, read in one go so every finding and every
@@ -59,6 +60,13 @@ export interface ManualHolding {
 
 export interface Snapshot {
   today: string;
+  /**
+   * The user's home currency (src/region.ts). Every amount below is in it: accounts in another
+   * currency are left out rather than added up as if they were the same money.
+   */
+  currency?: string;
+  /** Accounts left out because they are in another currency. */
+  other_currency_accounts?: { id: string; name: string; currency: string }[];
   /** Whether this user gets allocation checks and securities proposals (app_user.investing_enabled). */
   investing_enabled: boolean;
   accounts: SnapshotAccount[];
@@ -82,6 +90,11 @@ export interface ResearchSnapshot {
 }
 
 export async function readSnapshot(db: AgentDb, today: string): Promise<Snapshot> {
+  // Row-level security leaves only the session user's own row.
+  const user = await db.query<{ investing_enabled: boolean; country: string }>(
+    "select investing_enabled, country from app_user",
+  );
+  const { currency } = regionOf(user.rows[0]?.country);
   const accounts = await db.query<SnapshotAccount>(`
     select a.id, a.name, a.official_name, i.institution_name, a.type, a.subtype, a.currency,
       b.current, b.available, b.as_of as balance_as_of
@@ -139,8 +152,9 @@ export async function readSnapshot(db: AgentDb, today: string): Promise<Snapshot
        and t.date < date_trunc('month', $1::date)
        and coalesce(t.category_primary, '') not in ('TRANSFER_IN', 'TRANSFER_OUT')
        and coalesce(t.category_detailed, '') <> 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT'
+       and coalesce(t.currency, $2) = $2
      group by 1 order by 1`,
-    [today],
+    [today, currency],
   );
   const runs = await db.query<ResearchSnapshot["runs"][number]>(
     `select distinct on (product, watchlist) run_id, product, watchlist,
@@ -153,16 +167,27 @@ export async function readSnapshot(db: AgentDb, today: string): Promise<Snapshot
         [runs.rows.map((r) => r.run_id)],
       )
     : { rows: [] };
-  // Row-level security leaves only the session user's own row.
-  const user = await db.query<{ investing_enabled: boolean }>(
-    "select investing_enabled from app_user",
-  );
+  // An account with no currency is taken as the home one, as Plaid leaves it off rarely.
+  const other = accounts.rows.filter((a) => a.currency !== null && a.currency !== currency);
+  const otherIds = new Set(other.map((a) => a.id));
+  const home = <T extends { account_id: string }>(rows: T[]) =>
+    rows.filter((r) => !otherIds.has(r.account_id));
   return {
     today,
+    currency,
+    ...(other.length
+      ? {
+          other_currency_accounts: other.map((a) => ({
+            id: a.id,
+            name: a.name,
+            currency: a.currency ?? "",
+          })),
+        }
+      : {}),
     investing_enabled: user.rows[0]?.investing_enabled ?? false,
-    accounts: accounts.rows,
-    liabilities: liabilities.rows,
-    holdings: holdings.rows,
+    accounts: accounts.rows.filter((a) => !otherIds.has(a.id)),
+    liabilities: home(liabilities.rows),
+    holdings: home(holdings.rows),
     manual_holdings: manual.rows,
     spending: spending.rows,
     research: { runs: runs.rows, tickers: ranked.rows.map((r) => r.ticker) },

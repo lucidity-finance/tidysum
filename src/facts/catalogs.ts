@@ -2,6 +2,7 @@ import type { AgentDb } from "../mcp/agentDb.js";
 import type { SecurityCatalog } from "../portfolio/securityCatalog.js";
 import type { CardCatalog } from "../products/cardCatalog.js";
 import type { Catalog } from "../products/catalog.js";
+import { readAgentRegion } from "../users.js";
 import { checkedCards, checkedDeposits, readFactChecks } from "./checks.js";
 import { readFundFees } from "./read.js";
 
@@ -42,6 +43,33 @@ export function withPublicFacts<T extends Loaders>(loaders: T, db: AgentDb): T {
       : {}),
     ...(loadSecurityCatalog
       ? { loadSecurityCatalog: async () => withSecFees(await loadSecurityCatalog(), db) }
+      : {}),
+  };
+}
+
+/**
+ * The deposit and card catalogs cut down to the session user's country (src/region.ts): someone
+ * in Canada is never offered a US bank account or card they couldn't open. Funds stay whole:
+ * what a fund holds is a fact wherever the reader lives.
+ */
+export function forUserRegion<T extends Loaders>(loaders: T, db: AgentDb): T {
+  const { loadCatalog, loadCardCatalog } = loaders;
+  return {
+    ...loaders,
+    loadCatalog: async () => {
+      const [catalog, { country }] = await Promise.all([loadCatalog(), readAgentRegion(db)]);
+      return { ...catalog, products: catalog.products.filter((p) => p.country === country) };
+    },
+    ...(loadCardCatalog
+      ? {
+          loadCardCatalog: async () => {
+            const [catalog, { country }] = await Promise.all([
+              loadCardCatalog(),
+              readAgentRegion(db),
+            ]);
+            return { ...catalog, cards: catalog.cards.filter((c) => c.country === country) };
+          },
+        }
       : {}),
   };
 }

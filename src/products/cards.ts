@@ -437,6 +437,8 @@ export function identifyCards(
 function unknownCard(r: HeldCardRow): Card {
   return {
     id: `account-${r.account_id}`,
+    // ISO's code for an unknown country: a stand-in card, never offered to anyone.
+    country: "ZZ",
     issuer: r.institution_name ?? "unknown",
     name: r.official_name ?? r.name,
     kind: "credit",

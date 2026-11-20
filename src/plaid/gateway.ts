@@ -99,6 +99,8 @@ export interface PlaidGateway {
   createLinkToken(options: {
     /** Plaid's client_user_id: the Tidysum user id, stable per person. */
     clientUserId: string;
+    /** ISO country codes Link offers institutions from (src/region.ts plaidCountries). */
+    countryCodes: string[];
     accessToken?: string;
     /**
      * Plaid's user id from createUser. With it, a new-Item Link session can add several

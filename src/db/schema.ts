@@ -46,6 +46,11 @@ export const appUser = pgTable("app_user", {
    * texts. Not readable by tidysum_agent (drizzle/0016).
    */
   phoneNumber: text("phone_number"),
+  /**
+   * Where this person lives, as an ISO 3166-1 alpha-2 code (src/region.ts): their home currency,
+   * which banks Plaid offers, and whether US-only advice (401(k), IRA, US catalogs) applies.
+   */
+  country: text("country").notNull().default("US"),
   createdAt: tstz("created_at").notNull().defaultNow(),
 });
 

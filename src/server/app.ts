@@ -51,11 +51,12 @@ import {
 import { readCashHistoryReport } from "../products/cashHistory.js";
 import { readAndCompare } from "../products/compare.js";
 import { setDepositChoice } from "../products/depositChoices.js";
+import { plaidCountries } from "../region.js";
 import { readResearchReport, researchForPage } from "../research/report.js";
 import type { ResearchScanner } from "../research/scan.js";
 import { ensurePlaidUser, linkItem, loadAccessToken } from "../sync/items.js";
 import type { SyncScheduler } from "../sync/scheduler.js";
-import { normalizePhone, readPhone, setPhone } from "../users.js";
+import { normalizePhone, readPhone, readRegion, setPhone } from "../users.js";
 import { APP_CSS, APP_JS, FAVICON_SVG, INDEX_HTML, SERIF_WOFF2 } from "./page.js";
 
 export interface AppDeps {
@@ -73,6 +74,8 @@ export interface AppDeps {
   /** Where Plaid should send webhooks, or undefined to not register one. */
   webhookUrl?: string;
   daysRequested: number;
+  /** PLAID_EUROPE: Plaid Link may offer UK and EU banks to users living there. */
+  plaidEurope?: boolean;
   /** Wait between /link/token/get retries while a finished session's results appear; 0 = no retry. */
   linkSessionRetryMs?: number;
   /**
@@ -266,8 +269,11 @@ export function createApp(deps: AppDeps) {
       .orderBy(item.createdAt);
     // Only the last digits go back to the page: enough to recognise the number.
     const phone = await readPhone(deps.db, deps.userId);
+    const region = await readRegion(deps.db, deps.userId);
     return c.json({
       items: rows,
+      country: region.country,
+      currency: region.currency,
       phoneEnding: phone ? phone.slice(-4) : null,
       // The demo's banks are real; the page says when their public rates were last checked.
       ...(deps.demo ? { demo: true, demo_checked_on: DEMO_CHECKED_ON } : {}),
@@ -300,6 +306,8 @@ export function createApp(deps: AppDeps) {
       if (row?.source !== "plaid") return c.json({ error: "unknown item" }, 404);
       accessToken = await loadAccessToken(deps.db, deps.cipher, row.id);
     }
+    const countries = plaidCountries(await readRegion(deps.db, deps.userId), !!deps.plaidEurope);
+    if ("unavailable" in countries) return c.json({ error: countries.unavailable }, 400);
     // New links add as many institutions as the user wants in one session (one phone code).
     const plaidUserId = accessToken
       ? undefined
@@ -312,6 +320,7 @@ export function createApp(deps: AppDeps) {
       ...(phoneNumber ? { phoneNumber } : {}),
       ...(deps.webhookUrl ? { webhookUrl: deps.webhookUrl } : {}),
       daysRequested: deps.daysRequested,
+      countryCodes: countries.codes,
     });
     console.log(
       `link token: ${accessToken ? "repair" : plaidUserId ? "several institutions" : "one institution"}` +

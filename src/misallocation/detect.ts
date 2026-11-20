@@ -20,8 +20,10 @@ import {
 import type { Catalog } from "../products/catalog.js";
 import { compareProducts, productLabel, readCashAccounts } from "../products/compare.js";
 import { DISCLOSURE } from "../products/disclosure.js";
+import { features } from "../region.js";
 import { readIraYears, rothIraFindings } from "../retirement/ira.js";
 import { readWorkplacePlans, workplaceFindings } from "../retirement/workplace.js";
+import { readAgentRegion } from "../users.js";
 
 // Decision 0003: find money in the wrong place and price it per year. Each detector turns one
 // comparison into misallocations of one shape, so everything a user could fix ranks on one list
@@ -65,7 +67,8 @@ export interface Misallocation {
   summary: string;
   /** What fixing it would gain per year, from observed data and published terms. */
   annual_cost: string;
-  currency: "USD";
+  /** The user's home currency (src/region.ts): what annual_cost is in. */
+  currency: string;
   account_ids: string[];
   /** The catalog product or card that fixes it, when there is one. */
   product_id: string | null;
@@ -152,6 +155,7 @@ export async function detectMisallocations(
   const warnings: string[] = [];
   const holdings: Detection["holdings"] = { card_ids: [], cash_institutions: [] };
   const stale = await staleAccounts(db, today, warnings);
+  const region = await readAgentRegion(db);
 
   if (catalogs.deposits) {
     const facts = await readCashAccounts(db, today);
@@ -161,18 +165,25 @@ export async function detectMisallocations(
       ),
     ];
     items.push(
-      ...depositFindings(compareProducts(catalogs.deposits, facts, today), catalogs.deposits),
+      ...depositFindings(
+        compareProducts(catalogs.deposits, facts, today),
+        catalogs.deposits,
+        region.currency,
+      ),
     );
     ran.push("deposit_rate");
   }
 
-  items.push(...(await policyFindings(db, today, ran, warnings)));
-  items.push(
-    ...(await retirementFindings(db, catalogs.securities, today, ran, warnings, holdings)),
-  );
+  items.push(...(await policyFindings(db, today, ran, warnings, region.currency)));
+  // 401(k), IRA and backdoor Roth rules are US tax law; elsewhere they would be wrong advice.
+  if (features(region).usRetirement) {
+    items.push(
+      ...(await retirementFindings(db, catalogs.securities, today, ran, warnings, holdings)),
+    );
+  }
 
   const fees = await readCardFees(db, today);
-  items.push(...foreignFeeFindings(fees));
+  items.push(...foreignFeeFindings(fees, region.currency));
   ran.push("foreign_fees");
 
   if (catalogs.cards) {
@@ -193,7 +204,7 @@ export async function detectMisallocations(
     // A style that steers away from credit cards ("Debt-free first") gets no suggestion to open
     // a card or to move bills onto one.
     if (!avoidCards) {
-      items.push(...cardFindings(report, catalogs.cards));
+      items.push(...cardFindings(report, catalogs.cards, region.currency));
       ran.push("card_wallet", "card_usage");
     } else suppressed.push("card_wallet", "card_usage");
     warnings.push(...report.warnings);
@@ -306,6 +317,7 @@ async function policyFindings(
   today: string,
   ran: Detector[],
   warnings: string[],
+  currency: string,
 ): Promise<Misallocation[]> {
   const { rows } = await db.query("select 1 from policy_version limit 1");
   if (rows.length === 0) {
@@ -331,7 +343,7 @@ async function policyFindings(
           detector: f.check as Detector,
           summary: f.summary,
           annual_cost: f.annual_cost,
-          currency: "USD",
+          currency,
           account_ids: f.account_ids,
           product_id: null,
           action,
@@ -345,6 +357,7 @@ async function policyFindings(
 function depositFindings(
   comparison: ReturnType<typeof compareProducts>,
   catalog: Catalog,
+  currency: string,
 ): Misallocation[] {
   const version = catalogVersion(catalog);
   return comparison.accounts.flatMap((a): Misallocation[] => {
@@ -364,7 +377,7 @@ function depositFindings(
           `${a.account_name}${where} earns ${a.current.effective_apy}% on about ${a.balance}; ` +
           `${label} pays ${best.apy}%${cond}.`,
         annual_cost: best.annual_gain,
-        currency: "USD",
+        currency,
         account_ids: [a.account_id],
         product_id: best.product_id,
         action: `Move the balance to ${label}.`,
@@ -396,6 +409,7 @@ function depositFindings(
 function cardFindings(
   report: ReturnType<typeof compareCards>,
   catalog: CardCatalog,
+  currency: string,
 ): Misallocation[] {
   const version = catalogVersion(catalog);
   const held = report.held_cards.map((h) => ({ account_id: h.account_id, card_id: h.card_id }));
@@ -415,7 +429,7 @@ function cardFindings(
         `${movable.length === 1 ? "a payee" : `${movable.length} payees`} that take your cards, ` +
         "earning no rewards.",
       annual_cost: money(usage),
-      currency: "USD",
+      currency,
       account_ids: report.held_cards.map((h) => h.account_id),
       product_id: null,
       action: "Pay these bills and purchases with your best card, then pay the card in full.",
@@ -449,7 +463,7 @@ function cardFindings(
           ? `. It needs ${rec.membership?.replace(/,.*$/, "")}, which you already pay for to get its IRA match.`
           : "."),
       annual_cost: pick.annual_gain,
-      currency: "USD",
+      currency,
       account_ids: [],
       product_id: pick.card_id,
       action: `Get the ${pick.name} and use it where it earns the most.`,
@@ -472,7 +486,10 @@ function cardFindings(
   return out;
 }
 
-function foreignFeeFindings(fees: Awaited<ReturnType<typeof readCardFees>>): Misallocation[] {
+function foreignFeeFindings(
+  fees: Awaited<ReturnType<typeof readCardFees>>,
+  currency: string,
+): Misallocation[] {
   return fees
     .filter((f) => new Big(f.foreign_fees).gt(0))
     .map((f) => ({
@@ -481,7 +498,7 @@ function foreignFeeFindings(fees: Awaited<ReturnType<typeof readCardFees>>): Mis
       detector: "foreign_fees" as const,
       summary: `${f.account_name} charged ${money(new Big(f.foreign_fees))} in foreign transaction fees in the last year.`,
       annual_cost: money(new Big(f.foreign_fees)),
-      currency: "USD" as const,
+      currency,
       account_ids: [f.account_id],
       product_id: null,
       action:

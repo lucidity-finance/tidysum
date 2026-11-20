@@ -75,6 +75,12 @@ export const securitiesPath = (env = process.env) =>
   env.TIDYSUM_SECURITIES_FILE || "catalog/securities.json";
 
 /** The owner's plan file, loaded by `tidysum plan set`; unset means none is configured. */
+/**
+ * PLAID_EUROPE=true: the Plaid team has been through Plaid's European production review, so UK
+ * and EU users can link banks there. Plaid's free Trial plan reaches US and Canadian banks only.
+ */
+export const plaidEurope = (env = process.env) => env.PLAID_EUROPE?.trim().toLowerCase() === "true";
+
 export const planPath = (env = process.env) => env.TIDYSUM_PLAN_FILE || undefined;
 
 /**

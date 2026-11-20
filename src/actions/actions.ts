@@ -16,6 +16,7 @@ import type { AgentDb } from "../mcp/agentDb.js";
 import { canonical } from "../policy/policy.js";
 import type { AllocationResult } from "../portfolio/allocation.js";
 import { productLabel } from "../products/compare.js";
+import { formatMoney } from "../region.js";
 import { addToIraYear, type RothIraInputs, recordedBy } from "../retirement/ira.js";
 import {
   describeSplit,
@@ -50,10 +51,9 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 /** Today as YYYY-MM-DD, the way the rest of Tidysum dates a day. */
 export const isoToday = () => new Date().toISOString().slice(0, 10);
 
-/** "$1,234" from a decimal string, for step text. */
-export function dollars(s: string | number | null | undefined): string {
-  const whole = new Big(s ?? 0).round(0, Big.roundHalfUp).toFixed(0);
-  return `$${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+/** "$1,234" from a decimal string, for step text; "£1,234" for an amount in pounds. */
+export function dollars(s: string | number | null | undefined, currency = "USD"): string {
+  return formatMoney(s, currency);
 }
 
 interface DepositInputs {
@@ -943,14 +943,14 @@ function stepsFromActions(actions: ActionRow[]): ActionStep[] {
     if (a.kind === "trade") {
       const side = a.side === "sell" ? "Sell" : "Buy";
       return {
-        text: `${side} ${dollars(a.amount)} of ${a.symbol}${a.from_account ? ` in ${a.from_account}` : ""}`,
+        text: `${side} ${dollars(a.amount, a.currency ?? undefined)} of ${a.symbol}${a.from_account ? ` in ${a.from_account}` : ""}`,
         by: "agent",
         needs_you: SUBMIT,
       };
     }
     const verb = a.kind === "payment" ? "Pay" : "Move";
     return {
-      text: `${verb} ${dollars(a.amount)} from ${a.from_account ?? "an account"} to ${a.to_account ?? "an account"}`,
+      text: `${verb} ${dollars(a.amount, a.currency ?? undefined)} from ${a.from_account ?? "an account"} to ${a.to_account ?? "an account"}`,
       by: "agent",
       needs_you: "Two-factor code",
     };
@@ -967,6 +967,8 @@ interface ActionRow {
   side: "buy" | "sell" | null;
   symbol: string | null;
   amount: string;
+  /** The currency of the account the money leaves (or else arrives in). */
+  currency: string | null;
 }
 
 export interface Action {
@@ -1034,7 +1036,8 @@ const ACTION_SELECT = `
       select json_agg(json_build_object(
         'seq', a.seq, 'kind', a.kind, 'from_account_id', a.from_account_id,
         'from_account', fa.name, 'to_account_id', a.to_account_id, 'to_account', ta.name,
-        'side', a.side, 'symbol', a.symbol, 'amount', a.amount::text) order by a.seq)
+        'side', a.side, 'symbol', a.symbol, 'amount', a.amount::text,
+        'currency', coalesce(fa.currency, ta.currency)) order by a.seq)
       from proposal_action a
       left join account fa on fa.id = a.from_account_id
       left join account ta on ta.id = a.to_account_id

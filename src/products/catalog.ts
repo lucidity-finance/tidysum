@@ -29,6 +29,14 @@ export const productKind = ["checking", "savings", "cash_management"] as const;
 const Product = z
   .object({
     id: z.string().regex(/^[a-z0-9-]{1,60}$/),
+    /**
+     * Where it is offered, as an ISO country code (src/region.ts). Users only see products of
+     * their own country, in its currency. Default US.
+     */
+    country: z
+      .string()
+      .regex(/^[A-Z]{2}$/)
+      .default("US"),
     provider: z.string().min(1).max(100),
     /**
      * Lowercase fragments of the institution name a data source reports for this provider

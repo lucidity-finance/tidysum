@@ -56,6 +56,12 @@ function mapTransaction(t: Transaction): PlaidTransaction {
   };
 }
 
+function toCountryCode(code: string): CountryCode {
+  const c = Object.values(CountryCode).find((v) => v === code);
+  if (!c) throw new Error(`Plaid has no country ${code}`);
+  return c;
+}
+
 async function call<T>(fn: () => Promise<{ data: T }>): Promise<T> {
   try {
     return (await fn()).data;
@@ -114,7 +120,8 @@ export class PlaidApiGateway implements PlaidGateway {
       const inst = await call(() =>
         this.api.institutionsGetById({
           institution_id: institutionId,
-          country_codes: [CountryCode.Us],
+          // The free plan's countries. Item names normally come with the Item, so this is rare.
+          country_codes: [CountryCode.Us, CountryCode.Ca],
         }),
       );
       institutionName = inst.institution.name;
@@ -246,11 +253,12 @@ export class PlaidApiGateway implements PlaidGateway {
     phoneNumber?: string;
     webhookUrl?: string;
     daysRequested: number;
+    countryCodes: string[];
   }) {
     const base = {
       client_name: "Tidysum",
       language: "en",
-      country_codes: [CountryCode.Us],
+      country_codes: options.countryCodes.map(toCountryCode),
       user: {
         client_user_id: options.clientUserId,
         ...(options.phoneNumber ? { phone_number: options.phoneNumber } : {}),

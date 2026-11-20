@@ -77,6 +77,7 @@ export class FakePlaid implements PlaidGateway {
     phoneNumber?: string;
     webhookUrl?: string;
     daysRequested: number;
+    countryCodes: string[];
   }[] = [];
   async createLinkToken(options: {
     clientUserId: string;
@@ -85,6 +86,7 @@ export class FakePlaid implements PlaidGateway {
     phoneNumber?: string;
     webhookUrl?: string;
     daysRequested: number;
+    countryCodes: string[];
   }) {
     this.linkTokenRequests.push(options);
     return `link-token-${this.linkTokenRequests.length}`;

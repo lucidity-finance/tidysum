@@ -4,6 +4,7 @@ import { cashPosition } from "../policy/engine.js";
 import type { Policy } from "../policy/policy.js";
 import { readSnapshot } from "../policy/snapshot.js";
 import { loadActivePolicy } from "../policy/store.js";
+import { readAgentRegion } from "../users.js";
 import { apyFor, type Catalog, type Product } from "./catalog.js";
 import { DISCLOSURE } from "./disclosure.js";
 
@@ -138,14 +139,15 @@ export async function readCashHistory(db: AgentDb, today: string): Promise<CashH
     [ids ?? CASH_SUBTYPES],
   );
 
+  const { currency: home } = await readAgentRegion(db);
   const accounts: CashHistoryAccount[] = [];
   for (const r of rows) {
     if (r.latest_balance === null || r.latest_balance_on === null) {
       warnings.push(`${r.name} has no synced balance yet, so it is left out.`);
       continue;
     }
-    if (r.currency && r.currency !== "USD") {
-      warnings.push(`${r.name} is in ${r.currency}; only US dollar accounts are counted.`);
+    if (r.currency && r.currency !== home) {
+      warnings.push(`${r.name} is in ${r.currency}; only ${home} accounts are counted.`);
       continue;
     }
     const flows = await db.query<{ date: string; amount: string; interest: string | null }>(

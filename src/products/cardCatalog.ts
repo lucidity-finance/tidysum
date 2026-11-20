@@ -84,6 +84,14 @@ const ChooseOne = z
 const Card = z
   .object({
     id: z.string().regex(/^[a-z0-9-]{1,60}$/),
+    /**
+     * Where it is offered, as an ISO country code (src/region.ts). Users only see products of
+     * their own country, in its currency. Default US.
+     */
+    country: z
+      .string()
+      .regex(/^[A-Z]{2}$/)
+      .default("US"),
     issuer: z.string().min(1).max(60),
     name: z.string().min(1).max(100),
     /**

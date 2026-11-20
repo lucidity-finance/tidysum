@@ -27,6 +27,7 @@ import {
   minerIntervalHours,
   minerUrl,
   notifyMode,
+  plaidEurope,
   planPath,
   productsPath,
   securitiesPath,
@@ -48,7 +49,7 @@ import { demoHousehold } from "./demo/household.js";
 import { DEFAULT_DEMO_DATABASE_URL, resetDemoDatabase, seedDemo } from "./demo/seed.js";
 import { writeDemoSite } from "./demo/site.js";
 import { deleteUser, removeItem } from "./exits.js";
-import { withPublicFacts } from "./facts/catalogs.js";
+import { forUserRegion, withPublicFacts } from "./facts/catalogs.js";
 import { readFactChecks, staleFacts } from "./facts/checks.js";
 import {
   readCardSurvey,
@@ -98,6 +99,7 @@ import {
 import { readCashHistoryReport } from "./products/cashHistory.js";
 import { loadCatalogFile } from "./products/catalog.js";
 import { readAndCompare } from "./products/compare.js";
+import { COUNTRIES } from "./region.js";
 import { cliMinerSource } from "./research/miner.js";
 import { readResearchReport } from "./research/report.js";
 import { httpMinerApi, ResearchScanner, readMinerPassword } from "./research/scan.js";
@@ -108,7 +110,7 @@ import { createApp } from "./server/app.js";
 import { linkItem } from "./sync/items.js";
 import { SyncScheduler } from "./sync/scheduler.js";
 import { syncItem } from "./sync/syncItem.js";
-import { createUser, resolveUserId } from "./users.js";
+import { createUser, readRegion, resolveUserId, setCountry } from "./users.js";
 
 const USAGE = `tidysum <command>
 
@@ -208,8 +210,12 @@ const USAGE = `tidysum <command>
   item remove <item_id>            disconnect an Item: revoke it at Plaid and delete its accounts
                                    and everything synced from them (the audit log is kept)
   users                            list users
-  user add <name> [--investing]    add a user; --investing only for someone managing their own
-                                   money (investment advice to others needs registration)
+  user add <name> [--investing] [--country CA]
+                                   add a user; --investing only for someone managing their own
+                                   money (investment advice to others needs registration);
+                                   --country is where they live (default US)
+  user country [<code>]            show or set where the user lives (US, CA, GB, DE, FR, ...):
+                                   their currency and which advice applies follow it
   user delete <user_id> --yes      revoke every Item at Plaid and delete all of the user's data;
                                    only the audit log is kept, for at least 7 years
 
@@ -270,6 +276,7 @@ async function runServer(h: DbHandle) {
       ? { webhookUrl: new URL("/webhooks/plaid", server.TIDYSUM_PUBLIC_URL).toString() }
       : {}),
     daysRequested: DAYS_REQUESTED,
+    plaidEurope: plaidEurope(),
     linkSessionRetryMs: 1000,
     userId,
     agentDb,
@@ -545,7 +552,7 @@ function productTools(db?: AgentDb): ProductTools {
     loadCardCatalog: () => loadCardCatalogFile(cards),
     loadSecurityCatalog: () => loadSecurityCatalogFile(securitiesPath()),
   };
-  return db ? withPublicFacts(files, db) : files;
+  return db ? forUserRegion(withPublicFacts(files, db), db) : files;
 }
 
 /** The card catalog with agents' fact checks laid over it. */
@@ -1469,7 +1476,9 @@ async function main(argv: string[]) {
       }
       case "users":
         for (const u of await h.db.select().from(appUser).orderBy(appUser.createdAt)) {
-          console.log(`${u.id}  ${u.displayName}${u.investingEnabled ? "  (investing)" : ""}`);
+          console.log(
+            `${u.id}  ${u.displayName}  ${u.country}${u.investingEnabled ? "  (investing)" : ""}`,
+          );
         }
         break;
       case "user": {
@@ -1479,9 +1488,20 @@ async function main(argv: string[]) {
           options: {
             investing: { type: "boolean", default: false },
             yes: { type: "boolean", default: false },
+            country: { type: "string", default: "US" },
           },
         });
         const [sub, name] = positionals;
+        if (sub === "country") {
+          const userId = await resolveUserId(h.db);
+          const region = name
+            ? await setCountry(h.db, userId, name)
+            : await readRegion(h.db, userId);
+          console.log(
+            `${COUNTRIES[region.country].name} (${region.country}), amounts in ${region.currency}`,
+          );
+          break;
+        }
         if (sub === "delete" && name) {
           if (!values.yes) throw new Error("this deletes all of the user's data; pass --yes");
           const { plaid, cipher } = plaidDeps();
@@ -1491,10 +1511,10 @@ async function main(argv: string[]) {
         }
         if (sub !== "add" || !name) {
           throw new Error(
-            `usage: tidysum user add <name> [--investing] | user delete <user_id> --yes\n\n${USAGE}`,
+            `usage: tidysum user add <name> [--investing] [--country <code>] | user country [<code>] | user delete <user_id> --yes\n\n${USAGE}`,
           );
         }
-        console.log(await createUser(h.db, name, values.investing));
+        console.log(await createUser(h.db, name, values.investing, values.country));
         break;
       }
       default:

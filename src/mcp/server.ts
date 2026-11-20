@@ -443,7 +443,8 @@ function registerPolicyTools(
       title: "Check policy",
       description:
         "Runs the deterministic policy checks against the latest synced data: cash vs buffer, " +
-        "card statements due, extra debt payments, allocation drift. status 'action' means " +
+        "card statements due, extra debt payments, allocation drift. Amounts are in the user's " +
+        "currency; accounts in another currency are left out and listed. status 'action' means " +
         "something should move; each finding includes the numbers it used. " +
         UNTRUSTED,
       annotations: readOnly,
@@ -454,6 +455,10 @@ function registerPolicyTools(
       return json({
         policy_version: loaded.versionId,
         as_of: snapshot.today,
+        currency: snapshot.currency,
+        ...(snapshot.other_currency_accounts
+          ? { left_out_other_currency: snapshot.other_currency_accounts }
+          : {}),
         findings: evaluatePolicy(loaded.policy, snapshot, await products?.loadSecurityCatalog?.()),
       });
     },

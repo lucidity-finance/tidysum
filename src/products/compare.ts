@@ -1,5 +1,6 @@
 import Big from "big.js";
 import type { AgentDb } from "../mcp/agentDb.js";
+import { regionOf } from "../region.js";
 import { rebuildBalances } from "./cashHistory.js";
 import { apyFor, atInstitution, type Catalog, type Product } from "./catalog.js";
 import { DISCLOSURE } from "./disclosure.js";
@@ -234,6 +235,7 @@ export function compareProducts(
 ): Comparison {
   const warnings: string[] = [];
   const stale = new Set<string>();
+  const catalogCurrencies = new Set(catalog.products.map((p) => regionOf(p.country).currency));
   for (const p of catalog.products) {
     const age = daysBetween(p.verified_on, today);
     if (age > STALE_AFTER_DAYS) {
@@ -288,8 +290,14 @@ export function compareProducts(
       balance_basis: balanceBasis,
       current,
     };
-    if (f.currency && f.currency !== "USD") {
-      return { ...base, alternatives: [], skipped: "the catalog only has US dollar accounts" };
+    if (!catalogCurrencies.has(f.currency ?? "USD")) {
+      return {
+        ...base,
+        alternatives: [],
+        skipped: catalog.products.length
+          ? `the catalog has no accounts in ${f.currency}`
+          : "the catalog has no accounts in your country yet",
+      };
     }
     if (balance.lte(0)) return { ...base, alternatives: [], skipped: "no positive balance" };
     if (observedDays > 0 && observedDays < 28) {

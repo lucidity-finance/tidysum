@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, inject, it } from "vitest";
 import { TokenCipher } from "../src/crypto/tokenCipher.js";
 import { connect } from "../src/db/client.js";
@@ -10,6 +10,7 @@ import { setPlan } from "../src/plan/plan.js";
 import { createApp } from "../src/server/app.js";
 import { linkItem } from "../src/sync/items.js";
 import { SyncScheduler } from "../src/sync/scheduler.js";
+import { createUser } from "../src/users.js";
 import { checking, FakePlaid, page, txn } from "./fakePlaid.js";
 import { ownerUserId } from "./users.js";
 import { webhookSigner } from "./webhookSigner.js";
@@ -36,7 +37,7 @@ beforeEach(async () => {
   await db.update(appUser).set({ plaidUserId: null, phoneNumber: null });
 });
 
-function setup({ open = false, user = userId, agent = agentDb } = {}) {
+function setup({ open = false, user = userId, agent = agentDb, plaidEurope = false } = {}) {
   const plaid = new FakePlaid();
   plaid.accounts = [checking("100.00")];
   const signer = webhookSigner();
@@ -52,6 +53,7 @@ function setup({ open = false, user = userId, agent = agentDb } = {}) {
     adminToken: open ? undefined : ADMIN,
     webhookUrl: "https://tidysum.example/webhooks/plaid",
     daysRequested: 730,
+    plaidEurope,
     userId: user,
     agentDb: agent,
   });
@@ -158,6 +160,7 @@ describe("linking", () => {
         daysRequested: 730,
         clientUserId: userId,
         plaidUserId: "plaid-user-1",
+        countryCodes: ["US", "CA"],
       },
     ]);
     // The Plaid user is created once and reused.
@@ -194,6 +197,36 @@ describe("linking", () => {
     const res = await app.request("/api/link-token", { method: "POST", headers: json, body: "{}" });
     expect(await res.json()).toEqual({ linkToken: "link-token-1", multi: false });
     expect(plaid.linkTokenRequests[0]?.plaidUserId).toBeUndefined();
+  });
+
+  it("offers banks from where the user lives, and says so where Plaid's free plan can't reach", async () => {
+    // Users of their own, so other test files reading the owner's country never see these.
+    const ca = await createUser(db, "Canada link test", false, "CA");
+    const uk = await createUser(db, "UK link test", false, "GB");
+    const agents = [
+      connectAgent(inject("databaseUrl"), ca),
+      connectAgent(inject("databaseUrl"), uk),
+    ];
+    try {
+      const link = (app: ReturnType<typeof setup>["app"]) =>
+        app.request("/api/link-token", { method: "POST", headers: json, body: "{}" });
+      const canada = setup({ user: ca, agent: agents[0] });
+      expect((await link(canada.app)).status).toBe(200);
+      expect(canada.plaid.linkTokenRequests[0]?.countryCodes).toEqual(["CA", "US"]);
+
+      const britain = setup({ user: uk, agent: agents[1] });
+      const refused = await link(britain.app);
+      expect(refused.status).toBe(400);
+      expect(((await refused.json()) as { error: string }).error).toContain("United Kingdom");
+      expect(britain.plaid.linkTokenRequests).toHaveLength(0);
+
+      const europe = setup({ user: uk, agent: agents[1], plaidEurope: true });
+      expect((await link(europe.app)).status).toBe(200);
+      expect(europe.plaid.linkTokenRequests[0]?.countryCodes).toEqual(["GB"]);
+    } finally {
+      await Promise.all(agents.map((a) => a.end()));
+      await db.delete(appUser).where(inArray(appUser.id, [ca, uk]));
+    }
   });
 
   it("stores every institution a Link session added", async () => {
