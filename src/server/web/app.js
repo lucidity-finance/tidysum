@@ -3642,7 +3642,10 @@ function renderInvestments() {
     h(
       "section",
       { class: "section" },
-      sectionHead("Your mix", "Now, and the target"),
+      sectionHead(
+        "Your mix",
+        h("a", { class: "inline-link", href: "#plan" }, "Targets come from your Plan"),
+      ),
       h("div", { class: "panel alloc-list" }, r.buckets.map(mixRow)),
     ),
     Number(r.unclassified.percent) > 0
@@ -3862,7 +3865,28 @@ const PLAN_ICONS = [
 ];
 const planIcon = (title) => PLAN_ICONS.find(([re]) => re.test(title))?.[1] ?? "book";
 
+/**
+ * Whether a written-plan mix says the same as the rules Tidysum follows: same buckets, same
+ * percents. null when there is nothing to compare with.
+ */
+function mixMatchesRules(rows) {
+  const rules = ok("styles")?.mine?.mix;
+  if (!rules?.length || !rows.every((r) => r.key)) return null;
+  const want = new Map(rules.map((m) => [m.key, Number(m.percent)]));
+  const got = new Map();
+  for (const r of rows) got.set(r.key, (got.get(r.key) ?? 0) + Number(r.percent));
+  for (const [k, v] of want) if (v && got.get(k) !== v) return false;
+  for (const [k, v] of got) if (v && want.get(k) !== v) return false;
+  return true;
+}
+
 function planPreview(preview) {
+  // The mix already shows once, in the rules card above: a written plan that agrees says so
+  // instead of drawing it again; one that disagrees keeps its bar and says that too.
+  const same = preview.mix ? mixMatchesRules(preview.mix) : null;
+  if (same) {
+    return h("span", { class: "plan-acc-same" }, icon("check"), "Same as your rules above");
+  }
   if (preview.mix) {
     const classes = mixClasses(preview.mix);
     return h(
@@ -3881,6 +3905,7 @@ function planPreview(preview) {
             ` ${r.label}`,
           ),
         ),
+        same === false ? h("span", { class: "pill pill-accent" }, "Differs from your rules") : null,
       ),
     );
   }
@@ -4153,7 +4178,7 @@ function styleCard({ name, who, tagline, selected, badge, body, chips, actions }
 }
 
 /** What the owner runs on now: their own rules or a style, with its mix and key rules. */
-function styleNow(now, mine) {
+function styleNow(now, mine, toggle) {
   const tweaks = now?.tweaks ?? [];
   return h(
     "div",
@@ -4173,14 +4198,21 @@ function styleNow(now, mine) {
     ),
     styleMix(mine.mix),
     styleChips(mine),
+    toggle,
   );
 }
+
+// The style gallery opens under the rules card and stays open across re-renders (the age box
+// reloads the styles), so picking a style never jumps the page.
+let stylesOpen = false;
 
 function stylePanel() {
   const r = data.styles;
   if (!r) return skeleton(1);
   if (r.error) return failed("Money styles", r);
   const now = r.current;
+  // With no rules yet there is nothing to show but the styles.
+  const open = stylesOpen || !r.mine;
   const cards = r.styles.map((s) => {
     const selected = now?.id === s.id;
     return styleCard({
@@ -4205,13 +4237,40 @@ function stylePanel() {
       ],
     });
   });
+  const toggle = r.mine
+    ? h(
+        "button",
+        {
+          type: "button",
+          class: `btn btn-sm style-toggle ${open ? "is-open" : ""}`,
+          "aria-expanded": String(open),
+          onclick: () => {
+            stylesOpen = !stylesOpen;
+            renderPlan();
+          },
+        },
+        open ? "Close styles" : "Change style",
+        icon("chevron"),
+      )
+    : null;
   return h(
     "section",
     { class: "styles" },
-    sectionHead("Money style", "Pick one to fill in your rules. Change any rule later."),
-    r.mine ? styleNow(now, r.mine) : null,
-    h("div", { class: "style-grid" }, cards),
-    h("p", { class: "muted small style-note" }, r.note),
+    sectionHead("Money style", "What Tidysum and your agent follow"),
+    r.mine ? styleNow(now, r.mine, toggle) : null,
+    open
+      ? h(
+          "div",
+          { class: "style-gallery" },
+          h(
+            "p",
+            { class: "muted small style-pick" },
+            "Pick a money style to fill in your rules. You can change any rule later.",
+          ),
+          h("div", { class: "style-grid" }, cards),
+          h("p", { class: "muted small style-note" }, r.note),
+        )
+      : null,
   );
 }
 

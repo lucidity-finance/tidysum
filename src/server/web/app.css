@@ -1932,7 +1932,22 @@ a.task:hover .task-cta svg {
   color: var(--muted);
 }
 
+.plan-acc-same {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.plan-acc-same svg {
+  width: 14px;
+  height: 14px;
+  color: var(--brand);
+}
+
 .plan-acc[open] .plan-acc-preview,
+.plan-acc[open] .plan-acc-same,
 .plan-acc[open] .plan-acc-mix {
   display: none;
 }
@@ -4213,7 +4228,7 @@ body.is-sorting * {
 
 .style-now {
   display: grid;
-  grid-template-columns: minmax(170px, 0.8fr) minmax(220px, 1.4fr) minmax(200px, 1fr);
+  grid-template-columns: minmax(150px, 0.7fr) minmax(260px, 1.6fr) minmax(150px, 0.9fr) auto;
   align-items: center;
   gap: 18px 28px;
   margin-bottom: 14px;
@@ -4257,9 +4272,31 @@ body.is-sorting * {
   min-height: 0;
 }
 
+.style-toggle svg {
+  width: 15px;
+  height: 15px;
+  transition: transform 0.15s var(--ease);
+}
+
+.style-toggle.is-open svg {
+  transform: rotate(180deg);
+}
+
+.style-gallery {
+  margin-top: 18px;
+}
+
+.style-pick {
+  margin: 0 0 12px;
+}
+
 @media (max-width: 860px) {
   .style-now {
     grid-template-columns: 1fr;
+  }
+
+  .style-toggle {
+    justify-self: start;
   }
 }
 
