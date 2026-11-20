@@ -28,27 +28,70 @@
     "EU": { "us_stocks": "VUAA", "intl_stocks": "EXUS", "bonds": "EUNA", "cash": "XEON" }
   },
   "securities": [
-    { "ticker": "VTI", "name": "Vanguard Total Stock Market ETF", "mix": { "us_stocks": "1" } },
+    {
+      "ticker": "VTI",
+      "name": "Vanguard Total Stock Market ETF",
+      "tracks": "us_total_market",
+      "mix": { "us_stocks": "1" }
+    },
     {
       "ticker": "VTSAX",
       "name": "Vanguard Total Stock Market Index Admiral",
+      "tracks": "us_total_market",
       "mix": { "us_stocks": "1" }
     },
-    { "ticker": "VOO", "name": "Vanguard S&P 500 ETF", "mix": { "us_stocks.large": "1" } },
-    { "ticker": "VFIAX", "name": "Vanguard 500 Index Admiral", "mix": { "us_stocks.large": "1" } },
-    { "ticker": "SPY", "name": "SPDR S&P 500 ETF", "mix": { "us_stocks.large": "1" } },
-    { "ticker": "IVV", "name": "iShares Core S&P 500 ETF", "mix": { "us_stocks.large": "1" } },
+    {
+      "ticker": "VOO",
+      "name": "Vanguard S&P 500 ETF",
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" }
+    },
+    {
+      "ticker": "VFIAX",
+      "name": "Vanguard 500 Index Admiral",
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" }
+    },
+    {
+      "ticker": "SPY",
+      "name": "SPDR S&P 500 ETF",
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" }
+    },
+    {
+      "ticker": "IVV",
+      "name": "iShares Core S&P 500 ETF",
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" }
+    },
     {
       "ticker": "ITOT",
       "name": "iShares Core S&P Total US Stock Market ETF",
+      "tracks": "us_total_market",
       "mix": { "us_stocks": "1" }
     },
-    { "ticker": "SCHB", "name": "Schwab US Broad Market ETF", "mix": { "us_stocks": "1" } },
-    { "ticker": "FSKAX", "name": "Fidelity Total Market Index", "mix": { "us_stocks": "1" } },
-    { "ticker": "FXAIX", "name": "Fidelity 500 Index", "mix": { "us_stocks.large": "1" } },
+    {
+      "ticker": "SCHB",
+      "name": "Schwab US Broad Market ETF",
+      "tracks": "us_total_market",
+      "mix": { "us_stocks": "1" }
+    },
+    {
+      "ticker": "FSKAX",
+      "name": "Fidelity Total Market Index",
+      "tracks": "us_total_market",
+      "mix": { "us_stocks": "1" }
+    },
+    {
+      "ticker": "FXAIX",
+      "name": "Fidelity 500 Index",
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" }
+    },
     {
       "ticker": "SWPPX",
       "name": "Schwab S&P 500 Index Fund",
+      "tracks": "sp500",
       "mix": { "us_stocks.large": "1" },
       "expense_ratio": "0.02",
       "source_url": "https://www.schwabassetmanagement.com/products/swppx",
@@ -57,8 +100,22 @@
     {
       "ticker": "QQQ",
       "name": "Invesco QQQ Trust",
+      "tracks": "nasdaq100",
       "mix": { "us_stocks": "1" },
-      "notes": "Nasdaq-100. A few non-US companies are in the index; counted as US."
+      "expense_ratio": "0.18",
+      "notes": "Nasdaq-100. A few non-US companies are in the index; counted as US. An open-end ETF since December 2025, with a 0.18% fee.",
+      "source_url": "https://www.etf.com/sections/news/qqq-vs-qqqm-same-nasdaq-100-index-one-clear-winner-long-term-investors",
+      "verified_on": "2026-11-20"
+    },
+    {
+      "ticker": "QQQM",
+      "name": "Invesco Nasdaq 100 ETF",
+      "tracks": "nasdaq100",
+      "mix": { "us_stocks": "1" },
+      "expense_ratio": "0.15",
+      "notes": "The same Nasdaq-100 index as QQQ, at 0.15% a year (the SEC data also has its fee).",
+      "source_url": "https://www.sec.gov/data-research/sec-markets-data/mutual-fund-prospectus-riskreturn-summary-data-sets",
+      "verified_on": "2026-11-20"
     },
     { "ticker": "VPU", "name": "Vanguard Utilities ETF", "mix": { "us_stocks": "1" } },
     {
@@ -120,21 +177,25 @@
     {
       "ticker": "VXUS",
       "name": "Vanguard Total International Stock ETF",
+      "tracks": "intl_total_market",
       "mix": { "intl_stocks": "1" }
     },
     {
       "ticker": "VTIAX",
       "name": "Vanguard Total International Stock Index Admiral",
+      "tracks": "intl_total_market",
       "mix": { "intl_stocks": "1" }
     },
     {
       "ticker": "IXUS",
       "name": "iShares Core MSCI Total International Stock ETF",
+      "tracks": "intl_total_market",
       "mix": { "intl_stocks": "1" }
     },
     {
       "ticker": "FTIHX",
       "name": "Fidelity Total International Index",
+      "tracks": "intl_total_market",
       "mix": { "intl_stocks": "1" }
     },
     {
@@ -175,23 +236,76 @@
       "mix": { "intl_stocks": "1" },
       "notes": "Norwegian company traded in the US as an ADR."
     },
-    { "ticker": "BND", "name": "Vanguard Total Bond Market ETF", "mix": { "bonds": "1" } },
+    {
+      "ticker": "BND",
+      "name": "Vanguard Total Bond Market ETF",
+      "tracks": "us_aggregate_bonds",
+      "mix": { "bonds": "1" }
+    },
     {
       "ticker": "VBTLX",
       "name": "Vanguard Total Bond Market Index Admiral",
+      "tracks": "us_aggregate_bonds",
       "mix": { "bonds": "1" }
     },
-    { "ticker": "AGG", "name": "iShares Core US Aggregate Bond ETF", "mix": { "bonds": "1" } },
-    { "ticker": "FXNAX", "name": "Fidelity US Bond Index", "mix": { "bonds": "1" } },
-    { "ticker": "SCHZ", "name": "Schwab US Aggregate Bond ETF", "mix": { "bonds": "1" } },
+    {
+      "ticker": "AGG",
+      "name": "iShares Core US Aggregate Bond ETF",
+      "tracks": "us_aggregate_bonds",
+      "mix": { "bonds": "1" }
+    },
+    {
+      "ticker": "FXNAX",
+      "name": "Fidelity US Bond Index",
+      "tracks": "us_aggregate_bonds",
+      "mix": { "bonds": "1" }
+    },
+    {
+      "ticker": "SCHZ",
+      "name": "Schwab US Aggregate Bond ETF",
+      "tracks": "us_aggregate_bonds",
+      "mix": { "bonds": "1" }
+    },
     { "ticker": "BNDX", "name": "Vanguard Total International Bond ETF", "mix": { "bonds": "1" } },
     { "ticker": "VMFXX", "name": "Vanguard Federal Money Market Fund", "mix": { "cash": "1" } },
     { "ticker": "SPAXX", "name": "Fidelity Government Money Market Fund", "mix": { "cash": "1" } },
     { "ticker": "SWVXX", "name": "Schwab Value Advantage Money Fund", "mix": { "cash": "1" } },
-    { "ticker": "SGOV", "name": "iShares 0-3 Month Treasury Bond ETF", "mix": { "cash": "1" } },
-    { "ticker": "GLD", "name": "SPDR Gold Shares", "mix": { "commodities": "1" } },
-    { "ticker": "IAU", "name": "iShares Gold Trust", "mix": { "commodities": "1" } },
-    { "ticker": "GLDM", "name": "SPDR Gold MiniShares", "mix": { "commodities": "1" } },
+    {
+      "ticker": "SGOV",
+      "name": "iShares 0-3 Month Treasury Bond ETF",
+      "mix": { "cash": "1" },
+      "expense_ratio": "0.09",
+      "notes": "Treasury bills maturing within three months: the yardstick for cash in a brokerage. Fee from its prospectus in the SEC's data.",
+      "source_url": "https://www.sec.gov/data-research/sec-markets-data/mutual-fund-prospectus-riskreturn-summary-data-sets",
+      "verified_on": "2026-11-20"
+    },
+    {
+      "ticker": "GLD",
+      "name": "SPDR Gold Shares",
+      "tracks": "gold_bullion",
+      "mix": { "commodities": "1" },
+      "expense_ratio": "0.40",
+      "source_url": "https://247wallst.com/investing/2026/07/01/glds-0-40-fee-quietly-costs-you-40-per-year-on-every-10000-while-cheaper-rivals-charge-half/",
+      "verified_on": "2026-11-20"
+    },
+    {
+      "ticker": "IAU",
+      "name": "iShares Gold Trust",
+      "tracks": "gold_bullion",
+      "mix": { "commodities": "1" },
+      "expense_ratio": "0.25",
+      "source_url": "https://247wallst.com/investing/2026/07/01/glds-0-40-fee-quietly-costs-you-40-per-year-on-every-10000-while-cheaper-rivals-charge-half/",
+      "verified_on": "2026-11-20"
+    },
+    {
+      "ticker": "GLDM",
+      "name": "SPDR Gold MiniShares",
+      "tracks": "gold_bullion",
+      "mix": { "commodities": "1" },
+      "expense_ratio": "0.10",
+      "source_url": "https://247wallst.com/investing/2026/07/01/glds-0-40-fee-quietly-costs-you-40-per-year-on-every-10000-while-cheaper-rivals-charge-half/",
+      "verified_on": "2026-11-20"
+    },
     { "ticker": "SLV", "name": "iShares Silver Trust", "mix": { "commodities": "1" } },
     { "ticker": "SIVR", "name": "abrdn Physical Silver Shares ETF", "mix": { "commodities": "1" } },
     {
@@ -214,31 +328,48 @@
       "ticker": "XUU",
       "name": "iShares Core S&P U.S. Total Market Index ETF",
       "country": "CA",
-      "mix": { "us_stocks": "1" }
+      "tracks": "us_total_market",
+      "mix": { "us_stocks": "1" },
+      "expense_ratio": "0.07",
+      "source_url": "https://wealthradiant.com/canadian-etf-mer-snapshot-2026/",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "VUN",
       "name": "Vanguard U.S. Total Market Index ETF",
       "country": "CA",
+      "tracks": "us_total_market",
       "mix": { "us_stocks": "1" }
     },
     {
       "ticker": "VFV",
       "name": "Vanguard S&P 500 Index ETF",
       "country": "CA",
-      "mix": { "us_stocks.large": "1" }
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" },
+      "expense_ratio": "0.08",
+      "source_url": "https://www.yieldmaple.com/reviews/vfv",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "XUS",
       "name": "iShares Core S&P 500 Index ETF",
       "country": "CA",
-      "mix": { "us_stocks.large": "1" }
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" },
+      "expense_ratio": "0.09",
+      "source_url": "https://www.yieldmaple.com/reviews/vfv",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "ZSP",
       "name": "BMO S&P 500 Index ETF",
       "country": "CA",
-      "mix": { "us_stocks.large": "1" }
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" },
+      "expense_ratio": "0.09",
+      "source_url": "https://www.yieldmaple.com/reviews/vfv",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "XEF",
@@ -268,7 +399,11 @@
       "ticker": "XIC",
       "name": "iShares Core S&P/TSX Capped Composite Index ETF",
       "country": "CA",
-      "mix": { "intl_stocks.canada": "1" }
+      "tracks": "sp_tsx_capped_composite",
+      "mix": { "intl_stocks.canada": "1" },
+      "expense_ratio": "0.06",
+      "source_url": "https://wealthradiant.com/canadian-etf-mer-snapshot-2026/",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "VCN",
@@ -280,7 +415,11 @@
       "ticker": "ZCN",
       "name": "BMO S&P/TSX Capped Composite Index ETF",
       "country": "CA",
-      "mix": { "intl_stocks.canada": "1" }
+      "tracks": "sp_tsx_capped_composite",
+      "mix": { "intl_stocks.canada": "1" },
+      "expense_ratio": "0.06",
+      "source_url": "https://wealthradiant.com/canadian-etf-mer-snapshot-2026/",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "ZAG",
@@ -316,25 +455,52 @@
       "ticker": "VUAG",
       "name": "Vanguard S&P 500 UCITS ETF (USD) Accumulating",
       "country": "GB",
-      "mix": { "us_stocks.large": "1" }
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" },
+      "expense_ratio": "0.07",
+      "source_url": "https://www.etf-overlap.com/guides/best-sp500-etf/",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "VUSA",
       "name": "Vanguard S&P 500 UCITS ETF (USD) Distributing",
       "country": "GB",
-      "mix": { "us_stocks.large": "1" }
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" },
+      "expense_ratio": "0.07",
+      "source_url": "https://www.etf-overlap.com/guides/best-sp500-etf/",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "CSP1",
       "name": "iShares Core S&P 500 UCITS ETF USD (Acc)",
       "country": "GB",
-      "mix": { "us_stocks.large": "1" }
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" },
+      "expense_ratio": "0.07",
+      "source_url": "https://freedomisntfree.co.uk/compare/ucits-etfs",
+      "verified_on": "2026-11-20"
+    },
+    {
+      "ticker": "SPY5",
+      "name": "SPDR S&P 500 UCITS ETF (Dist)",
+      "country": "GB",
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" },
+      "expense_ratio": "0.03",
+      "notes": "Listed on the London Stock Exchange in US dollars. SPDR also has an accumulating line, SPYL, at the same fee.",
+      "source_url": "https://www.etf-overlap.com/guides/best-sp500-etf/",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "XMWX",
       "name": "Xtrackers MSCI World ex USA UCITS ETF 1C",
       "country": "GB",
-      "mix": { "intl_stocks": "1" }
+      "tracks": "msci_world_ex_usa",
+      "mix": { "intl_stocks": "1" },
+      "expense_ratio": "0.15",
+      "source_url": "https://monevator.com/low-cost-index-trackers/",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "EMIM",
@@ -358,25 +524,38 @@
       "ticker": "VUKG",
       "name": "Vanguard FTSE 100 UCITS ETF (GBP) Accumulating",
       "country": "GB",
-      "mix": { "intl_stocks.uk": "1" }
+      "tracks": "ftse_100",
+      "mix": { "intl_stocks.uk": "1" },
+      "expense_ratio": "0.09",
+      "source_url": "https://freedomisntfree.co.uk/compare/ucits-etfs",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "VUKE",
       "name": "Vanguard FTSE 100 UCITS ETF (GBP) Distributing",
       "country": "GB",
-      "mix": { "intl_stocks.uk": "1" }
+      "tracks": "ftse_100",
+      "mix": { "intl_stocks.uk": "1" },
+      "expense_ratio": "0.09",
+      "source_url": "https://freedomisntfree.co.uk/compare/ucits-etfs",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "CUKX",
       "name": "iShares Core FTSE 100 UCITS ETF GBP (Acc)",
       "country": "GB",
+      "tracks": "ftse_100",
       "mix": { "intl_stocks.uk": "1" }
     },
     {
       "ticker": "ISF",
       "name": "iShares Core FTSE 100 UCITS ETF GBP (Dist)",
       "country": "GB",
-      "mix": { "intl_stocks.uk": "1" }
+      "tracks": "ftse_100",
+      "mix": { "intl_stocks.uk": "1" },
+      "expense_ratio": "0.07",
+      "source_url": "https://freedomisntfree.co.uk/compare/ucits-etfs",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "VGOV",
@@ -406,6 +585,7 @@
       "ticker": "VWRP",
       "name": "Vanguard FTSE All-World UCITS ETF (USD) Accumulating",
       "country": "GB",
+      "tracks": "ftse_all_world",
       "mix": { "us_stocks": "0.6033", "intl_stocks": "0.3967" },
       "expense_ratio": "0.14",
       "notes": "FTSE All-World: US 60.33%, the rest of the world 39.67% (Japan 6.04%, Taiwan 3.53%, UK 3.16% the largest), by country weight on 2026-09-30.",
@@ -417,6 +597,7 @@
       "ticker": "VWRL",
       "name": "Vanguard FTSE All-World UCITS ETF (USD) Distributing",
       "country": "GB",
+      "tracks": "ftse_all_world",
       "mix": { "us_stocks": "0.6033", "intl_stocks": "0.3967" },
       "expense_ratio": "0.14",
       "notes": "FTSE All-World: US 60.33%, the rest of the world 39.67% (Japan 6.04%, Taiwan 3.53%, UK 3.16% the largest), by country weight on 2026-09-30.",
@@ -428,6 +609,7 @@
       "ticker": "SWDA",
       "name": "iShares Core MSCI World UCITS ETF USD (Acc)",
       "country": "GB",
+      "tracks": "msci_world",
       "mix": { "us_stocks": "0.7081", "intl_stocks": "0.2919" },
       "expense_ratio": "0.20",
       "notes": "MSCI World (developed markets only): US 70.81%, the rest 29.19% (Japan 5.91%, UK 3.60%, Canada 3.24% the largest), by country weight on 2026-09-30.",
@@ -439,18 +621,38 @@
       "ticker": "VUAA",
       "name": "Vanguard S&P 500 UCITS ETF (USD) Accumulating",
       "country": "EU",
-      "mix": { "us_stocks.large": "1" }
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" },
+      "expense_ratio": "0.07",
+      "source_url": "https://www.etf-overlap.com/guides/best-sp500-etf/",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "SXR8",
       "name": "iShares Core S&P 500 UCITS ETF USD (Acc)",
       "country": "EU",
-      "mix": { "us_stocks.large": "1" }
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" },
+      "expense_ratio": "0.07",
+      "source_url": "https://www.etf-overlap.com/guides/best-sp500-etf/",
+      "verified_on": "2026-11-20"
+    },
+    {
+      "ticker": "SPYL",
+      "name": "SPDR S&P 500 UCITS ETF (Acc)",
+      "country": "EU",
+      "tracks": "sp500",
+      "mix": { "us_stocks.large": "1" },
+      "expense_ratio": "0.03",
+      "notes": "Sold by brokers across the EU (Xetra). Launched in 2023; the older distributing line SPY5 was cut to the same fee.",
+      "source_url": "https://financialexpertclass.com/cheapest-sp-500-ucits-etf-2026/",
+      "verified_on": "2026-11-20"
     },
     {
       "ticker": "EXUS",
       "name": "Xtrackers MSCI World ex USA UCITS ETF 1C",
       "country": "EU",
+      "tracks": "msci_world_ex_usa",
       "mix": { "intl_stocks": "1" }
     },
     {
@@ -505,6 +707,7 @@
       "ticker": "VWCE",
       "name": "Vanguard FTSE All-World UCITS ETF (USD) Accumulating",
       "country": "EU",
+      "tracks": "ftse_all_world",
       "mix": { "us_stocks": "0.6033", "intl_stocks": "0.3967" },
       "expense_ratio": "0.14",
       "notes": "FTSE All-World: US 60.33%, the rest of the world 39.67% (Japan 6.04%, Taiwan 3.53%, UK 3.16% the largest), by country weight on 2026-09-30.",
@@ -516,6 +719,7 @@
       "ticker": "VGWL",
       "name": "Vanguard FTSE All-World UCITS ETF (USD) Distributing",
       "country": "EU",
+      "tracks": "ftse_all_world",
       "mix": { "us_stocks": "0.6033", "intl_stocks": "0.3967" },
       "expense_ratio": "0.14",
       "notes": "FTSE All-World: US 60.33%, the rest of the world 39.67% (Japan 6.04%, Taiwan 3.53%, UK 3.16% the largest), by country weight on 2026-09-30.",
@@ -527,6 +731,7 @@
       "ticker": "EUNL",
       "name": "iShares Core MSCI World UCITS ETF USD (Acc)",
       "country": "EU",
+      "tracks": "msci_world",
       "mix": { "us_stocks": "0.7081", "intl_stocks": "0.2919" },
       "expense_ratio": "0.20",
       "notes": "MSCI World (developed markets only): US 70.81%, the rest 29.19% (Japan 5.91%, UK 3.60%, Canada 3.24% the largest), by country weight on 2026-09-30.",
@@ -563,5 +768,53 @@
     "source_url": "https://workplace.vanguard.com/content/dam/inst/iig-transformation/tdf/TDF_table_2026.pdf",
     "mix_as_of": "2025-12-31",
     "verified_on": "2026-11-04"
+  },
+  "brokerage_cash": [
+    {
+      "institutions": ["robinhood"],
+      "name": "Robinhood brokerage cash",
+      "apy": "0",
+      "membership": { "name": "Robinhood Gold", "apy": "3.60" },
+      "notes": "Uninvested cash earns interest only through the cash sweep, which is for Robinhood Gold members ($5 a month or $50 a year).",
+      "source_url": "https://robinhood.com/us/en/support/articles/cash-program-interest-rate/",
+      "rates_as_of": "2026-09-17",
+      "verified_on": "2026-11-20"
+    },
+    {
+      "institutions": ["charles schwab", "schwab"],
+      "name": "Schwab brokerage uninvested cash",
+      "apy": "0.01",
+      "notes": "The bank sweep for a regular brokerage account. Schwab money funds such as SWVXX pay far more, but must be bought.",
+      "source_url": "https://www.schwab.com/cash-investments",
+      "rates_as_of": "2026-11-20",
+      "verified_on": "2026-11-20"
+    }
+  ],
+  "risk": {
+    "name": "J.P. Morgan 2026 Long-Term Capital Market Assumptions (USD)",
+    "source_url": "https://am.jpmorgan.com/content/dam/jpm-am-aem/global/en/insights/ltcma-2026-us-matrix_usd.pdf",
+    "as_of": "2025-09-30",
+    "verified_on": "2026-11-20",
+    "notes": "US dollar figures, used for every owner: a close enough measure of how the classes swing and move together. International stocks stand in as EAFE, the closest class the matrix lists.",
+    "riskless": "cash",
+    "classes": {
+      "us_stocks": { "proxy": "U.S. Large Cap", "volatility": "16.47", "expected_return": "7.94" },
+      "intl_stocks": { "proxy": "EAFE Equity", "volatility": "17.63", "expected_return": "8.90" },
+      "bonds": { "proxy": "U.S. Aggregate Bonds", "volatility": "4.76", "expected_return": "4.91" },
+      "cash": { "proxy": "U.S. Cash", "volatility": "0.67", "expected_return": "3.10" },
+      "commodities": { "proxy": "Commodities", "volatility": "18.32", "expected_return": "6.15" }
+    },
+    "correlations": {
+      "cash|bonds": "0.10",
+      "cash|us_stocks": "0.01",
+      "cash|intl_stocks": "0.05",
+      "cash|commodities": "-0.03",
+      "bonds|us_stocks": "0.30",
+      "bonds|intl_stocks": "0.34",
+      "bonds|commodities": "0.00",
+      "us_stocks|intl_stocks": "0.87",
+      "us_stocks|commodities": "0.42",
+      "intl_stocks|commodities": "0.50"
+    }
   }
 }

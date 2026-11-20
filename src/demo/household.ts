@@ -6,7 +6,7 @@ import type {
   PlaidSecurity,
   PlaidTransaction,
 } from "../plaid/gateway.js";
-import { CHASE, CITI, FIDELITY, PRICES, SUBSCRIPTIONS, VANGUARD } from "./realWorld.js";
+import { CHASE, CITI, FIDELITY, PRICES, ROBINHOOD, SUBSCRIPTIONS, VANGUARD } from "./realWorld.js";
 
 /**
  * The household for `tidysum demo`: a made-up person in Denver with real, ordinary accounts
@@ -576,6 +576,9 @@ export function demoHousehold(today: string): DemoHousehold {
     holding("demo-brokerage", mmf, "1240.55", "1240.55"),
   ];
   const k401Holdings = [holding("demo-401k", tdf, "2987.412", "48200.00")];
+  // Cash from a sale that was never reinvested.
+  const usd = security("demo-sec-usd", "U S Dollar", "CUR:USD", "cash", "1.00");
+  const robinhoodHoldings = [holding("demo-robinhood", usd, "3860.42", "3860.42")];
   const total = (hs: PlaidHolding[]) => hs.reduce((s, h) => s.plus(h.institutionValue), new Big(0));
   const investment = (
     accountId: string,
@@ -645,6 +648,19 @@ export function demoHousehold(today: string): DemoHousehold {
       transactions: [],
       holdings: brokerageHoldings,
       securities: [vti, vxus, bnd, mmf],
+      liabilities: [],
+    },
+    {
+      token: "demo-robinhood",
+      itemId: "demo-item-robinhood",
+      institutionId: "ins_demo_robinhood",
+      name: ROBINHOOD.institution,
+      accounts: [
+        investment("demo-robinhood", ROBINHOOD.account, "brokerage", "5521", robinhoodHoldings),
+      ],
+      transactions: [],
+      holdings: robinhoodHoldings,
+      securities: [usd],
       liabilities: [],
     },
     {

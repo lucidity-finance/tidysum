@@ -59,6 +59,22 @@ export const VANGUARD = {
 } as const;
 
 /**
+ * A Robinhood brokerage account with cash left uninvested, as Plaid reports it (a "U S Dollar"
+ * holding, ticker CUR:USD). Without a Gold membership that cash earns nothing.
+ */
+export const ROBINHOOD = {
+  institution: "Robinhood",
+  account: "Robinhood individual",
+  source: "https://robinhood.com/us/en/support/articles/cash-program-interest-rate/",
+} as const;
+
+/**
+ * The 13-week Treasury bill yield (coupon equivalent) Treasury published for 2026-11-19, the
+ * yardstick a Treasury bill fund earns about.
+ */
+export const TBILL_13W = { day: "2026-11-19", yield: "4.26" } as const;
+
+/**
  * A 401(k) kept by Fidelity (NetBenefits) with an ordinary Fidelity lineup: the actively run
  * Freedom target-date fund every paycheck goes into by default, and the index funds beside it.
  * Expense ratios are each fund's gross ratio from its prospectus, as its fact sheet or quarterly

@@ -990,6 +990,71 @@ function describe(m) {
     };
   }
 
+  if (m.detector === "holding_fee" && i.alternative) {
+    const tax =
+      i.tax?.kind === "sheltered"
+        ? "No tax: it's a tax-sheltered account."
+        : i.tax?.kind === "gain"
+          ? `Selling owes some tax; the lower fee pays it back in about ${i.tax.payback_months} months.`
+          : "Selling it now owes no tax.";
+    return {
+      ...base,
+      title: `Swap ${i.ticker} for ${i.alternative.ticker}`,
+      sub: `Both hold the ${i.tracks_label}. ${rate(i.expense_ratio)} a year against ${rate(i.alternative.expense_ratio)}. ${tax}`,
+      notes: [
+        i.account?.name ? `In ${accountLabel(i.account.name, i.account.institution)}.` : null,
+        i.mutual_fund
+          ? "It's a mutual fund, so the money is out of the market until the sale settles: this waits for calm markets."
+          : null,
+        i.alternative.fee_as_of ? `Fees as of ${day(i.alternative.fee_as_of)}.` : null,
+      ],
+      todo: prose(m.action),
+      primary: { label: "Investments", href: "#investments" },
+    };
+  }
+
+  if (m.detector === "brokerage_cash" && i.alternative) {
+    const where = i.account?.name
+      ? accountLabel(i.account.name, i.account.institution)
+      : "your brokerage";
+    const now = cents(i.apy) === 0n ? "earns nothing" : `earns ${rate(i.apy)}`;
+    return {
+      ...base,
+      title: `Put idle cash in ${where} to work`,
+      sub: `It ${now}${i.membership ? ` with ${i.membership}` : ""}. ${i.alternative.name} pays about ${rate(i.alternative.yield)} after its fee.`,
+      notes: [
+        i.invest_toward_mix
+          ? "Invest it like the new-money action splits each paycheck; keep in the Treasury bill fund only what should stay cash."
+          : null,
+        i.membership_available
+          ? `${i.membership_available.name} would pay ${rate(i.membership_available.apy)} on it, for the membership's fee.`
+          : null,
+        i.terms?.rates_as_of ? `Its cash rate as of ${day(i.terms.rates_as_of)}.` : null,
+        i.alternative.fee_assumed
+          ? "The fund's fee isn't recorded, so a typical cash fund fee is taken off."
+          : null,
+      ],
+      todo: prose(m.action),
+      primary: { label: "Investments", href: "#investments" },
+      secondary: i.terms?.source_url ? { label: "Its cash rate", href: i.terms.source_url } : null,
+    };
+  }
+
+  if (m.detector === "allocation_drift" && i.buckets) {
+    const off = i.buckets.filter((b) => b.status !== "ok");
+    return {
+      ...base,
+      title: "Your mix is off its target",
+      sub: "Investing new money toward it closes the gap with no selling.",
+      facts: off.map((b) => fact(b.label, `${b.current}% (target ${b.target}%)`)),
+      notes: [
+        `Priced as the risk-adjusted return a mix you didn't choose gives up, from ${i.risk?.name ?? "published risk figures"}: about ${(Number(i.cost_rate) * 100).toFixed(Number(i.cost_rate) < 0.0001 ? 3 : 2)}% of what you have invested a year.`,
+      ],
+      todo: prose(m.action),
+      primary: { label: "Investments", href: "#investments" },
+    };
+  }
+
   if (m.detector === "roth_ira" && i.tax_year) {
     const convert = i.kind === "convert";
     const backdoor = i.route !== "direct";

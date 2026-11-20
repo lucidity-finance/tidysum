@@ -99,6 +99,22 @@ interface BrokerageWindowInputs {
   matches?: string | null;
 }
 
+interface HoldingFeeInputs {
+  account?: { name?: string };
+  ticker?: string;
+  alternative?: { ticker?: string };
+  mutual_fund?: boolean;
+}
+
+interface BrokerageCashInputs {
+  account?: { name?: string };
+  alternative?: { ticker?: string };
+  invest_toward_mix?: boolean;
+}
+
+/** Findings whose action is the new-money action rather than one drafted for them. */
+const NEW_MONEY_FINDINGS = new Set(["allocation_drift"]);
+
 /**
  * The steps that fix a finding, in order, and who does each once the owner's agent can carry
  * them out (decision 0005): it stops for whatever only the owner can do, named in `needs_you`.
@@ -283,6 +299,43 @@ export function stepsFor(f: Finding, accountName: (id: string) => string | null)
     }
     case "roth_ira":
       return rothIraSteps(f.inputs as Partial<RothIraInputs>);
+    case "holding_fee": {
+      const i = f.inputs as HoldingFeeInputs;
+      const acct = i.account?.name ?? from ?? "the account";
+      const alt = i.alternative?.ticker ?? "the cheaper fund";
+      return [
+        {
+          text: `In ${acct}, sell all of ${i.ticker ?? "the fund"}`,
+          by: "agent",
+          needs_you: SUBMIT,
+        },
+        {
+          text: i.mutual_fund
+            ? `Once the sale settles, buy ${alt} with all of the money`
+            : `Buy ${alt} with all of the money, the same day`,
+          by: "agent",
+          needs_you: SUBMIT,
+        },
+        {
+          text: `From now on, buy ${alt} wherever you'd have bought ${i.ticker ?? "the old fund"}`,
+          by: "you",
+        },
+      ];
+    }
+    case "brokerage_cash": {
+      const i = f.inputs as BrokerageCashInputs;
+      const acct = i.account?.name ?? from ?? "the brokerage account";
+      const alt = i.alternative?.ticker ?? "a Treasury bill fund";
+      return [
+        {
+          text: i.invest_toward_mix
+            ? `In ${acct}, invest the uninvested cash the way the new-money action splits each paycheck, and buy ${alt} with any part you want to keep as cash`
+            : `In ${acct}, buy ${alt} with the uninvested cash you don't need to keep as cash`,
+          by: "agent",
+          needs_you: SUBMIT,
+        },
+      ];
+    }
     default:
       return [{ text: f.action, by: "you" }];
   }
@@ -593,6 +646,8 @@ export async function draftActions(
     };
 
     for (const f of findings) {
+      // A mix off its target is fixed by the new-money action below, which carries its price.
+      if (NEW_MONEY_FINDINGS.has(f.detector)) continue;
       const mine = proposals.filter((p) => p.findingKey === f.key);
       const live = mine.filter((p) => (LIVE as readonly string[]).includes(p.state));
       const ref = { misallocation_id: f.id, finding_key: f.key };
@@ -685,13 +740,20 @@ export async function draftActions(
 
     if (!allocation) return;
     // Investing (decision 0005): one action says where new money goes while the mix is under
-    // target. It isn't a priced finding (decision 0003 leaves drift unpriced), so it carries no
-    // yearly value, and it never suggests selling.
+    // target. It never suggests selling. While the mix is outside its band, the allocation_drift
+    // finding prices the drift and the action carries that yearly value.
     const live = proposals.filter(
       (p) => p.findingKey === NEW_MONEY_KEY && (LIVE as readonly string[]).includes(p.state),
     );
     const ref = { finding_key: NEW_MONEY_KEY };
-    const draft = newMoneyDraft(allocation, workplace);
+    const drafted = newMoneyDraft(allocation, workplace);
+    // What the drift costs (allocation_drift), when the mix is outside its band: the value of
+    // steering new money back to the target.
+    const drift = findings.find((f) => NEW_MONEY_FINDINGS.has(f.detector) && f.state === "open");
+    const draft = drafted && {
+      ...drafted,
+      expectedAnnualValue: drift ? new Big(drift.annualCost).toFixed(2) : null,
+    };
     if (!draft) {
       if (allocation.state === "ready") {
         // The mix reached its target: what the owner approved worked.
@@ -764,7 +826,8 @@ export async function draftActions(
       if (
         p.title === draft.title &&
         p.rationale === draft.rationale &&
-        sameJson(p.steps, draft.steps)
+        sameJson(p.steps, draft.steps) &&
+        sameValue(p.expectedAnnualValue, draft.expectedAnnualValue)
       )
         continue;
       await tx.update(proposal).set(draft).where(eq(proposal.id, p.id));
@@ -778,8 +841,16 @@ export async function draftActions(
         p.title === draft.title &&
         p.rationale === draft.rationale &&
         sameJson(p.steps, draft.steps)
-      )
+      ) {
+        // Only the price moved: keep it current without calling it a revision.
+        if (!sameValue(p.expectedAnnualValue, draft.expectedAnnualValue)) {
+          await tx
+            .update(proposal)
+            .set({ expectedAnnualValue: draft.expectedAnnualValue })
+            .where(eq(proposal.id, p.id));
+        }
         continue;
+      }
       await tx
         .update(proposal)
         .set({ ...draft, ...(policy && { policyVersionId: policy.id }) })

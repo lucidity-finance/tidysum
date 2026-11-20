@@ -40,8 +40,9 @@ Tidysum.
    to decide from; the Plan page stays.
    Investing has a card too (owner, 2026-11-12: "shouldn't the investment stuff also be part of
    those cards?"): while the mix is under target, one action says where new money goes, in
-   percentages with the fund to buy, never amounts or selling. It carries no yearly value,
-   since decision 0003 leaves drift unpriced; it is confirmed when the mix reaches its target.
+   percentages with the fund to buy, never amounts or selling. While a bucket is outside the
+   drift band it carries what the drift costs a year (decision 0012), otherwise no yearly value;
+   it is confirmed when the mix reaches its target.
 6. **States.** `proposed` → `approved` → `done` → `confirmed`, where `confirmed` means a later
    sync shows the finding went away because it was acted on (decision 0003, step 6). A waiting
    action whose finding goes away for another reason is withdrawn (`dismissed`, audited as

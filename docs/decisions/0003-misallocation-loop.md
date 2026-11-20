@@ -55,7 +55,8 @@ this loop, per user:
   statement costs a year of its APR or the interest actually charged over the last year,
   whichever is more; an extra debt payment saves its amount times the APR. Cash above the buffer
   is priced by the deposit-rate detector, not here, so it isn't counted twice. Allocation drift
-  stays unpriced: a dollar figure would be a guess about future returns.
+  stayed unpriced at first, since a dollar figure by expected returns would be a guess about
+  future returns; decision 0012 prices it by risk instead.
 - Pricing for accounts and cards exists in `compare_products` and `compare_cards`.
 - Find and propose for allocation (2026-11-03): `get_allocation` and the Investments page compare
   holdings with the target, splitting funds across asset classes from `catalog/securities.json`,
@@ -67,6 +68,10 @@ this loop, per user:
   under target, until they catch up) and shows no sells; selling moves stay in `get_allocation`
   for when they ask. Holdings no source reaches (TreasuryDirect) are entered by hand
   (`manual_holding`).
+- Every brokerage priced (2026-11-20, decision 0012): fund fees against a cheaper fund holding the
+  same index (`holding_fee`), uninvested brokerage cash against a Treasury bill fund
+  (`brokerage_cash`), and a mix outside its band as the risk-adjusted return it gives up
+  (`allocation_drift`), which the new-money action now carries as its yearly value.
 
 ## Next
 

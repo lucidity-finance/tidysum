@@ -37,6 +37,17 @@ const Security = z
       .optional(),
     /** Share of the fund in each asset class or sleeve; adds up to 1. */
     mix: z.record(sleeveName, share),
+    /**
+     * What the fund copies, when another fund copies the same thing: a short name for an index,
+     * or for indexes that hold the same market the same way ("sp500", "nasdaq100",
+     * "us_total_market"). Two funds with the same `tracks` hold the same companies in about the
+     * same weights, so one is a faithful copy of the other (decision 0007) and swapping keeps the
+     * mix. A fund nothing else copies has none.
+     */
+    tracks: z
+      .string()
+      .regex(/^[a-z][a-z0-9_]{0,39}$/)
+      .optional(),
     /** Yearly cost in percent, like "0.02", for funds whose fee Tidysum compares. */
     expense_ratio: z
       .string()
@@ -93,6 +104,85 @@ const TargetDate = z
     "stock_mix must add up to 1",
   );
 
+const percentRate = z.string().regex(/^\d{1,2}(\.\d{1,4})?$/, "must be a percent like 3.60");
+
+/**
+ * What a brokerage pays on cash left uninvested in a regular account: its sweep. Money market
+ * funds a brokerage uses as its cash (Vanguard's VMFXX, Fidelity's SPAXX) are held as funds and
+ * aren't listed here; this is for cash that sits as cash.
+ */
+const BrokerageCash = z
+  .object({
+    /** Lowercased words an institution name contains, as in the deposit catalog. */
+    institutions: z.array(z.string().min(2).max(60)).min(1),
+    name: z.string().min(1).max(120),
+    /** Where the brokerage is; US when absent. */
+    country: z
+      .string()
+      .regex(/^[A-Z]{2}$/)
+      .optional(),
+    /** What uninvested cash earns by default, in percent a year. */
+    apy: percentRate,
+    /** A paid membership that raises it ("Robinhood Gold"), and the rate with it. */
+    membership: z
+      .object({ name: z.string().min(1).max(60), apy: percentRate })
+      .strict()
+      .optional(),
+    notes: z.string().max(300).optional(),
+    source_url: z.url().refine((u) => u.startsWith("https://"), "must be https"),
+    rates_as_of: isoDate,
+    verified_on: isoDate,
+  })
+  .strict();
+
+/**
+ * Long-run risk of each asset class, for pricing a mix that drifted from its target: how much
+ * each class swings a year and how they move together, from a published set of capital market
+ * assumptions. Expected returns are only used to scale the price (how much return the owner's
+ * own target asks per unit of risk), never to forecast one class beating another.
+ */
+const Risk = z
+  .object({
+    name: z.string().min(1).max(120),
+    source_url: z.url().refine((u) => u.startsWith("https://"), "must be https"),
+    as_of: isoDate,
+    verified_on: isoDate,
+    notes: z.string().max(400).optional(),
+    /** The class whose return counts as riskless: returns above it are what risk is paid. */
+    riskless: className,
+    classes: z.record(
+      className,
+      z
+        .object({
+          /** The published index it stands for. */
+          proxy: z.string().min(1).max(80),
+          /** Yearly volatility in percent. */
+          volatility: percentRate,
+          /** Arithmetic expected return in percent a year. */
+          expected_return: percentRate,
+        })
+        .strict(),
+    ),
+    /** Correlation for each pair of classes, keyed "a|b" in either order. */
+    correlations: z.record(
+      z.string().regex(/^[a-z][a-z0-9_]*\|[a-z][a-z0-9_]*$/),
+      z.string().regex(/^-?(0(\.\d{1,4})?|1(\.0{1,4})?)$/),
+    ),
+  })
+  .strict()
+  .refine((r) => r.riskless in r.classes, "the riskless class must be listed")
+  .refine((r) => {
+    const keys = Object.keys(r.classes);
+    return keys.every((a) =>
+      keys.every(
+        (b) =>
+          a === b ||
+          r.correlations[`${a}|${b}`] !== undefined ||
+          r.correlations[`${b}|${a}`] !== undefined,
+      ),
+    );
+  }, "every pair of classes needs a correlation");
+
 export const SecurityCatalogSchema = z
   .object({
     version: z.literal(1),
@@ -111,6 +201,10 @@ export const SecurityCatalogSchema = z
       .default({}),
     securities: z.array(Security),
     target_date: TargetDate.optional(),
+    /** What brokerages pay on uninvested cash. */
+    brokerage_cash: z.array(BrokerageCash).default([]),
+    /** Asset-class risk, for pricing allocation drift. */
+    risk: Risk.optional(),
   })
   .strict()
   .refine(
@@ -124,7 +218,10 @@ export const SecurityCatalogSchema = z
         Object.keys(s.mix).every((k) => (k.includes(".") ? k in c.sleeves : k in c.classes)),
       ) &&
       (!c.target_date ||
-        [...Object.keys(c.target_date.stock_mix), c.target_date.rest].every((k) => k in c.classes)),
+        [...Object.keys(c.target_date.stock_mix), c.target_date.rest].every(
+          (k) => k in c.classes,
+        )) &&
+      (!c.risk || Object.keys(c.risk.classes).every((k) => k in c.classes)),
     "every mix class must be listed in classes, and every sleeve in sleeves",
   );
 
@@ -191,6 +288,11 @@ export function targetDateMix(
   return mix;
 }
 export type CatalogSecurity = z.infer<typeof Security>;
+export type CatalogBrokerageCash = z.infer<typeof BrokerageCash>;
+export type CatalogRisk = z.infer<typeof Risk>;
+
+/** The market a catalog fund is listed in: its country, or the US when it names none. */
+export const listedIn = (s: Pick<CatalogSecurity, "country">) => s.country ?? "US";
 
 export function parseSecurityCatalog(json: unknown): SecurityCatalog {
   const result = SecurityCatalogSchema.safeParse(json);

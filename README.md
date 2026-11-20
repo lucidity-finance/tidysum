@@ -113,7 +113,9 @@ your agent, the legwork. You make the calls.
 | 401(k) funds            | Expensive funds that the plan's own index funds can copy exactly, sleeve by sleeve     |
 | Brokerage windows       | Money in a plan's self-directed window that would be simpler and cheaper back inside   |
 | IRAs                    | Unused Roth IRA room, including the backdoor Roth when income is over the limit        |
-| Investments             | Where each new dollar should go to reach your target mix, without selling              |
+| Brokerage & IRA funds   | Funds that cost more than another fund holding the same index, with the tax on selling |
+| Brokerage cash          | Cash left uninvested, against what a Treasury bill fund pays                           |
+| Investments             | Where each new dollar should go to reach your target mix, and what drifting costs      |
 
 Investment checks are off by default and only run for a user with investing turned on.
 

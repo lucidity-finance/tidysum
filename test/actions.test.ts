@@ -495,4 +495,38 @@ describe("new money action", () => {
     expect(await draftActions(owner.db, userId, new Date(), off)).toMatchObject({ withdrawn: 1 });
     expect(await newMoney()).toBeUndefined();
   });
+
+  it("carries what the drift costs while the mix is outside its band, with no action of its own", async () => {
+    const later = new Date(Date.now() + 31 * 86_400_000);
+    expect(await draftActions(owner.db, userId, later, under)).toMatchObject({ drafted: 1 });
+    expect((await newMoney())?.expected_annual_value).toBeNull();
+    const [drift] = await owner.db
+      .insert(misallocation)
+      .values({
+        userId,
+        key: "allocation_drift",
+        category: "securities",
+        detector: "allocation_drift",
+        summary: "Your mix is outside its 5-point band.",
+        annualCost: "42.00",
+        accountIds: [],
+        action: "Invest new money toward your target mix",
+        inputs: {},
+      })
+      .returning({ id: misallocation.id });
+    expect(await draftActions(owner.db, userId, later, under)).toMatchObject({
+      drafted: 0,
+      updated: 1,
+    });
+    expect((await newMoney())?.expected_annual_value).toBe("42.00");
+    const all = await owner.db.select().from(proposal).where(eq(proposal.userId, userId));
+    expect(all.some((p) => p.findingKey === "allocation_drift")).toBe(false);
+    // Back inside the band, the value goes and the action stays.
+    await owner.db
+      .update(misallocation)
+      .set({ state: "resolved", decidedAt: new Date() })
+      .where(eq(misallocation.id, drift?.id ?? ""));
+    expect(await draftActions(owner.db, userId, later, under)).toMatchObject({ updated: 1 });
+    expect((await newMoney())?.expected_annual_value).toBeNull();
+  });
 });

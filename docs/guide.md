@@ -48,7 +48,8 @@ funds they see, and whether US-only checks run. Canada works with Plaid's free p
 connect through Enable Banking (`src/enableBanking/`, `ENABLE_BANKING_*` in `.env`), or through
 Plaid with `PLAID_EUROPE=true` for a Plaid team with European access. Funds and the cash
 yardstick follow the country too: UCITS ETFs and SONIA in the UK, Xetra-listed UCITS ETFs and €STR
-in the EU.
+in the EU. Fee swaps stay inside the owner's own market (a UK owner is offered ISF for VUKE, never a
+US ETF), and ISAs, SIPPs, TFSAs and RRSPs count as tax-sheltered.
 See [decision 0011](decisions/0011-countries.md) for what each country still needs.
 
 ## Institutions Plaid can't reach
@@ -495,23 +496,54 @@ to split each new contribution. It never shows what anything is worth.
   down, or anything to sell; `/api/allocation` leaves those fields out. The per-position detail is
   for `get_allocation` and the CLI.
 
-Allocation is investment advice, so it only runs for users with `investing_enabled`. Drift has no
-yearly dollar cost (decision 0003), so it isn't ranked with the misallocations; the Actions page
-puts it to the owner as an action, with the split, when new money has somewhere to catch up. `check_policy` reports the same drift, in points.
+Allocation is investment advice, so it only runs for users with `investing_enabled`. The Actions
+page puts it to the owner as an action, with the split, when new money has somewhere to catch up.
+`check_policy` reports the same drift, in points. Outside the drift band the drift is also a
+ranked misallocation, `allocation_drift`, priced by risk (below).
+
+## Brokerages and IRAs
+
+Every investment account that isn't a workplace plan or its brokerage window gets three more
+checks ([decision 0012](decisions/0012-brokerage-pricing.md)), with investing enabled:
+
+- **holding_fee:** a fund that costs more than another fund holding the same thing. Only catalog
+  funds with the same `tracks` count as the same thing (`sp500`: VOO, IVV, SPY ...; `nasdaq100`:
+  QQQ, QQQM; `gold_bullion`: GLD, IAU, GLDM; `ftse_100`; `msci_world` ...), and only funds listed
+  where you buy funds (UK-listed UCITS ETFs for a UK owner, ETFs rather than another family's
+  mutual funds in the US). A theme or sector ETF that nothing else copies is never compared.
+  In an IRA, ISA, SIPP, TFSA, RRSP or similar account the swap owes no tax; in a taxable account
+  it is suggested below cost, or at a gain when the lower fee pays back the tax (15% federal
+  long-term rate assumed) within two years. Otherwise the warning says to keep it and buy the
+  cheaper fund with new money. No cost basis from the brokerage means no swap yet.
+- **brokerage_cash:** cash sitting uninvested (Plaid's `CUR:USD`), priced as what the country's
+  Treasury bill fund (SGOV; ZMMK, CSH2 or XEON elsewhere) pays at the cash yardstick, less its
+  fee, over what the brokerage pays. Brokerage rates are in `brokerage_cash` in
+  `catalog/securities.json` (Robinhood's rises with Robinhood Gold, which counts when the IRA facts
+  list it under `memberships`). A money market fund used as the brokerage's cash (VMFXX, SPAXX)
+  is a fund, not idle cash. The action invests the cash toward your target mix, keeping only
+  what should stay cash in the Treasury bill fund.
+- **allocation_drift:** a bucket outside the drift band, priced as the risk-adjusted return a mix
+  you didn't choose gives up: ½·γ·dᵀΣd of what the buckets hold, with Σ from J.P. Morgan's
+  long-run volatilities and correlations (`risk` in the catalog) and γ how much return your own
+  target asks per unit of risk. It never predicts one class beating another, and the new-money
+  action, which fixes it without selling, carries the price.
 
 ## Misallocations
 
 `pnpm tidysum misallocations` (also `find_misallocations` over MCP and the top of the admin page)
 runs every detector and lists what is costing you money, ranked by cost per year:
 
-| Detector         | Category | Finds                                                                                                                      |
-| ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `deposit_rate`   | cash     | a cash account earning less than the best catalog product would                                                            |
-| `card_wallet`    | card     | each card worth adding, priced by what it adds on top of the ones before it                                                |
-| `card_usage`     | card     | purchases paid from a bank account that would earn rewards on your best card                                               |
-| `foreign_fees`   | card     | foreign transaction fees paid in the last year                                                                             |
-| `card_statement` | card     | a card statement due on a card that has charged interest (a year of its APR, or the interest charged, whichever is larger) |
-| `extra_payment`  | debt     | spare cash above the buffer that could pay down the highest-APR debt                                                       |
+| Detector           | Category   | Finds                                                                                                                      |
+| ------------------ | ---------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `deposit_rate`     | cash       | a cash account earning less than the best catalog product would                                                            |
+| `card_wallet`      | card       | each card worth adding, priced by what it adds on top of the ones before it                                                |
+| `card_usage`       | card       | purchases paid from a bank account that would earn rewards on your best card                                               |
+| `foreign_fees`     | card       | foreign transaction fees paid in the last year                                                                             |
+| `card_statement`   | card       | a card statement due on a card that has charged interest (a year of its APR, or the interest charged, whichever is larger) |
+| `extra_payment`    | debt       | spare cash above the buffer that could pay down the highest-APR debt                                                       |
+| `holding_fee`      | securities | a brokerage or IRA fund that costs more than one holding the same index                                                    |
+| `brokerage_cash`   | securities | uninvested brokerage cash earning less than a Treasury bill fund                                                           |
+| `allocation_drift` | securities | a mix outside its drift band, priced as the risk you didn't choose                                                         |
 
 Each finding has a stable `key`, a `category` (`cash`, `card`, `debt`, `securities`), the action
 that fixes it, and the `inputs` it was priced from, including the sha256 of the catalog it used.

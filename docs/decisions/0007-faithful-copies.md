@@ -62,3 +62,6 @@ hold almost no real estate.
   with new money (the owner's plan), and the action says so.
 - Recording a plan now takes a little more: each held fund's breakdown from its fact sheet, and
   sleeve names on the index funds (`us_stocks.large`, not `us_stocks`).
+- Outside a plan (decision 0012), a fund in a brokerage or IRA is only swapped for a catalog fund
+  recorded as copying the same thing (`tracks`: the same index, or indexes that hold the same
+  market the same way). A fund nothing else copies isn't compared.

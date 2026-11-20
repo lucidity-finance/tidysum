@@ -5,7 +5,8 @@ import pg from "pg";
 import { draftActions } from "../actions/actions.js";
 import { TokenCipher } from "../crypto/tokenCipher.js";
 import { type Db, runMigrations } from "../db/client.js";
-import { account, appUser } from "../db/schema.js";
+import { account, appUser, marketReading } from "../db/schema.js";
+import { TREASURY_SERIES } from "../facts/refresh.js";
 import type { AgentDb } from "../mcp/agentDb.js";
 import type { ProductTools } from "../mcp/server.js";
 import { loadCatalogs } from "../misallocation/detect.js";
@@ -21,6 +22,7 @@ import { syncItem } from "../sync/syncItem.js";
 import { resolveUserId } from "../users.js";
 import { DemoPlaid } from "./gateway.js";
 import type { DemoHousehold } from "./household.js";
+import { TBILL_13W } from "./realWorld.js";
 
 /**
  * The demo's own database, in a Postgres server of its own: by default one Tidysum runs itself
@@ -128,6 +130,12 @@ export async function seedDemo(
     userId,
     await readFile(opts.planFile ?? new URL("../../docs/plan.example.md", import.meta.url), "utf8"),
   );
+
+  // The cash yardstick, as Treasury published it, so idle cash is priced without a network fetch.
+  await db
+    .insert(marketReading)
+    .values({ series: TREASURY_SERIES, day: TBILL_13W.day, value: TBILL_13W.yield })
+    .onConflictDoNothing();
 
   const agentDb = connectAgentDb(userId);
   await refreshMisallocations(db, agentDb, userId, await loadCatalogs(products), household.today);

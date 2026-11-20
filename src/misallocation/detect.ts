@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
 import Big from "big.js";
+import { readFundFees, readTreasuryBenchmark } from "../facts/read.js";
 import type { AgentDb } from "../mcp/agentDb.js";
 import { evaluatePolicy, type KeyedFinding } from "../policy/engine.js";
 import { canonical } from "../policy/policy.js";
 import { readSnapshot } from "../policy/snapshot.js";
 import { loadActivePolicy } from "../policy/store.js";
+import { brokerageFindings, type Fee } from "../portfolio/brokerage.js";
 import type { SecurityCatalog } from "../portfolio/securityCatalog.js";
 import type { CardCatalog } from "../products/cardCatalog.js";
 import {
@@ -43,6 +45,9 @@ export const DETECTORS = [
   "fund_fee",
   "brokerage_window",
   "roth_ira",
+  "holding_fee",
+  "brokerage_cash",
+  "allocation_drift",
 ] as const;
 export type Detector = (typeof DETECTORS)[number];
 
@@ -107,6 +112,10 @@ export interface Detection {
     workplace_funds?: Record<string, string[]>;
     /** The tickers in each workplace plan's linked brokerage window, by plan account id. */
     workplace_window_tickers?: Record<string, string[]>;
+    /** The tickers in each other investment account (brokerages, IRAs), by account id. */
+    brokerage_tickers?: Record<string, string[]>;
+    /** Uninvested cash in each of those accounts, by account id. */
+    brokerage_cash?: Record<string, string>;
   };
   /**
    * Accounts whose data may be out of date: the connection needs repair or hasn't synced
@@ -179,6 +188,12 @@ export async function detectMisallocations(
   if (features(region).usRetirement) {
     items.push(
       ...(await retirementFindings(db, catalogs.securities, today, ran, warnings, holdings)),
+    );
+  }
+
+  if (catalogs.securities) {
+    items.push(
+      ...(await investmentFindings(db, catalogs.securities, today, ran, warnings, holdings)),
     );
   }
 
@@ -294,6 +309,67 @@ async function retirementFindings(
   ran.push("roth_ira");
   items.push(...ira.items);
   return items;
+}
+
+/**
+ * Investments outside a workplace plan, priced (src/portfolio/brokerage.ts): fund fees against a
+ * cheaper fund holding the same thing, uninvested brokerage cash, and a mix outside its band.
+ * Investment advice, so only for users with investing enabled.
+ */
+async function investmentFindings(
+  db: AgentDb,
+  securities: SecurityCatalog,
+  today: string,
+  ran: Detector[],
+  warnings: string[],
+  holdings: Detection["holdings"],
+): Promise<Misallocation[]> {
+  const snapshot = await readSnapshot(db, today);
+  if (!snapshot.investing_enabled) return [];
+  const region = await readAgentRegion(db);
+  const { rows: plans } = await db.query<{ account_id: string }>(
+    "select account_id from workplace_plan",
+  );
+  const { rows: policies } = await db.query("select 1 from policy_version limit 1");
+  const policy = policies.length > 0 ? (await loadActivePolicy(db)).policy : null;
+  const tickers = snapshot.holdings.flatMap((h) =>
+    h.ticker_symbol ? [h.ticker_symbol.toUpperCase()] : [],
+  );
+  const secFees = new Map<string, Fee>();
+  if (features(region).usPublicFacts) {
+    const wanted = [
+      ...tickers,
+      ...securities.securities.filter((s) => s.tracks || s.mix.cash).map((s) => s.ticker),
+    ];
+    for (const [t, f] of await readFundFees(db, wanted)) {
+      secFees.set(t, { expense_ratio: f.expense_ratio, as_of: f.as_of, source_url: f.source_url });
+    }
+  }
+  const benchmark = await readTreasuryBenchmark(db);
+  const years = await readIraYears(db);
+  const latest = [...years.values()].at(-1);
+  const found = brokerageFindings({
+    today,
+    region,
+    snapshot,
+    policy,
+    catalog: securities,
+    secFees,
+    benchmark: benchmark && {
+      name: benchmark.name,
+      yield: benchmark.yield,
+      as_of: benchmark.as_of,
+      source_url: benchmark.source_url,
+    },
+    memberships: latest?.memberships ?? [],
+    planAccountIds: plans.map((p) => p.account_id),
+  });
+  ran.push(...found.ran);
+  warnings.push(...found.warnings);
+  holdings.undecided_keys = [...(holdings.undecided_keys ?? []), ...found.undecided];
+  holdings.brokerage_tickers = found.tickers;
+  holdings.brokerage_cash = found.cash;
+  return found.items;
 }
 
 const POLICY_ACTIONS: Partial<Record<KeyedFinding["check"], string>> = {
@@ -526,7 +602,8 @@ export interface MisallocationReport {
 }
 
 const NOT_COVERED = [
-  "securities: fees are priced only for funds in a recorded workplace plan and its brokerage window (fund_fee, brokerage_window); other brokerage fund fees, idle brokerage cash and allocation are not priced yet.",
+  "securities: a fund's fee is priced only against a cheaper fund recorded as holding the same thing (holding_fee); a fund nothing else copies, like a sector or theme ETF, isn't compared, however dear.",
+  "securities: uninvested brokerage cash is priced only at brokerages whose cash rate Tidysum lists (brokerage_cash); brokerages that report cash only in the balance, not as a holding, aren't seen.",
   "securities: IRA contributions are known only as recorded (roth_ira); Plaid doesn't say which tax year a contribution counts for.",
   "debt: loan refinancing is not priced yet.",
   "cash above the buffer is priced by deposit_rate, at the account it sits in, not separately.",

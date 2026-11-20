@@ -60,10 +60,11 @@ const TAX_ADVANTAGED = new Set([
 
 /**
  * Plan names that mark a retirement account whatever subtype the institution reports: a 401(k)
- * recordkeeper may call the plan a "stock plan" or "profit sharing plan".
+ * recordkeeper may call the plan a "stock plan" or "profit sharing plan". UK ISAs and SIPPs,
+ * Canadian TFSAs, RRSPs and FHSAs and the French PEA are tax-sheltered the same way.
  */
 const RETIREMENT_NAME =
-  /\b(401\s*\(?k\)?|403\s*\(?b\)?|457\s*\(?b\)?|ira|roth|retirement|pension|thrift|hsa)\b/i;
+  /\b(401\s*\(?k\)?|403\s*\(?b\)?|457\s*\(?b\)?|ira|roth|retirement|pension|thrift|hsa|isa|sipp|tfsa|rrsp|fhsa|pea)\b/i;
 
 export function isTaxAdvantaged(a: {
   subtype: string | null;

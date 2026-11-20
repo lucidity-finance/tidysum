@@ -95,6 +95,7 @@ describe("tidysum demo", () => {
       "fund_fee",
       "roth_ira",
       "retirement_rate",
+      "brokerage_cash",
     ]) {
       expect(detectors, d).toContain(d);
     }

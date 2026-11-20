@@ -87,6 +87,21 @@ export function actedOn(
       const sell = (i?.funds ?? []).flatMap((x) => (x.ticker ? [x.ticker.toUpperCase()] : []));
       return !held || !sell.some((t) => held.includes(t));
     }
+    // The dear fund is gone from the account: it was swapped. Still held, the finding went away
+    // for another reason (the fees changed, say).
+    case "holding_fee": {
+      const ticker = (row.inputs as { ticker?: string } | null)?.ticker;
+      const held = row.accountIds[0] ? holdings.brokerage_tickers?.[row.accountIds[0]] : undefined;
+      return !!ticker && !!held && !held.includes(ticker);
+    }
+    // Most of the cash was put to work. Still there, the rates moved instead.
+    case "brokerage_cash": {
+      const before = (row.inputs as { cash?: string } | null)?.cash;
+      const now = row.accountIds[0] ? holdings.brokerage_cash?.[row.accountIds[0]] : undefined;
+      return !!before && now !== undefined && new Big(now).lt(new Big(before).div(2));
+    }
+    // The mix is back inside its band.
+    case "allocation_drift":
     case "foreign_fees":
     // The statement was paid, or the extra payment made.
     case "card_statement":
