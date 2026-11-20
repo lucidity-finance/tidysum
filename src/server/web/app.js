@@ -3358,7 +3358,17 @@ function renderCash() {
 /** "41%" from "41.2"; whole percents read faster and the drift band is points wide anyway. */
 const share = (s) => `${Math.round(Number(s))}%`;
 
-function mixRow(b) {
+/** A mix row's name, with what it holds under it when the user turned amounts on. */
+function allocName(label, amount) {
+  return h(
+    "span",
+    { class: "alloc-name" },
+    label,
+    amount != null ? h("span", { class: "alloc-amount num" }, usd0(amount)) : null,
+  );
+}
+
+function mixRow(b, amount) {
   // No warning colours: a bucket off target is just where new money goes, or where it doesn't.
   const tone = b.status === "ok" ? "pill-gain" : b.status === "under" ? "pill-accent" : "";
   const label = { ok: "On target", under: "Below target", over: "Above target" }[b.status];
@@ -3366,7 +3376,7 @@ function mixRow(b) {
   return h(
     "div",
     { class: "alloc-row" },
-    h("span", { class: "alloc-name" }, b.label),
+    allocName(b.label, amount),
     h(
       "span",
       {
@@ -3426,7 +3436,7 @@ const ALLOCATION_EMPTY = {
 // Its scores are research evidence, never a target weight, and the page says so once.
 
 /** The sleeve against its cap. The track runs to 1.25x the cap so the cap mark sits inside. */
-function sleeveRow(sl) {
+function sleeveRow(sl, amount) {
   const full = Number(sl.cap) * 1.25 || 1;
   const scale = (s) => `${Math.min(100, Math.max(0, (Number(s) / full) * 100))}%`;
   const label = sl.over
@@ -3437,7 +3447,7 @@ function sleeveRow(sl) {
   return h(
     "div",
     { class: "alloc-row" },
-    h("span", { class: "alloc-name" }, "Sleeve"),
+    allocName("Sleeve", amount),
     h(
       "span",
       {
@@ -3641,7 +3651,11 @@ function researchSection() {
     { class: "section" },
     sectionHead("Research sleeve", "investment-miner picks, apart from your mix"),
     r.sleeve
-      ? h("div", { class: "panel alloc-list" }, sleeveRow(r.sleeve))
+      ? h(
+          "div",
+          { class: "panel alloc-list" },
+          sleeveRow(r.sleeve, ok("allocation")?.amounts?.sleeve),
+        )
       : notice("info", "Add a research_sleeve to your policy to set its cap."),
     scanBar(r),
     r.stale
@@ -3679,6 +3693,41 @@ function researchSection() {
   );
 }
 
+/**
+ * Show amounts: off by default, since Tidysum is calm by design and percentages are enough to
+ * act on. Kept per user on the server, so every browser and the user's agent follow it.
+ */
+let savingAmounts = false;
+function amountsSwitch(on) {
+  return h(
+    "button",
+    {
+      type: "button",
+      class: "switch",
+      role: "switch",
+      "aria-checked": String(on),
+      disabled: savingAmounts,
+      title: on ? "Hide amounts" : "Show what each part of your mix holds",
+      onclick: async () => {
+        savingAmounts = true;
+        renderInvestments();
+        try {
+          await api("/api/settings/investment-amounts", { show: !on });
+          await load("allocation");
+        } catch (e) {
+          toast(e.message, "error");
+        } finally {
+          savingAmounts = false;
+          renderInvestments();
+          $("#investments-body .switch")?.focus();
+        }
+      },
+    },
+    h("span", { class: "switch-track" }, h("span", { class: "switch-knob" })),
+    "Show amounts",
+  );
+}
+
 function renderInvestments() {
   const root = $("#investments-body");
   const r = data.allocation;
@@ -3694,8 +3743,10 @@ function renderInvestments() {
   const labels = Object.fromEntries(r.buckets.map((b) => [b.key, b.label]));
   const nm = r.new_money;
   const catchUp = nm.basis === "catch_up";
+  // Amounts only when the user turned them on; then by bucket, never by position.
+  const amounts = r.show_amounts ? r.amounts : null;
   // Calm by design: what to do with the next paycheck leads, nothing asks you to sell, and
-  // nothing shows amounts or ups and downs.
+  // nothing shows ups and downs. Amounts stay hidden unless the user asks for them.
   const summary = h(
     "section",
     { class: "summary split" },
@@ -3728,15 +3779,32 @@ function renderInvestments() {
       { class: "section" },
       sectionHead(
         "Your mix",
-        h("a", { class: "inline-link", href: "#plan" }, "Targets come from your Plan"),
+        h(
+          "span",
+          { class: "mix-tools" },
+          amountsSwitch(!!amounts),
+          h("a", { class: "inline-link", href: "#plan" }, "Targets come from your Plan"),
+        ),
       ),
-      h("div", { class: "panel alloc-list" }, r.buckets.map(mixRow)),
+      h(
+        "div",
+        { class: "panel alloc-list" },
+        r.buckets.map((b) => mixRow(b, amounts?.buckets[b.key])),
+        amounts
+          ? h(
+              "div",
+              { class: "alloc-total" },
+              h("span", null, "Total"),
+              h("span", { class: "num" }, usd0(amounts.in_mix)),
+            )
+          : null,
+      ),
     ),
     Number(r.unclassified.percent) > 0
       ? h(
           "p",
           { class: "muted small" },
-          `${share(r.unclassified.percent)} of your holdings fit no bucket and are left out.`,
+          `${share(r.unclassified.percent)} of your holdings${amounts ? ` (${usd0(amounts.unclassified)})` : ""} fit no bucket and are left out.`,
         )
       : null,
     researchSection(),
@@ -3748,7 +3816,9 @@ function renderInvestments() {
         ),
         ...(catchUp && nm.catch_up
           ? [
-              `The split changes as your mix moves. It takes new money worth about ${nm.catch_up}% of what you have invested today to reach the target, and then new money follows the target.`,
+              amounts?.catch_up
+                ? `The split changes as your mix moves. It takes about ${usd0(amounts.catch_up)} of new money, ${nm.catch_up}% of what you have invested today, to reach the target, and then new money follows the target.`
+                : `The split changes as your mix moves. It takes new money worth about ${nm.catch_up}% of what you have invested today to reach the target, and then new money follows the target.`,
             ]
           : []),
         ...researchNotes(),

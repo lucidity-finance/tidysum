@@ -211,6 +211,42 @@ describe("allocation", () => {
     for (const dollars of ["3000", "2000", "1000", "11000"]) expect(text).not.toContain(dollars);
   });
 
+  it("adds amounts by bucket only for a user who turned them on", () => {
+    const s = snapshot([
+      holding(TAXABLE, "VTI", "etf", "72"),
+      holding(TAXABLE, "VXUS", "etf", "15"),
+      holding(TAXABLE, "PALL", "etf", "11"),
+      holding(TAXABLE, "BND", "etf", "2"),
+      holding(TAXABLE, "MYSTERY", "etf", "5"),
+    ]);
+    const off = buildAllocationReport(policy, s, catalog);
+    if ("empty" in off) throw new Error("expected a report");
+    expect(off.amounts).toBeUndefined();
+
+    const r = buildAllocationReport(policy, s, catalog, { amounts: true });
+    if ("empty" in r) throw new Error("expected a report");
+    expect(r.amounts).toEqual({
+      currency: "USD",
+      invested: "105.00",
+      in_mix: "100.00",
+      buckets: {
+        us_stocks: "72.00",
+        intl_stocks: "15.00",
+        bonds_and_cash: "2.00",
+        commodities: "11.00",
+      },
+      sleeve: null,
+      unclassified: "5.00",
+      // n = 0.23 / 0.60 of the 100 in the mix, unrounded.
+      catch_up: "38.33",
+    });
+
+    // The page gets the bucket totals, still nothing about single positions.
+    const page = allocationForPage({ state: "ready", show_amounts: true, ...r });
+    expect(page).toMatchObject({ show_amounts: true, amounts: r.amounts });
+    expect(JSON.stringify(page)).not.toMatch(/VTI|MYSTERY/);
+  });
+
   it("sends new money to the buckets under target so they reach it together", () => {
     // 72 / 15 / 11 / 2 against 55 / 30 / 5 / 10.
     const s = snapshot([

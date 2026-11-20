@@ -14,9 +14,10 @@ export { manualAsHoldings } from "./investable.js";
 // The moves that would rebalance now by selling are kept for agents to discuss when asked.
 // Investment advice, so it only runs for users with investing enabled (decision 0003).
 //
-// The report is in percentages only: shares of the portfolio, percentage points of drift, and
-// the share of a position to sell. No dollar amounts, by design: the owner asked not to see
-// them, and percentages are enough to act on in a brokerage.
+// The report is in percentages: shares of the portfolio, percentage points of drift, and the
+// share of a position to sell. Percentages are enough to act on in a brokerage, and Tidysum is
+// calm by design, so amounts are left out unless the person turned them on
+// (app_user.show_investment_amounts); then `amounts` carries what each bucket holds.
 
 type Allocation = NonNullable<Policy["allocation"]>;
 type Bucket = Allocation["buckets"][string];
@@ -286,6 +287,18 @@ export function newMoneySplit(
   return maxShare ? { ...result, max_share: maxShare.toString() } : result;
 }
 
+/**
+ * new_money.catch_up before rounding: the new money, as a share of today's portfolio, that brings
+ * every underweight bucket to its target. Null when there is no gap or contributions can't close it.
+ */
+function catchUpShare(weights: { target: Big; weight: Big }[]): Big | null {
+  const under = weights.filter((w) => w.target.minus(w.weight).gte(MIN_MOVE_POINTS.div(100)));
+  const targets = under.reduce((s, w) => s.plus(w.target), ZERO);
+  if (under.length === 0 || targets.gte(1)) return null;
+  const gap = under.reduce((s, w) => s.plus(w.target.minus(w.weight)), ZERO);
+  return gap.div(new Big(1).minus(targets));
+}
+
 function newMoneyUncapped(
   weights: { key: string; target: Big; weight: Big }[],
   buyFor: (key: string) => Move["buy"],
@@ -392,6 +405,25 @@ export interface AllocationReport {
     largest: { ticker: string | null; name: string | null; percent: string }[];
   };
   notes: string[];
+  /** Money amounts, in the user's currency; only when they asked to see them. */
+  amounts?: AllocationAmounts;
+}
+
+/** What the mix holds in money. Decimal strings to the cent. */
+export interface AllocationAmounts {
+  currency: string;
+  /** Everything counted: the buckets, the research sleeve, and holdings no bucket covers. */
+  invested: string;
+  /** What the buckets hold together: the base the percentages above are of. */
+  in_mix: string;
+  /** Each bucket's value, by bucket key. */
+  buckets: Record<string, string>;
+  /** The research sleeve's value; null when the policy has none. */
+  sleeve: string | null;
+  /** Holdings no bucket covers. */
+  unclassified: string;
+  /** new_money.catch_up as money: about how much new money brings the mix to its target. */
+  catch_up: string | null;
 }
 
 const labelOf = (key: string, catalog?: SecurityCatalog) =>
@@ -431,6 +463,8 @@ export function buildAllocationReport(
   policy: Policy,
   snapshot: Snapshot,
   catalog?: SecurityCatalog,
+  /** Add money amounts: only for a user who turned them on. */
+  opts: { amounts?: boolean } = {},
 ): AllocationReport | { as_of: string; empty: Empty } {
   const allocation = policy.allocation;
   if (!allocation) return { as_of: snapshot.today, empty: "no_target" };
@@ -541,10 +575,11 @@ export function buildAllocationReport(
 
   // Buckets kept out of taxable accounts get no new money; their share stays with the accounts
   // that hold them, and the other buckets split each contribution.
+  const newMoneyWeights = weights
+    .filter((w) => w.b.taxable_new_money)
+    .map((w) => ({ key: w.key, target: new Big(w.b.target), weight: w.weight }));
   const newMoney = newMoneySplit(
-    weights
-      .filter((w) => w.b.taxable_new_money)
-      .map((w) => ({ key: w.key, target: new Big(w.b.target), weight: w.weight })),
+    newMoneyWeights,
     buyFor,
     allocation.new_money_max_share ? new Big(allocation.new_money_max_share) : undefined,
   );
@@ -638,12 +673,30 @@ export function buildAllocationReport(
       ),
     },
     notes,
+    ...(opts.amounts
+      ? {
+          amounts: {
+            currency: snapshot.currency ?? "USD",
+            invested: grand.toFixed(2),
+            in_mix: total.toFixed(2),
+            buckets: Object.fromEntries(
+              weights.map((w) => [w.key, (values.get(w.key) ?? ZERO).toFixed(2)]),
+            ),
+            sleeve: policy.research_sleeve ? sleeveValue.toFixed(2) : null,
+            unclassified: unclassifiedValue.toFixed(2),
+            catch_up:
+              newMoney.catch_up === null
+                ? null
+                : (catchUpShare(newMoneyWeights)?.times(total).toFixed(2) ?? null),
+          },
+        }
+      : {}),
   };
 }
 
 export type AllocationResult =
-  | (AllocationReport & { state: "ready" })
-  | { state: "off" | "no_policy" | Empty; as_of: string };
+  | (AllocationReport & { state: "ready"; show_amounts?: boolean })
+  | { state: "off" | "no_policy" | Empty; as_of: string; show_amounts?: boolean };
 
 /** The session user's allocation, read through row-level security. */
 export async function readAllocation(
@@ -656,21 +709,33 @@ export async function readAllocation(
   const { rows } = await db.query("select 1 from policy_version limit 1");
   if (rows.length === 0) return { state: "no_policy", as_of: today };
   const { policy } = await loadActivePolicy(db);
-  const report = buildAllocationReport(policy, snapshot, catalog);
-  if ("empty" in report) return { state: report.empty, as_of: today };
-  return { state: "ready", ...report };
+  const amounts = await showsInvestmentAmounts(db);
+  const report = buildAllocationReport(policy, snapshot, catalog, { amounts });
+  if ("empty" in report) return { state: report.empty, as_of: today, show_amounts: amounts };
+  return { state: "ready", show_amounts: amounts, ...report };
+}
+
+/** The session user's choice to see investment amounts; row-level security leaves their row. */
+export async function showsInvestmentAmounts(db: AgentDb): Promise<boolean> {
+  const { rows } = await db.query<{ show_investment_amounts: boolean }>(
+    "select show_investment_amounts from app_user",
+  );
+  return rows[0]?.show_investment_amounts ?? false;
 }
 
 /**
  * What the admin page shows: buckets and moves between them, nothing about single positions.
  * The owner doesn't want to see which stocks he holds or how much each is up or down, so the
- * page gets no tickers, names, per-position shares or gains. Agents still get the full report.
+ * page gets no tickers, names, per-position shares or gains, even with amounts turned on: those
+ * are totals by bucket only. Agents still get the full report.
  */
 export function allocationForPage(r: AllocationResult) {
   if (r.state !== "ready") return r;
   return {
     state: r.state,
     as_of: r.as_of,
+    show_amounts: r.show_amounts ?? false,
+    ...(r.amounts ? { amounts: r.amounts } : {}),
     drift_band: r.drift_band,
     rebalance: r.rebalance,
     buckets: r.buckets.map(({ holdings: _, ...b }) => b),

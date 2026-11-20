@@ -105,7 +105,8 @@ anything in in_progress that is due or overdue.
 For investments, get_allocation compares holdings with the target allocation. Lead with new_money:
 how to split each new contribution so the mix reaches its target without selling. The owner keeps
 holdings he believes in, so suggest selling (moves) only when he asks or when a holding really
-doesn't fit. Keep it calm: percentages only, no dollar amounts and no talk of what is up or down.
+doesn't fit. Keep it calm: percentages, no talk of what is up or down, and dollar amounts only when
+show_amounts is true (the owner turned amounts on in Investments).
 
 The owner may keep a small research sleeve, capped as a share of investable assets, for picks from
 investment-miner, a research tool he runs. get_research_candidates returns its latest current
@@ -777,8 +778,10 @@ function registerProductTools(server: McpServer, db: AgentDb, p: ProductTools) {
         "buckets catch up without selling; catch_up is how much new money that takes as a percent " +
         "of today's portfolio), and the moves that would rebalance by selling instead (as a " +
         "percent of each position, tax-advantaged accounts and losses first). Funds that span " +
-        "classes are split using the security catalog. Percentages only, by design: the owner " +
-        "doesn't want to see dollar amounts, so present it in percentages too. state 'off' means " +
+        "classes are split using the security catalog. Percentages by default: present it in " +
+        "percentages too. Only when show_amounts is true (the owner turned amounts on) does it " +
+        "carry amounts (what each bucket and the whole portfolio hold, in amounts.currency); " +
+        "then you may name them. state 'off' means " +
         "the user doesn't have investing enabled. " +
         UNTRUSTED,
       annotations: readOnly,

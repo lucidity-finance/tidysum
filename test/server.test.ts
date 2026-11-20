@@ -367,6 +367,40 @@ describe("action order", () => {
   });
 });
 
+describe("investment amounts", () => {
+  it("turns amounts on and off for the session user only", async () => {
+    const { app } = setup();
+    const other = await createUser(db, "Someone else");
+    const shown = async (id: string) =>
+      (
+        await db
+          .select({ show: appUser.showInvestmentAmounts })
+          .from(appUser)
+          .where(eq(appUser.id, id))
+      )[0]?.show;
+    const post = (body: unknown) =>
+      app.request("/api/settings/investment-amounts", {
+        method: "POST",
+        headers: json,
+        body: JSON.stringify(body),
+      });
+    try {
+      expect(await shown(userId)).toBe(false);
+      expect((await post({ show: "yes" })).status).toBe(400);
+      const res = await post({ show: true });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ show: true });
+      expect(await shown(userId)).toBe(true);
+      expect(await shown(other)).toBe(false);
+      await post({ show: false });
+      expect(await shown(userId)).toBe(false);
+    } finally {
+      await db.update(appUser).set({ showInvestmentAmounts: false }).where(eq(appUser.id, userId));
+      await db.delete(appUser).where(eq(appUser.id, other));
+    }
+  });
+});
+
 describe("Plaid webhooks", () => {
   async function post(app: ReturnType<typeof setup>["app"], body: object, jwt?: string) {
     const raw = JSON.stringify(body);

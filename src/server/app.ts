@@ -57,7 +57,13 @@ import { readResearchReport, researchForPage } from "../research/report.js";
 import type { ResearchScanner } from "../research/scan.js";
 import { ensurePlaidUser, linkItem, loadAccessToken } from "../sync/items.js";
 import type { SyncScheduler } from "../sync/scheduler.js";
-import { normalizePhone, readPhone, readRegion, setPhone } from "../users.js";
+import {
+  normalizePhone,
+  readPhone,
+  readRegion,
+  setPhone,
+  setShowInvestmentAmounts,
+} from "../users.js";
 import { APP_CSS, APP_JS, FAVICON_SVG, INDEX_HTML, SERIF_WOFF2 } from "./page.js";
 
 export interface AppDeps {
@@ -498,7 +504,8 @@ export function createApp(deps: AppDeps) {
     return c.json(await readCashHistoryReport(deps.agentDb, await products.loadCatalog(), today));
   });
 
-  // Percentages only, and only by bucket: no dollar amounts and no individual positions.
+  // By bucket only, never individual positions. Percentages, plus amounts per bucket when the
+  // user turned them on.
   app.get("/api/allocation", async (c) => {
     const products = deps.products;
     if (!products) return c.json({ error: "no product catalog configured" }, 404);
@@ -508,6 +515,14 @@ export function createApp(deps: AppDeps) {
         await readAllocation(deps.agentDb, await products.loadSecurityCatalog?.(), today),
       ),
     );
+  });
+
+  // Shows or hides money amounts on Investments, for this user.
+  app.post("/api/settings/investment-amounts", async (c) => {
+    const body = z.object({ show: z.boolean() }).safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: "expected { show: true | false }" }, 400);
+    await setShowInvestmentAmounts(deps.db, deps.userId, body.data.show);
+    return c.json({ show: body.data.show });
   });
 
   // The research sleeve and investment-miner's candidates: percentages and evidence, no dollars.

@@ -51,6 +51,12 @@ export const appUser = pgTable("app_user", {
    * which banks Plaid offers, and whether US-only advice (401(k), IRA, US catalogs) applies.
    */
   country: text("country").notNull().default("US"),
+  /**
+   * Whether the Investments page (and the agent's allocation report) shows money amounts. Off by
+   * default: Tidysum is calm by design and shows only shares of the mix, for people who'd rather
+   * not watch their balance move. Some people want the numbers, so they can turn them on.
+   */
+  showInvestmentAmounts: boolean("show_investment_amounts").notNull().default(false),
   createdAt: tstz("created_at").notNull().defaultNow(),
 });
 

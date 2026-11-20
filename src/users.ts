@@ -104,3 +104,15 @@ export async function readPhone(db: Db, userId: string): Promise<string | undefi
 export async function setPhone(db: Db, userId: string, phone: string | null): Promise<void> {
   await db.update(appUser).set({ phoneNumber: phone }).where(eq(appUser.id, userId));
 }
+
+/**
+ * Whether the Investments page shows money amounts. A display choice, so it moves no money and
+ * needs no proposal; agents read it and keep to percentages while it is off.
+ */
+export async function setShowInvestmentAmounts(
+  db: Db,
+  userId: string,
+  show: boolean,
+): Promise<void> {
+  await db.update(appUser).set({ showInvestmentAmounts: show }).where(eq(appUser.id, userId));
+}

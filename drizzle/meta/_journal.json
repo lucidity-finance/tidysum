@@ -323,6 +323,13 @@
       "when": 1795190169937,
       "tag": "0045_enable_banking_source",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1795190891769,
+      "tag": "0046_show_investment_amounts",
+      "breakpoints": true
     }
   ]
 }

@@ -24,7 +24,7 @@ import { parsePolicy } from "../src/policy/policy.js";
 import { createProposal } from "../src/policy/proposals.js";
 import { readSnapshot } from "../src/policy/snapshot.js";
 import { activatePolicy } from "../src/policy/store.js";
-import { readAllocation } from "../src/portfolio/allocation.js";
+import { readAllocation, showsInvestmentAmounts } from "../src/portfolio/allocation.js";
 import {
   listManualHoldings,
   removeManualHolding,
@@ -33,7 +33,7 @@ import {
 import { loadSecurityCatalogFile } from "../src/portfolio/securityCatalog.js";
 import { createApp } from "../src/server/app.js";
 import { SyncScheduler } from "../src/sync/scheduler.js";
-import { createUser } from "../src/users.js";
+import { createUser, setShowInvestmentAmounts } from "../src/users.js";
 import { FakePlaid } from "./fakePlaid.js";
 import { ownerUserId } from "./users.js";
 
@@ -457,7 +457,20 @@ describe("policy and proposals", () => {
     expect(await readAllocation(agentDb, undefined, "2026-03-01")).toEqual({
       state: "no_target",
       as_of: "2026-03-01",
+      show_amounts: false,
     });
+  });
+
+  it("lets the agent read whether the user turned investment amounts on", async () => {
+    await setShowInvestmentAmounts(owner.db, userId, true);
+    try {
+      expect(await readAllocation(agentDb, undefined, "2026-03-01")).toMatchObject({
+        show_amounts: true,
+      });
+    } finally {
+      await setShowInvestmentAmounts(owner.db, userId, false);
+    }
+    expect(await showsInvestmentAmounts(agentDb)).toBe(false);
   });
 
   it("keeps hand-entered holdings per user, readable by the agent", async () => {
