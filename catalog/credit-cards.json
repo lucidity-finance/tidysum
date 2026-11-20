@@ -89,7 +89,7 @@
       "issuer": "Chase",
       "name": "Chase Freedom Unlimited",
       "annual_fee": "0",
-      "foreign_transaction_fee": null,
+      "foreign_transaction_fee": "3",
       "reward": { "currency": "cash" },
       "network": "visa",
       "base_rate": "1.5",
@@ -97,7 +97,7 @@
         { "category": "dining", "label": "dining, including takeout and delivery", "rate": "3" },
         { "category": "drugstores", "label": "drugstores", "rate": "3" }
       ],
-      "notes": "Rewards are Ultimate Rewards points worth 1 cent each as cash back. Leaves out 5% on travel booked through Chase Travel.",
+      "notes": "Rewards are Ultimate Rewards points worth 1 cent each as cash back. Leaves out 5% on travel booked through Chase Travel. The 3% foreign transaction fee is from its pricing and terms (sites.chase.com, LGC65873).",
       "match": ["freedom unlimited"],
       "source_url": "https://creditcards.chase.com/cash-back-credit-cards/freedom/unlimited",
       "verified_on": "2026-11-20"
@@ -115,7 +115,7 @@
         { "category": "dining", "label": "dining, including takeout and delivery", "rate": "3" },
         { "category": "drugstores", "label": "drugstores", "rate": "3" }
       ],
-      "notes": "Leaves out 5% on up to $1,500 a quarter in rotating categories you activate, and 5% on Chase Travel.",
+      "notes": "No foreign transaction fee: its pricing and terms (sites.chase.com, LGC60938) say None, a recent change. Leaves out 5% on up to $1,500 a quarter in rotating categories you activate, and 5% on Chase Travel.",
       "match": ["freedom flex"],
       "source_url": "https://creditcards.chase.com/cash-back-credit-cards/freedom/flex",
       "verified_on": "2026-11-20"
