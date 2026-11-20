@@ -160,7 +160,7 @@ describe("linking", () => {
         daysRequested: 730,
         clientUserId: userId,
         plaidUserId: "plaid-user-1",
-        countryCodes: ["US", "CA"],
+        countryCodes: ["US"],
       },
     ]);
     // The Plaid user is created once and reused.

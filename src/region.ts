@@ -114,14 +114,14 @@ export const PLAID_EUROPE_COUNTRIES = [
 
 /**
  * The country codes a Plaid Link session offers banks from, own country first, or a reason it
- * can't. US and Canadian users see both, since people in either often bank in the other.
+ * can't. Canadians also see US banks, since many hold a US dollar account across the border.
  */
 export function plaidCountries(
   region: Region,
   europeEnabled: boolean,
 ): { codes: string[] } | { unavailable: string } {
   const c = region.country;
-  if (c === "US") return { codes: ["US", "CA"] };
+  if (c === "US") return { codes: ["US"] };
   if (c === "CA") return { codes: ["CA", "US"] };
   if ((PLAID_EUROPE_COUNTRIES as readonly string[]).includes(c) && europeEnabled) {
     return { codes: [c] };

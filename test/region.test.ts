@@ -48,7 +48,7 @@ describe("regions", () => {
   });
 
   it("offers Plaid's free-plan countries, and Europe only with Plaid's European access", () => {
-    expect(plaidCountries(regionOf("US"), false)).toEqual({ codes: ["US", "CA"] });
+    expect(plaidCountries(regionOf("US"), false)).toEqual({ codes: ["US"] });
     expect(plaidCountries(regionOf("CA"), false)).toEqual({ codes: ["CA", "US"] });
     expect(plaidCountries(regionOf("FR"), false)).toMatchObject({
       unavailable: expect.stringMatching(/France.*import-csv/),
