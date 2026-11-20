@@ -7,25 +7,32 @@ import { fetchDataSet, fetchDataSetPage, filesToImport } from "./secFunds.js";
 
 // Public product facts, fetched on the owner side (`tidysum facts refresh`, and `serve` once a
 // day): fund fees from the SEC, card fees and APRs from the CFPB, and the 13-week Treasury bill yield
-// as a neutral benchmark for cash. All are US government data, free to use, with no key and no
-// referral money behind them. Each source fails on its own and is logged in fact_import.
+// as a neutral benchmark for cash, plus the Bank of Canada's 3-month bill yield for users in
+// Canada. All are government data, free to use, with no key and no referral money behind them.
+// Each source fails on its own and is logged in fact_import.
 
 /** The 13-week Treasury bill's coupon-equivalent yield, in market_reading. */
 export const TREASURY_SERIES = "TBILL13W";
 
-export type FactSource = "sec_funds" | "cfpb_cards" | "treasury";
+/** The Government of Canada 3-month treasury bill's average auction yield, in market_reading. */
+export const CANADA_TBILL_SERIES = "CA_TBILL3M";
+
+export type FactSource = "sec_funds" | "cfpb_cards" | "treasury" | "bank_of_canada";
 
 /** How often each source is worth fetching: the SEC adds a file a month, the CFPB two a year. */
 const EVERY_HOURS: Record<FactSource, number> = {
   sec_funds: 24 * 7,
   cfpb_cards: 24 * 7,
   treasury: 12,
+  // Auctions are every other week.
+  bank_of_canada: 24,
 };
 
 export interface Fetchers {
   sec?: typeof fetch;
   cfpb?: typeof fetch;
   treasury?: typeof fetch;
+  bankOfCanada?: typeof fetch;
 }
 
 export interface RefreshResult {
@@ -221,6 +228,42 @@ async function refreshTreasury(
   return { source: "treasury", status: n ? "imported" : "nothing_new", files: [], rows: n };
 }
 
+/** The Bank of Canada's Valet series for the 3-month bill's average auction yield. */
+const BOC_SERIES = "V80691303";
+export const BOC_VALET = `https://www.bankofcanada.ca/valet/observations/${BOC_SERIES}/json`;
+
+/**
+ * Valet's JSON (`{"observations":[{"d":"2026-11-17","V80691303":{"v":"2.66"}}]}`) as readings.
+ */
+export function parseValet(json: unknown): Reading[] {
+  const obs = (json as { observations?: unknown })?.observations;
+  if (!Array.isArray(obs)) return [];
+  return obs.flatMap((o): Reading[] => {
+    const day = (o as { d?: unknown })?.d;
+    const value = (o as Record<string, { v?: unknown } | undefined>)?.[BOC_SERIES]?.v;
+    if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return [];
+    if (typeof value !== "string" || !/^\d{1,2}(\.\d{1,4})?$/.test(value)) return [];
+    return [{ day, value }];
+  });
+}
+
+async function refreshBankOfCanada(
+  db: Db,
+  at: Date,
+  today: string,
+  fetcher: typeof fetch = fetch,
+): Promise<RefreshResult> {
+  const res = await fetcher(`${BOC_VALET}?recent=10`, {
+    headers: { "user-agent": "tidysum" },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`Bank of Canada bill yields: HTTP ${res.status}`);
+  const rows = parseValet(await res.json()).filter((r) => r.day <= today);
+  const n = await recordReadings(db, CANADA_TBILL_SERIES, rows);
+  await log(db, at, "bank_of_canada", true, n);
+  return { source: "bank_of_canada", status: n ? "imported" : "nothing_new", files: [], rows: n };
+}
+
 /**
  * Fetches each public source that is due (or every one, with `force`). One failing source doesn't
  * stop the others; its error is logged and returned.
@@ -235,6 +278,7 @@ export async function refreshFacts(
     sec_funds: () => refreshFunds(db, now, today, opts.fetchers?.sec),
     cfpb_cards: () => refreshCards(db, now, opts.fetchers?.cfpb),
     treasury: () => refreshTreasury(db, now, today, opts.fetchers?.treasury),
+    bank_of_canada: () => refreshBankOfCanada(db, now, today, opts.fetchers?.bankOfCanada),
   };
   const results: RefreshResult[] = [];
   for (const source of opts.only ?? (Object.keys(run) as FactSource[])) {

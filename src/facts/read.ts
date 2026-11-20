@@ -1,6 +1,7 @@
 import Big from "big.js";
 import type { AgentDb } from "../mcp/agentDb.js";
-import { TREASURY_SERIES } from "./refresh.js";
+import { readAgentRegion } from "../users.js";
+import { CANADA_TBILL_SERIES, TREASURY_SERIES } from "./refresh.js";
 
 // The public facts as agents and the page read them, through the read-only agent role.
 
@@ -158,14 +159,33 @@ export async function readCardSurvey(db: AgentDb): Promise<CardTermsFact[]> {
   return rows;
 }
 
-/** The latest 13-week Treasury bill yield: a neutral yardstick for what cash can earn. */
+/**
+ * The latest short government bill yield where the session user lives: a neutral yardstick for
+ * what cash can earn. The US Treasury's 13-week bill, or the Government of Canada's 3-month bill;
+ * null elsewhere until a source is added there.
+ */
 export async function readTreasuryBenchmark(db: AgentDb) {
+  const { country } = await readAgentRegion(db);
+  const series = country === "CA" ? CANADA_TBILL_SERIES : country === "US" ? TREASURY_SERIES : null;
+  if (!series) return null;
   const { rows } = await db.query<{ day: string; value: string }>(
     `select day, value::text from market_reading where series = $1 order by day desc limit 1`,
-    [TREASURY_SERIES],
+    [series],
   );
   const r = rows[0];
   if (!r) return null;
+  if (country === "CA") {
+    return {
+      name: "3-month Government of Canada treasury bill yield",
+      yield: new Big(r.value).toFixed(2),
+      as_of: r.day,
+      source_url: "https://www.bankofcanada.ca/rates/interest-rates/t-bill-yields/",
+      note:
+        "What lending to the Government of Canada for three months pays (average yield at its " +
+        "latest auction, from the Bank of Canada). A yardstick, not a bank account: compare cash " +
+        "rates with it.",
+    };
+  }
   return {
     name: "13-week (3-month) US Treasury bill yield",
     yield: new Big(r.value).toFixed(2),
@@ -194,7 +214,7 @@ export async function readFactSources(db: AgentDb) {
        (select error from fact_import f where f.source = s.source and not ok
           and f.at > coalesce((select max(at) from fact_import where source = s.source and ok), '-infinity')
          order by at desc limit 1) as last_error
-     from (values ('sec_funds'), ('cfpb_cards'), ('treasury')) s(source)`,
+     from (values ('sec_funds'), ('cfpb_cards'), ('treasury'), ('bank_of_canada')) s(source)`,
   );
   return rows;
 }

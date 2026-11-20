@@ -219,6 +219,17 @@ const fetchers = {
         "11/19/2026,4.12,4.16,4.34\n11/18/2026,3.98,4.16,\n11/17/2026,4.10,4.15,4.33\n",
     ),
   }),
+  bankOfCanada: fakeFetch({
+    "valet/observations/V80691303": text(
+      JSON.stringify({
+        observations: [
+          { d: "2026-11-03", V80691303: { v: "2.71" } },
+          { d: "2026-11-17", V80691303: { v: "2.66" } },
+          { d: "2026-11-18", V80691303: { v: "bad" } },
+        ],
+      }),
+    ),
+  }),
 };
 
 const deposits = parseCatalog({
@@ -392,6 +403,7 @@ describe("refreshing public facts", () => {
       ["sec_funds", "imported", 3],
       ["cfpb_cards", "imported", 2],
       ["treasury", "imported", 2],
+      ["bank_of_canada", "imported", 2],
     ]);
     const fees = await owner.db.select().from(fundFee).orderBy(fundFee.ticker);
     // The quarter's file has only the older filing; it never overwrites the newer fee.
@@ -401,10 +413,15 @@ describe("refreshing public facts", () => {
     ]);
 
     const again = await refreshFacts(owner.db, TODAY, { fetchers, now });
-    expect(again.map((r) => r.status)).toEqual(["skipped", "skipped", "skipped"]);
+    expect(again.map((r) => r.status)).toEqual(["skipped", "skipped", "skipped", "skipped"]);
     const forced = await refreshFacts(owner.db, TODAY, { fetchers, now, force: true });
     // Files already imported aren't fetched again; the Treasury's month of readings is re-recorded.
-    expect(forced.map((r) => r.status)).toEqual(["nothing_new", "nothing_new", "imported"]);
+    expect(forced.map((r) => r.status)).toEqual([
+      "nothing_new",
+      "nothing_new",
+      "imported",
+      "imported",
+    ]);
   });
 
   it("logs a failing source and retries it hours later, not a week", async () => {

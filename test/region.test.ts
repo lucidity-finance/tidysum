@@ -1,8 +1,17 @@
 import { eq } from "drizzle-orm";
 import { afterAll, describe, expect, inject, it } from "vitest";
 import { connect } from "../src/db/client.js";
-import { account, appUser, balanceSnapshot, item, transaction } from "../src/db/schema.js";
+import {
+  account,
+  appUser,
+  balanceSnapshot,
+  item,
+  marketReading,
+  transaction,
+} from "../src/db/schema.js";
 import { forUserRegion } from "../src/facts/catalogs.js";
+import { readTreasuryBenchmark } from "../src/facts/read.js";
+import { CANADA_TBILL_SERIES } from "../src/facts/refresh.js";
 import { connectAgent } from "../src/mcp/agentDb.js";
 import { detectMisallocations } from "../src/misallocation/detect.js";
 import { parsePolicy } from "../src/policy/policy.js";
@@ -191,6 +200,16 @@ describe("a user in Canada", () => {
       ["deposit_rate", "ca-savings", "300.00", "CAD"],
       ["foreign_fees", null, "25.00", "CAD"],
     ]);
+
+    // Cash is measured against Canada's own treasury bills.
+    await db
+      .insert(marketReading)
+      .values({ series: CANADA_TBILL_SERIES, day: "2026-11-17", value: "2.66" })
+      .onConflictDoNothing();
+    expect(await readTreasuryBenchmark(agentDb)).toMatchObject({
+      name: "3-month Government of Canada treasury bill yield",
+      source_url: expect.stringContaining("bankofcanada.ca"),
+    });
   });
 });
 
