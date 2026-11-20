@@ -79,6 +79,12 @@ export interface PlaidItemInfo {
   institutionName: string | null;
 }
 
+/** What a sync reads from a connection: Plaid's, or another source in Plaid's shapes. */
+export type SyncGateway = Pick<
+  PlaidGateway,
+  "getAccounts" | "syncTransactions" | "getHoldings" | "getLiabilities" | "removeItem"
+>;
+
 export interface PlaidGateway {
   exchangePublicToken(publicToken: string): Promise<{ accessToken: string; itemId: string }>;
   getItem(accessToken: string): Promise<PlaidItemInfo>;

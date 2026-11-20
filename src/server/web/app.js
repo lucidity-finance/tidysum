@@ -547,9 +547,78 @@ async function openLink(itemId) {
   handler.open();
 }
 
-function startLink(button, itemId) {
+/**
+ * UK and EU banks link through Enable Banking (decision 0011): pick the bank here, sign in at the
+ * bank, and the bank sends the browser back to Tidysum. Plaid's free plan covers the US and Canada.
+ */
+const viaEnableBanking = () => {
+  const r = ok("items");
+  return !!r?.bankLinks && !["US", "CA"].includes(r.country);
+};
+
+/** "eb:GB:Monzo" -> { country: "GB", name: "Monzo" }. */
+function ebBank(institutionId) {
+  const m = /^eb:([A-Z]{2}):(.+)$/.exec(institutionId || "");
+  return m ? { country: m[1], name: m[2] } : null;
+}
+
+async function goToBank(bank, itemId) {
+  const { url } = await api("/api/bank-link", { ...bank, ...(itemId ? { itemId } : {}) });
+  location.href = url;
+}
+
+async function pickBank() {
+  const dialog = $("#banks");
+  const list = $("#banks-list");
+  const search = $("#banks-search");
+  const country = ok("items")?.country;
+  $("#banks-note").textContent =
+    "You sign in at your bank, and it sends you back here. Tidysum only reads your accounts.";
+  fill(list, h("p", { class: "muted small" }, "Loading banks..."));
+  search.value = "";
+  $("#banks-cancel").onclick = () => dialog.close();
+  dialog.showModal();
+  const { banks } = await api(`/api/banks?country=${encodeURIComponent(country)}`);
+  const show = () => {
+    const q = search.value.trim().toLowerCase();
+    const hits = banks.filter((b) => !q || b.name.toLowerCase().includes(q)).slice(0, 60);
+    fill(
+      list,
+      hits.length
+        ? hits.map((b) =>
+            h(
+              "button",
+              {
+                class: "bank-choice",
+                type: "button",
+                onclick: (ev) => {
+                  ev.currentTarget.disabled = true;
+                  goToBank({ name: b.name, country }).catch((e) => {
+                    dialog.close();
+                    toast(e.message, "error");
+                  });
+                },
+              },
+              h("span", { class: "avatar", style: { "--hue": hue(b.name) } }, initials(b.name)),
+              b.name,
+            ),
+          )
+        : h("p", { class: "muted small" }, "No bank by that name."),
+    );
+  };
+  search.oninput = show;
+  show();
+  search.focus();
+}
+
+function startLink(button, itemId, bank) {
   button.disabled = true;
-  openLink(itemId)
+  const run = bank
+    ? goToBank(bank, itemId)
+    : viaEnableBanking() && !itemId
+      ? pickBank()
+      : openLink(itemId);
+  run
     .catch((e) => toast(e.message, "error"))
     .finally(() => {
       button.disabled = false;
@@ -562,7 +631,7 @@ function linkButton(label, opts = {}) {
     {
       class: `btn ${opts.primary === false ? "" : "btn-primary"} ${opts.small ? "btn-sm" : ""}`,
       type: "button",
-      onclick: (ev) => startLink(ev.currentTarget, opts.itemId),
+      onclick: (ev) => startLink(ev.currentTarget, opts.itemId, opts.bank),
     },
     opts.itemId ? icon("refresh") : icon("plus"),
     label,
@@ -2697,7 +2766,9 @@ function institutionRow(it) {
       : null,
     it.source === "plaid" && broken && it.status !== "disconnected"
       ? linkButton("Reconnect", { itemId: it.id, small: true })
-      : null,
+      : it.source === "enable_banking" && broken && ebBank(it.institutionId)
+        ? linkButton("Reconnect", { itemId: it.id, small: true, bank: ebBank(it.institutionId) })
+        : null,
     // The demo's banks stay put: there is nothing real of yours to disconnect.
     ok("items")?.demo
       ? null
@@ -2826,9 +2897,11 @@ function renderConnections() {
   $("#link-new").hidden = !r || !!r.error || r.items.length === 0 || !!r.demo;
   if (!r) return fill(root, skeleton(1));
   if (r.error) return fill(root, failed("Connections", r));
-  const phone = r.demo
-    ? null
-    : h("div", { class: "panel list phone-panel" }, phoneRow(r.phoneEnding));
+  // Plaid remembers a phone number; Enable Banking has no such thing.
+  const phone =
+    r.demo || viaEnableBanking()
+      ? null
+      : h("div", { class: "panel list phone-panel" }, phoneRow(r.phoneEnding));
   if (r.items.length === 0) {
     return fill(
       root,

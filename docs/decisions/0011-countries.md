@@ -44,12 +44,23 @@ What it takes to link accounts differs by country (checked 2026-11-20):
    (`country: CA`) beside US ones, Canadian stocks are a sleeve of international stocks (these
    styles split US and non-US), and a money style picked in Canada puts Canadian-listed funds first
    in each bucket. Only US funds take their fee from the SEC.
-6. **Order:** Canada first (done here), then the UK (Enable Banking connector, GBP, UCITS funds,
-   ISA and SIPP, FSCS-protected savings, Bank of England rate), then the EU (same connector, EUR,
-   UCITS, the €100k deposit guarantee, ECB rate; tax wrappers country by country later).
+6. **Order:** Canada first, then the UK and EU bank connector (Enable Banking, below), then UK
+   funds and rules (UCITS funds, ISA and SIPP, FSCS-protected savings, Bank of England rate), then
+   the EU's (UCITS, the €100k deposit guarantee, ECB rate; tax wrappers country by country later).
 7. **Using Tidysum for your own money is fine anywhere.** Offering advice to other people in these
    countries needs local authorization (FCA, Canadian securities regulators, MiFID firms), as the
    US needs SEC registration (decision 0002, principle 8).
+
+## The UK and EU connector
+
+Built after Canada: `src/enableBanking/`. The person registers their own Enable Banking
+application (free for their own accounts) and gives Tidysum its id and private key; nothing runs
+through a Tidysum server. Its sessions are stored like Plaid's access tokens (encrypted in
+`item_secret`) and sync into the same tables through the same code, so every check works the same
+way on what open banking provides: accounts, balances and booked transactions, without categories,
+holdings or liabilities. Banks only send people back to https addresses, so the project's GitHub
+Pages site has a forwarding page (`site/bank-callback.html`) that passes the answer on to a
+Tidysum on 127.0.0.1 and nowhere else.
 
 ## Still to do for Canada
 

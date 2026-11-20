@@ -20,8 +20,8 @@ import {
   agentHours,
   cardsPath,
   isLoopbackHost,
+  loadConnectionConfig,
   loadDbConfig,
-  loadPlaidConfig,
   loadServerConfig,
   minerDir,
   minerIntervalHours,
@@ -48,6 +48,9 @@ import {
 import { demoHousehold } from "./demo/household.js";
 import { DEFAULT_DEMO_DATABASE_URL, resetDemoDatabase, seedDemo } from "./demo/seed.js";
 import { writeDemoSite } from "./demo/site.js";
+import { EnableBankingClient } from "./enableBanking/client.js";
+import { EnableBankingGateway, withEnableBanking } from "./enableBanking/gateway.js";
+import { BankLinks } from "./enableBanking/link.js";
 import { deleteUser, removeItem } from "./exits.js";
 import { forUserRegion, withPublicFacts } from "./facts/catalogs.js";
 import { readFactChecks, staleFacts } from "./facts/checks.js";
@@ -69,6 +72,7 @@ import {
   setMisallocationState,
 } from "./misallocation/ledger.js";
 import { PlaidApiGateway } from "./plaid/plaidApiGateway.js";
+import { unconfiguredPlaid } from "./plaid/unconfigured.js";
 import { PlaidWebhookVerifier } from "./plaid/webhookVerifier.js";
 import { setPlanFile } from "./plan/plan.js";
 import { evaluatePolicy } from "./policy/engine.js";
@@ -224,9 +228,26 @@ Commands act for TIDYSUM_USER_ID, or for the only user when there is just one.`;
 /** Ask for the maximum history at link time; Plaid's default is about 90 days. */
 const DAYS_REQUESTED = 730;
 
+/**
+ * The connections that sync accounts: Plaid, and Enable Banking for UK and EU banks when it is
+ * set up (decision 0011). Sync and removal calls reach whichever one an item belongs to.
+ */
 function plaidDeps() {
-  const config = loadPlaidConfig();
-  return { plaid: new PlaidApiGateway(config), cipher: new TokenCipher(config.TIDYSUM_TOKEN_KEY) };
+  const config = loadConnectionConfig();
+  const eb = config.enableBanking
+    ? EnableBankingClient.fromFile(
+        config.enableBanking.ENABLE_BANKING_APP_ID,
+        config.enableBanking.ENABLE_BANKING_KEY_FILE,
+      )
+    : undefined;
+  const plaid = withEnableBanking(
+    config.plaid ? new PlaidApiGateway(config.plaid) : unconfiguredPlaid(),
+    eb ? new EnableBankingGateway(eb) : undefined,
+  );
+  const bankLinks = eb
+    ? new BankLinks(eb, config.enableBanking?.ENABLE_BANKING_REDIRECT_URL)
+    : undefined;
+  return { plaid, cipher: new TokenCipher(config.tokenKey), bankLinks };
 }
 
 async function syncAll(h: DbHandle) {
@@ -234,7 +255,12 @@ async function syncAll(h: DbHandle) {
   const items = await h.db
     .select({ id: item.id, name: item.institutionName })
     .from(item)
-    .where(and(eq(item.source, "plaid"), inArray(item.status, ["active", "error"])));
+    .where(
+      and(
+        inArray(item.source, ["plaid", "enable_banking"]),
+        inArray(item.status, ["active", "error"]),
+      ),
+    );
   for (const it of items) {
     const r = await syncItem(h.db, plaid, cipher, it.id);
     const detail = r.status === "succeeded" ? `+${r.added} ~${r.modified} -${r.removed}` : r.error;
@@ -246,7 +272,7 @@ async function runServer(h: DbHandle) {
   const server = loadServerConfig();
   const userId = await resolveUserId(h.db);
   const agentDb = connectAgent(loadDbConfig().DATABASE_URL, userId);
-  const { plaid, cipher } = plaidDeps();
+  const { plaid, cipher, bankLinks } = plaidDeps();
   const scheduler = new SyncScheduler(h.db, plaid, cipher, (r) => {
     const detail = r.status === "succeeded" ? `+${r.added} ~${r.modified} -${r.removed}` : r.error;
     console.log(`sync ${r.itemId}: ${r.status} ${detail}`);
@@ -277,6 +303,7 @@ async function runServer(h: DbHandle) {
       : {}),
     daysRequested: DAYS_REQUESTED,
     plaidEurope: plaidEurope(),
+    ...(bankLinks ? { bankLinks } : {}),
     linkSessionRetryMs: 1000,
     userId,
     agentDb,

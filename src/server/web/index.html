@@ -87,6 +87,15 @@
 
     <div class="toasts" id="toasts" aria-live="polite"></div>
 
+    <dialog class="dialog" id="banks">
+      <h2>Link a bank</h2>
+      <p class="muted small" id="banks-note"></p>
+      <input class="input" type="search" id="banks-search" placeholder="Search banks" autocomplete="off" />
+      <div class="bank-list" id="banks-list"></div>
+      <div class="dialog-actions">
+        <button class="btn" type="button" id="banks-cancel">Cancel</button>
+      </div>
+    </dialog>
     <dialog class="dialog" id="confirm">
       <h2 id="confirm-title">Are you sure?</h2>
       <p id="confirm-body"></p>

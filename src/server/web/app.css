@@ -4572,3 +4572,36 @@ body.is-sorting * {
 .style-card .style-who::first-letter {
   text-transform: uppercase;
 }
+
+/* The bank picker for UK and EU banks (Enable Banking). */
+#banks {
+  width: min(28rem, calc(100vw - 2rem));
+}
+#banks .input {
+  width: 100%;
+  margin: 0.75rem 0;
+}
+.bank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.bank-choice {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.625rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bank-choice:hover,
+.bank-choice:focus-visible {
+  background: var(--surface-2, rgba(127, 127, 127, 0.12));
+}

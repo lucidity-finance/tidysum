@@ -232,8 +232,9 @@ cp .env.example .env                  # then fill in the four lines below
 
 **Outside the US?** Canada works with the same free Plaid account: run
 `pnpm tidysum user country CA` after `migrate`, and amounts, banks and funds follow. In the UK and
-EU, Plaid's free plan can't reach your banks yet, so accounts come in as CSV for now
-([outside the US](docs/connect-your-accounts.md#outside-the-us)).
+EU, Plaid's free plan can't reach your banks, so Tidysum connects them through Enable Banking's
+free mode for your own accounts instead
+([UK and EU banks](docs/connect-your-accounts.md#uk-and-eu-banks)).
 
 [Connect your accounts](docs/connect-your-accounts.md) explains every step, what counts toward the
 10 free connections, and how to try it first with Plaid's test bank. Institutions Plaid can't reach

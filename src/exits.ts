@@ -64,7 +64,7 @@ export async function removeItem(
     .from(item)
     .where(and(eq(item.id, itemId), eq(item.userId, userId)));
   if (!row) throw new Error(`no item ${itemId}`);
-  if (row.source === "plaid") await revokeAtPlaid(db, plaid, cipher, row.id);
+  if (row.source !== "csv") await revokeAtPlaid(db, plaid, cipher, row.id);
 
   return db.transaction(async (tx) => {
     const ids = (
@@ -162,7 +162,7 @@ export async function deleteUser(
     .from(item)
     .where(eq(item.userId, userId));
   for (const it of items) {
-    if (it.source === "plaid") await revokeAtPlaid(db, plaid, cipher, it.id);
+    if (it.source !== "csv") await revokeAtPlaid(db, plaid, cipher, it.id);
   }
   await db.transaction(async (tx) => {
     await tx

@@ -59,7 +59,7 @@ const userId = () =>
     .notNull()
     .references(() => appUser.id, { onDelete: "cascade" });
 
-export const itemSource = ["plaid", "csv"] as const;
+export const itemSource = ["plaid", "csv", "enable_banking"] as const;
 export const itemStatus = ["active", "relink_required", "error", "disconnected"] as const;
 
 /** One login at one institution. Plaid's Trial plan allows 10 of these. */

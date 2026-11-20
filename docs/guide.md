@@ -44,7 +44,8 @@ JWT (ES256, body hash, at most 5 minutes old) or it is rejected with 401.
 `tidysum user country <code>` sets where the user lives (US by default): the currency Tidysum
 counts in, which countries Plaid Link offers banks from, which catalog products and money-style
 funds they see, and whether US-only checks run. Canada works with Plaid's free plan; UK and EU banks
-need `PLAID_EUROPE=true` (Plaid's European access) or CSV import until a connector for them lands.
+connect through Enable Banking (`src/enableBanking/`, `ENABLE_BANKING_*` in `.env`), or through
+Plaid with `PLAID_EUROPE=true` for a Plaid team with European access.
 See [decision 0011](decisions/0011-countries.md) for what each country still needs.
 
 ## Institutions Plaid can't reach

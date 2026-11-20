@@ -20,6 +20,7 @@ import type { TokenCipher } from "../crypto/tokenCipher.js";
 import type { Db } from "../db/client.js";
 import { item } from "../db/schema.js";
 import { CHECKED_ON as DEMO_CHECKED_ON } from "../demo/realWorld.js";
+import type { BankLinks } from "../enableBanking/link.js";
 import { removeItem } from "../exits.js";
 import { readTreasuryBenchmark } from "../facts/read.js";
 import type { AgentDb } from "../mcp/agentDb.js";
@@ -76,6 +77,8 @@ export interface AppDeps {
   daysRequested: number;
   /** PLAID_EUROPE: Plaid Link may offer UK and EU banks to users living there. */
   plaidEurope?: boolean;
+  /** Enable Banking, for UK and EU banks (decision 0011); unset when it isn't set up. */
+  bankLinks?: BankLinks;
   /** Wait between /link/token/get retries while a finished session's results appear; 0 = no retry. */
   linkSessionRetryMs?: number;
   /**
@@ -99,6 +102,13 @@ export interface AppDeps {
 }
 
 const LinkTokenBody = z.object({ itemId: z.uuid().optional() }).strict();
+const BankLinkBody = z
+  .object({
+    name: z.string().min(1).max(200),
+    country: z.string().regex(/^[A-Z]{2}$/),
+    itemId: z.uuid().optional(),
+  })
+  .strict();
 const LinkSessionBody = z.object({ linkToken: z.string().min(1).max(200) }).strict();
 const DepositChoiceBody = z
   .object({
@@ -237,7 +247,13 @@ export function createApp(deps: AppDeps) {
         { error: "This is the demo with a made-up person; it can't connect real accounts." },
         403,
       );
-    for (const path of ["/api/phone", "/api/link-token", "/api/link-sessions", "/api/items"]) {
+    for (const path of [
+      "/api/phone",
+      "/api/link-token",
+      "/api/link-sessions",
+      "/api/items",
+      "/api/bank-link",
+    ]) {
       app.post(path, refuse);
     }
     app.post("/api/items/:id/*", refuse);
@@ -260,6 +276,7 @@ export function createApp(deps: AppDeps) {
         id: item.id,
         source: item.source,
         institutionName: item.institutionName,
+        institutionId: item.institutionId,
         status: item.status,
         statusDetail: item.statusDetail,
         lastSyncedAt: item.lastSyncedAt,
@@ -274,6 +291,7 @@ export function createApp(deps: AppDeps) {
       items: rows,
       country: region.country,
       currency: region.currency,
+      bankLinks: deps.bankLinks !== undefined,
       phoneEnding: phone ? phone.slice(-4) : null,
       // The demo's banks are real; the page says when their public rates were last checked.
       ...(deps.demo ? { demo: true, demo_checked_on: DEMO_CHECKED_ON } : {}),
@@ -307,7 +325,12 @@ export function createApp(deps: AppDeps) {
       accessToken = await loadAccessToken(deps.db, deps.cipher, row.id);
     }
     const countries = plaidCountries(await readRegion(deps.db, deps.userId), !!deps.plaidEurope);
-    if ("unavailable" in countries) return c.json({ error: countries.unavailable }, 400);
+    if ("unavailable" in countries) {
+      const error = deps.bankLinks
+        ? "Plaid can't reach banks where you live. Use Link a bank, which connects through Enable Banking."
+        : countries.unavailable;
+      return c.json({ error }, 400);
+    }
     // New links add as many institutions as the user wants in one session (one phone code).
     const plaidUserId = accessToken
       ? undefined
@@ -385,6 +408,51 @@ export function createApp(deps: AppDeps) {
     if (updated.length === 0) return c.json({ error: "unknown item" }, 404);
     void deps.scheduler.request(id.data);
     return c.json({ ok: true });
+  });
+
+  // UK and EU banks through Enable Banking (decision 0011): pick a bank, sign in there, come back.
+  app.get("/api/banks", async (c) => {
+    if (!deps.bankLinks) return c.json({ error: "Enable Banking isn't set up" }, 404);
+    const country = c.req.query("country") ?? (await readRegion(deps.db, deps.userId)).country;
+    if (!/^[A-Z]{2}$/.test(country)) return c.json({ error: "invalid country" }, 400);
+    const banks = await deps.bankLinks.listBanks(country);
+    return c.json({ country, banks: banks.map((b) => ({ name: b.name, logo: b.logo })) });
+  });
+
+  app.post("/api/bank-link", async (c) => {
+    if (!deps.bankLinks) return c.json({ error: "Enable Banking isn't set up" }, 404);
+    const body = BankLinkBody.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: "invalid body" }, 400);
+    const { name, country, itemId } = body.data;
+    const url = await deps.bankLinks.start({
+      userId: deps.userId,
+      bank: { name, country },
+      ...(itemId ? { itemId } : {}),
+      origin: new URL(c.req.url).origin,
+    });
+    return c.json({ url });
+  });
+
+  // The bank sends the person back here, directly or through the forwarding page.
+  app.get("/enable-banking/callback", async (c) => {
+    const back = (message: string) =>
+      c.html(
+        `<!doctype html><meta charset="utf-8"><title>Tidysum</title>` +
+          `<p>${message.replace(/[&<>"]/g, (ch) => `&#${ch.charCodeAt(0)};`)}</p>` +
+          `<p><a href="/#connections">Back to Tidysum</a></p>`,
+        400,
+      );
+    if (!deps.bankLinks) return back("Enable Banking isn't set up.");
+    const { state, code, error, error_description: why } = c.req.query();
+    if (error) return back(`The bank didn't share the accounts: ${why || error}.`);
+    if (!state || !code) return back("The bank sent no code back. Start the link again.");
+    try {
+      const itemId = await deps.bankLinks.finish(deps.db, deps.cipher, deps.userId, state, code);
+      void deps.scheduler.request(itemId);
+    } catch (err) {
+      return back(err instanceof Error ? err.message : String(err));
+    }
+    return c.redirect("/#connections");
   });
 
   // Disconnects an Item and deletes its data (decision 0002, principle 9).

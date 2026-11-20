@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Back to Tidysum</title>
+    <style>
+      body {
+        font: 16px/1.5 system-ui, sans-serif;
+        max-width: 32rem;
+        margin: 4rem auto;
+        padding: 0 1rem;
+        color: #1d2420;
+        background: #faf8f3;
+      }
+    </style>
+  </head>
+  <body>
+    <p id="msg">Taking you back to Tidysum...</p>
+    <script>
+      // Banks send a person back to an https address, and Tidysum runs on their own computer at
+      // http://127.0.0.1. This page passes the bank's answer on to that Tidysum and keeps nothing:
+      // it runs in the browser only, and the code it forwards is useless without the private key
+      // that stays on that computer. The address comes from the state Tidysum started with, and
+      // only an address on this computer is accepted.
+      (() => {
+        const q = new URLSearchParams(location.search);
+        const state = q.get("state") || "";
+        const msg = document.getElementById("msg");
+        let origin = null;
+        try {
+          const b64 = state.split(".")[1] || "";
+          origin = new URL(atob(b64.replace(/-/g, "+").replace(/_/g, "/"))).origin;
+        } catch (_e) {
+          origin = null;
+        }
+        const local = origin && /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/.test(origin);
+        if (!local) {
+          msg.textContent =
+            "This page only returns to a Tidysum running on this computer. Open Tidysum and start the link again.";
+          return;
+        }
+        location.replace(`${origin}/enable-banking/callback${location.search}`);
+      })();
+    </script>
+  </body>
+</html>

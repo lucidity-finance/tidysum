@@ -62,6 +62,34 @@ export const loadDbConfig = (env = process.env) => parse(DbEnv, env);
 export const loadPlaidConfig = (env = process.env) => parse(PlaidEnv, env);
 export const loadServerConfig = (env = process.env) => parse(ServerEnv, env);
 
+const EnableBankingEnv = z.object({
+  /** The application id from Enable Banking's Control Panel (the key file is named after it). */
+  ENABLE_BANKING_APP_ID: z.string().min(1),
+  /** The application's private key (PEM), as Enable Banking downloaded it at registration. */
+  ENABLE_BANKING_KEY_FILE: z.string().min(1),
+  /**
+   * Where the bank sends the person back, as registered with the application. Unset: Tidysum's
+   * own /enable-banking/callback on the address the page was opened at. Production applications
+   * need https, so a local Tidysum registers the project's forwarding page instead
+   * (docs/connect-your-accounts.md).
+   */
+  ENABLE_BANKING_REDIRECT_URL: unsetIfEmpty(z.url()),
+});
+
+export type EnableBankingConfig = z.infer<typeof EnableBankingEnv>;
+
+/**
+ * What connects accounts: Plaid, Enable Banking (UK and EU banks, decision 0011), or both, and
+ * the key their stored tokens are encrypted with. Plaid's keys are required unless Enable Banking
+ * is set up, so someone in Europe needs no Plaid account.
+ */
+export function loadConnectionConfig(env = process.env) {
+  const enableBanking = env.ENABLE_BANKING_APP_ID ? parse(EnableBankingEnv, env) : undefined;
+  const plaid = env.PLAID_CLIENT_ID || !enableBanking ? loadPlaidConfig(env) : undefined;
+  const { TIDYSUM_TOKEN_KEY: tokenKey } = parse(z.object({ TIDYSUM_TOKEN_KEY: base64Key }), env);
+  return { plaid, enableBanking, tokenKey };
+}
+
 /** Deposit product rates with their sources. Relative paths resolve from the working directory. */
 export const productsPath = (env = process.env) =>
   env.TIDYSUM_PRODUCTS_FILE || "catalog/deposit-products.json";

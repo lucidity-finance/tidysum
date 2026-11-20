@@ -5,6 +5,9 @@ import { item } from "../db/schema.js";
 import type { PlaidGateway } from "../plaid/gateway.js";
 import { type SyncResult, syncItem } from "./syncItem.js";
 
+/** Sources a sync pulls from; CSV imports are refreshed by importing again. */
+const SYNCED = ["plaid", "enable_banking"] as const;
+
 /**
  * Serializes syncs per Item. Webhooks, the interval timer and the Link page can all ask for a
  * sync at once; an Item never syncs twice concurrently, and a request that arrives mid-sync
@@ -46,7 +49,7 @@ export class SyncScheduler {
     const items = await this.db
       .select({ id: item.id })
       .from(item)
-      .where(and(eq(item.source, "plaid"), inArray(item.status, ["active", "error"])));
+      .where(and(inArray(item.source, SYNCED), inArray(item.status, ["active", "error"])));
     await Promise.all(items.map((i) => this.request(i.id)));
   }
 
@@ -58,7 +61,7 @@ export class SyncScheduler {
     const items = await this.db
       .select({ id: item.id })
       .from(item)
-      .where(and(eq(item.source, "plaid"), eq(item.status, "error")));
+      .where(and(inArray(item.source, SYNCED), eq(item.status, "error")));
     await Promise.all(items.map((i) => this.request(i.id)));
     return items.length;
   }

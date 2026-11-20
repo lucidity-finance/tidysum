@@ -316,6 +316,13 @@
       "when": 1795189668590,
       "tag": "0044_bank_of_canada_facts",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1795190169937,
+      "tag": "0045_enable_banking_source",
+      "breakpoints": true
     }
   ]
 }

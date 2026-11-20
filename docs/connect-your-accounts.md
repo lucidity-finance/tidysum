@@ -149,12 +149,48 @@ me?"_. To connect your agent to Tidysum, see [Connect your agent](../README.md#c
   Canadian-listed funds, and cash is measured against the Bank of Canada's 3-month bill yield.
   The 401(k) and IRA checks are US tax law, so they stay off; TFSA and RRSP checks, and Canadian
   savings accounts and cards to compare with, aren't in yet.
-- **UK and EU:** Plaid's free plan doesn't reach banks there, so for now import CSV exports
-  (`pnpm tidysum import-csv --currency GBP ...`) after setting your country
-  (`pnpm tidysum user country GB`). A free connector for UK and EU banks (Enable Banking) is next.
-  If your Plaid team already has Plaid's European production access, set `PLAID_EUROPE=true`.
+- **UK and EU:** Plaid's free plan doesn't reach banks there. Tidysum connects them through
+  [Enable Banking](https://enablebanking.com) instead, whose free mode covers your own accounts
+  at 2,500+ banks in 29 European countries. You need no Plaid account. See
+  [UK and EU banks](#uk-and-eu-banks) below. Brokerages, ISAs and pensions aren't covered by open
+  banking: import them as CSV or enter holdings by hand.
+- **Plaid with European access:** if your Plaid team already has Plaid's European production
+  access, set `PLAID_EUROPE=true` and Plaid offers banks where you live.
 - **Accounts in another currency** (a US dollar account in Canada, say) are synced and listed, but
   left out of totals and findings rather than added up as if they were the same money.
+
+## UK and EU banks
+
+1. Set your country: `pnpm tidysum user country GB` (or `DE`, `FR`, `NL`, ...).
+2. Sign up at [enablebanking.com](https://enablebanking.com/sign-in/) (a one-time link by email)
+   and open **Applications** in the Control Panel. Add an application:
+   - **Environment:** Production.
+   - **Name:** anything, such as "Tidysum (personal)". Your bank shows it when you sign in.
+   - **Redirect URL:** `https://lucidity-finance.github.io/tidysum/bank-callback.html`. Banks only
+     send you back to an https address; that page runs in your browser and passes you on to
+     Tidysum on `127.0.0.1`, and only there. If your Tidysum has its own https address, register
+     `https://<that address>/enable-banking/callback` instead.
+   - **Privacy and terms URLs, email:** your own; in the free mode they are only shown to you.
+   - **Key:** keep "generate in the browser". Enable Banking downloads `<application id>.pem`.
+3. Click **Activate by linking accounts** and sign in to each bank whose accounts you want. The
+   free mode only ever returns accounts linked here.
+4. Put the key file somewhere safe (outside the repository) and fill in `.env`:
+
+   ```sh
+   ENABLE_BANKING_APP_ID=<the application id>
+   ENABLE_BANKING_KEY_FILE=/path/to/<application id>.pem
+   ENABLE_BANKING_REDIRECT_URL=https://lucidity-finance.github.io/tidysum/bank-callback.html
+   ```
+
+   Leave the Plaid lines empty. `TIDYSUM_TOKEN_KEY` is still needed.
+5. Start Tidysum and, on **Connections**, click **Link institutions**, pick your bank and sign in.
+   Tidysum syncs up to two years of booked transactions (what your bank gives) and then every six
+   hours; banks allow about four background reads a day.
+6. Banks ask you to renew access, usually every 90 or 180 days. When one does, its connection shows
+   **Reconnect**.
+
+Open banking has no spending categories, holdings or card APRs, so card and investment checks have
+less to work with than in the US.
 
 ## Notes for agents
 
