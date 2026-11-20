@@ -524,7 +524,11 @@ export function buildAllocationReport(
     if (!b) return null;
     const listed = b.tickers.map((t) => t.toUpperCase());
     const fallback = bucketClasses(key, b)
-      .map((cls) => catalog?.default_buy[cls])
+      .map(
+        (cls) =>
+          catalog?.default_buy_by_country[snapshot.country ?? "US"]?.[cls] ??
+          catalog?.default_buy[cls],
+      )
       .find((t): t is string => !!t);
     const ticker = listed.find((t) => held.has(t)) ?? listed[0] ?? fallback;
     if (!ticker) return null;

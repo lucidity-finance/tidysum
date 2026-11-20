@@ -14,7 +14,10 @@ interface Loaders {
 
 /** Fills each catalog fund's missing expense ratio from the SEC's data; stated ones stay. */
 export async function withSecFees(catalog: SecurityCatalog, db: AgentDb): Promise<SecurityCatalog> {
-  const missing = catalog.securities.filter((s) => !s.expense_ratio).map((s) => s.ticker);
+  // The SEC's data covers US funds; a Canadian ticker could name some other US fund.
+  const missing = catalog.securities
+    .filter((s) => !s.expense_ratio && (s.country ?? "US") === "US")
+    .map((s) => s.ticker);
   const fees = await readFundFees(db, missing);
   if (fees.size === 0) return catalog;
   return {

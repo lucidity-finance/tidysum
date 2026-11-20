@@ -65,6 +65,8 @@ export interface Snapshot {
    * currency are left out rather than added up as if they were the same money.
    */
   currency?: string;
+  /** The user's country (src/region.ts). */
+  country?: string;
   /** Accounts left out because they are in another currency. */
   other_currency_accounts?: { id: string; name: string; currency: string }[];
   /** Whether this user gets allocation checks and securities proposals (app_user.investing_enabled). */
@@ -94,7 +96,7 @@ export async function readSnapshot(db: AgentDb, today: string): Promise<Snapshot
   const user = await db.query<{ investing_enabled: boolean; country: string }>(
     "select investing_enabled, country from app_user",
   );
-  const { currency } = regionOf(user.rows[0]?.country);
+  const { currency, country } = regionOf(user.rows[0]?.country);
   const accounts = await db.query<SnapshotAccount>(`
     select a.id, a.name, a.official_name, i.institution_name, a.type, a.subtype, a.currency,
       b.current, b.available, b.as_of as balance_as_of
@@ -174,6 +176,7 @@ export async function readSnapshot(db: AgentDb, today: string): Promise<Snapshot
     rows.filter((r) => !otherIds.has(r.account_id));
   return {
     today,
+    country,
     currency,
     ...(other.length
       ? {

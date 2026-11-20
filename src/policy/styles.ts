@@ -74,6 +74,33 @@ const bonds = (target: string): PresetBucket => ({
 });
 const commodities = (target: string): PresetBucket => ({ target, tickers: METALS });
 
+/**
+ * Funds listed where the owner lives, put ahead of the US ones in a style's buckets so a new
+ * contribution buys them (the first ticker held, or else the first one, is what gets bought).
+ * The US tickers stay, so what the owner already holds is still counted. In Canada, Canadian
+ * stocks sit in the international bucket: everything outside the US is international to these
+ * styles' mixes. Each fund's make-up is in catalog/securities.json.
+ */
+const LOCAL: Record<string, Map<string[], string[]>> = {
+  CA: new Map([
+    [US, ["XUU", "VUN", "VFV", "XUS", "ZSP"]],
+    [INTL, ["XEF", "VIU", "XEC", "VEE", "XIC", "VCN", "ZCN"]],
+    [BONDS, ["ZAG", "VAB", "XBB"]],
+  ]),
+};
+
+function localize(preset: StylePreset, country: string | undefined): StylePreset {
+  const local = country ? LOCAL[country] : undefined;
+  if (!local || !preset.allocation) return preset;
+  const buckets = Object.fromEntries(
+    Object.entries(preset.allocation.buckets).map(([name, b]) => {
+      const own = local.get(b.tickers);
+      return [name, own ? { ...b, tickers: [...own, ...b.tickers] } : b];
+    }),
+  );
+  return { ...preset, allocation: { ...preset.allocation, buckets } };
+}
+
 /** Buckets for a stocks-and-bonds mix; zero-target buckets still count what is held there. */
 const mix = (u: string, i: string, b: string) => ({
   us_stocks: us(u),
@@ -453,13 +480,22 @@ const BLANK: Policy = PolicySchema.parse({
  * money may buy them; buckets the style doesn't name stay at a zero target, so what they hold is
  * still counted.
  */
-export function applyStyle(current: Policy | null, id: StyleId, opts: { age?: number } = {}) {
+export function applyStyle(
+  current: Policy | null,
+  id: StyleId,
+  opts: { age?: number; country?: string } = {},
+) {
   const style = findStyle(id);
-  const preset = style.preset(opts);
+  const country = opts.country === "US" ? undefined : opts.country;
+  const preset = localize(style.preset(opts), country);
   const base = current ?? BLANK;
   const next: Record<string, unknown> = {
     ...base,
-    style: { id, ...(style.needs_age && opts.age !== undefined ? { age: opts.age } : {}) },
+    style: {
+      id,
+      ...(style.needs_age && opts.age !== undefined ? { age: opts.age } : {}),
+      ...(country && LOCAL[country] ? { country } : {}),
+    },
   };
   if (preset.cash) {
     const { buffer_while_in_debt: _old, ...cash } = base.cash;
@@ -603,7 +639,10 @@ export function styleStatus(policy: Policy): StyleStatus | null {
   const style = findStyle(label.id);
   let pure: Policy;
   try {
-    pure = applyStyle(policy, label.id, { age: label.age });
+    pure = applyStyle(policy, label.id, {
+      ...(label.age !== undefined ? { age: label.age } : {}),
+      ...(label.country ? { country: label.country } : {}),
+    });
   } catch {
     return { id: style.id, name: style.name, advocates: style.advocates, tweaks: [] };
   }
@@ -666,8 +705,9 @@ export function glance(p: Policy): Glance {
   };
 }
 
-export function listStyles(current: Policy | null, opts: { age?: number } = {}) {
+export function listStyles(current: Policy | null, opts: { age?: number; country?: string } = {}) {
   const age = opts.age ?? current?.style?.age;
+  const { country } = opts;
   return {
     current: current ? styleStatus(current) : null,
     /** The owner's rules as they are now, for the "Your own rules" card. */
@@ -677,10 +717,15 @@ export function listStyles(current: Policy | null, opts: { age?: number } = {}) 
       const { preset: _preset, ...about } = s;
       if (s.needs_age && age === undefined) {
         // Only the mix depends on the age; the other rules can be shown already.
-        const rules = glance(applyStyle(current, s.id, { age: 40 }));
+        const rules = glance(
+          applyStyle(current, s.id, { age: 40, ...(country ? { country } : {}) }),
+        );
         return { ...about, changes: null, result: { ...rules, mix: null } };
       }
-      const next = applyStyle(current, s.id, { age });
+      const next = applyStyle(current, s.id, {
+        ...(age !== undefined ? { age } : {}),
+        ...(country ? { country } : {}),
+      });
       return { ...about, changes: changesBetween(current, next), result: glance(next) };
     }),
   };

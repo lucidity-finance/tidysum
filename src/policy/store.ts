@@ -2,6 +2,7 @@ import { desc, eq, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { policyVersion } from "../db/schema.js";
 import type { AgentDb } from "../mcp/agentDb.js";
+import { readRegion } from "../users.js";
 import { type LoadedPolicy, type Policy, parsePolicy, type StyleId } from "./policy.js";
 import { applyStyle, type Change, changesBetween } from "./styles.js";
 
@@ -59,7 +60,13 @@ export async function setStyle(
   opts: { age?: number; dryRun?: boolean } = {},
 ): Promise<{ versionId: string; policy: Policy; changes: Change[]; applied: boolean }> {
   const current = await readOwnerPolicy(db, userId);
-  const next = parsePolicy(applyStyle(current?.policy ?? null, id, { age: opts.age }));
+  const { country } = await readRegion(db, userId);
+  const next = parsePolicy(
+    applyStyle(current?.policy ?? null, id, {
+      ...(opts.age !== undefined ? { age: opts.age } : {}),
+      country,
+    }),
+  );
   const changes = changesBetween(current?.policy ?? null, next.policy);
   if (!opts.dryRun) await activatePolicy(db, userId, next);
   return { versionId: next.versionId, policy: next.policy, changes, applied: !opts.dryRun };

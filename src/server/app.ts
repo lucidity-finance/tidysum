@@ -553,7 +553,8 @@ export function createApp(deps: AppDeps) {
     const raw = c.req.query("age");
     const age = raw && /^\d{2}$/.test(raw) ? Number(raw) : undefined;
     const current = await readOwnerPolicy(deps.db, deps.userId);
-    return c.json(listStyles(current?.policy ?? null, { age }));
+    const { country } = await readRegion(deps.db, deps.userId);
+    return c.json(listStyles(current?.policy ?? null, { ...(age ? { age } : {}), country }));
   });
 
   // The owner picks a money style: it fills the policy's rules, then findings and actions follow

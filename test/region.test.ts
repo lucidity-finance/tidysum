@@ -5,7 +5,10 @@ import { account, appUser, balanceSnapshot, item, transaction } from "../src/db/
 import { forUserRegion } from "../src/facts/catalogs.js";
 import { connectAgent } from "../src/mcp/agentDb.js";
 import { detectMisallocations } from "../src/misallocation/detect.js";
+import { parsePolicy } from "../src/policy/policy.js";
 import { readSnapshot } from "../src/policy/snapshot.js";
+import { applyStyle, styleStatus } from "../src/policy/styles.js";
+import { loadSecurityCatalogFile } from "../src/portfolio/securityCatalog.js";
 import { parseCardCatalog } from "../src/products/cardCatalog.js";
 import { parseCatalog } from "../src/products/catalog.js";
 import { formatMoney, plaidCountries, regionOf } from "../src/region.js";
@@ -188,5 +191,32 @@ describe("a user in Canada", () => {
       ["deposit_rate", "ca-savings", "300.00", "CAD"],
       ["foreign_fees", null, "25.00", "CAD"],
     ]);
+  });
+});
+
+describe("money styles outside the US", () => {
+  it("fill a Canadian's buckets with Canadian-listed funds first, and still count US ones", async () => {
+    const p = parsePolicy(applyStyle(null, "adviser_standard", { age: 40, country: "CA" })).policy;
+    expect(p.style).toEqual({ id: "adviser_standard", age: 40, country: "CA" });
+    const buckets = p.allocation?.buckets ?? {};
+    expect(buckets.us_stocks?.tickers.slice(0, 2)).toEqual(["XUU", "VUN"]);
+    expect(buckets.us_stocks?.tickers).toContain("VTI");
+    expect(buckets.intl_stocks?.tickers[0]).toBe("XEF");
+    expect(buckets.bonds_and_cash?.tickers[0]).toBe("ZAG");
+    // The style is recognised as itself, with nothing changed.
+    expect(styleStatus(p)?.tweaks).toEqual([]);
+    // A US owner's policy is as before.
+    expect(applyStyle(null, "adviser_standard", { age: 40, country: "US" }).style).toEqual({
+      id: "adviser_standard",
+      age: 40,
+    });
+
+    // Every Canadian fund a style buys is in the catalog, with what it holds.
+    const catalog = await loadSecurityCatalogFile("catalog/securities.json");
+    const known = new Set(catalog.securities.map((s) => s.ticker));
+    for (const b of Object.values(buckets)) {
+      for (const t of b.tickers.slice(0, 3)) expect(known, t).toContain(t);
+    }
+    expect(catalog.default_buy_by_country.CA?.us_stocks).toBe("XUU");
   });
 });

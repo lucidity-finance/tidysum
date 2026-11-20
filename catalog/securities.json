@@ -11,7 +11,8 @@
     "us_stocks.large": "US large-cap stocks",
     "us_stocks.small_mid": "US small- and mid-cap stocks",
     "us_stocks.real_estate": "US real-estate stocks",
-    "intl_stocks.real_estate": "International real-estate stocks"
+    "intl_stocks.real_estate": "International real-estate stocks",
+    "intl_stocks.canada": "Canadian stocks"
   },
   "default_buy": {
     "us_stocks": "VTI",
@@ -19,6 +20,9 @@
     "bonds": "BND",
     "cash": "SGOV",
     "commodities": "GLDM"
+  },
+  "default_buy_by_country": {
+    "CA": { "us_stocks": "XUU", "intl_stocks": "XEF", "bonds": "ZAG", "cash": "ZMMK" }
   },
   "securities": [
     { "ticker": "VTI", "name": "Vanguard Total Stock Market ETF", "mix": { "us_stocks": "1" } },
@@ -202,6 +206,124 @@
       "name": "United States Natural Gas Fund",
       "mix": { "commodities": "1" },
       "notes": "Natural gas futures."
+    },
+    {
+      "ticker": "XUU",
+      "name": "iShares Core S&P U.S. Total Market Index ETF",
+      "country": "CA",
+      "mix": { "us_stocks": "1" }
+    },
+    {
+      "ticker": "VUN",
+      "name": "Vanguard U.S. Total Market Index ETF",
+      "country": "CA",
+      "mix": { "us_stocks": "1" }
+    },
+    {
+      "ticker": "VFV",
+      "name": "Vanguard S&P 500 Index ETF",
+      "country": "CA",
+      "mix": { "us_stocks.large": "1" }
+    },
+    {
+      "ticker": "XUS",
+      "name": "iShares Core S&P 500 Index ETF",
+      "country": "CA",
+      "mix": { "us_stocks.large": "1" }
+    },
+    {
+      "ticker": "ZSP",
+      "name": "BMO S&P 500 Index ETF",
+      "country": "CA",
+      "mix": { "us_stocks.large": "1" }
+    },
+    {
+      "ticker": "XEF",
+      "name": "iShares Core MSCI EAFE IMI Index ETF",
+      "country": "CA",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "VIU",
+      "name": "Vanguard FTSE Developed All Cap ex North America Index ETF",
+      "country": "CA",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "XEC",
+      "name": "iShares Core MSCI Emerging Markets IMI Index ETF",
+      "country": "CA",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "VEE",
+      "name": "Vanguard FTSE Emerging Markets All Cap Index ETF",
+      "country": "CA",
+      "mix": { "intl_stocks": "1" }
+    },
+    {
+      "ticker": "XIC",
+      "name": "iShares Core S&P/TSX Capped Composite Index ETF",
+      "country": "CA",
+      "mix": { "intl_stocks.canada": "1" }
+    },
+    {
+      "ticker": "VCN",
+      "name": "Vanguard FTSE Canada All Cap Index ETF",
+      "country": "CA",
+      "mix": { "intl_stocks.canada": "1" }
+    },
+    {
+      "ticker": "ZCN",
+      "name": "BMO S&P/TSX Capped Composite Index ETF",
+      "country": "CA",
+      "mix": { "intl_stocks.canada": "1" }
+    },
+    {
+      "ticker": "ZAG",
+      "name": "BMO Aggregate Bond Index ETF",
+      "country": "CA",
+      "mix": { "bonds": "1" }
+    },
+    {
+      "ticker": "VAB",
+      "name": "Vanguard Canadian Aggregate Bond Index ETF",
+      "country": "CA",
+      "mix": { "bonds": "1" }
+    },
+    {
+      "ticker": "XBB",
+      "name": "iShares Core Canadian Universe Bond Index ETF",
+      "country": "CA",
+      "mix": { "bonds": "1" }
+    },
+    {
+      "ticker": "ZMMK",
+      "name": "BMO Money Market Fund ETF Series",
+      "country": "CA",
+      "mix": { "cash": "1" }
+    },
+    {
+      "ticker": "CSAV",
+      "name": "CI High Interest Savings ETF",
+      "country": "CA",
+      "mix": { "cash": "1" }
+    },
+    {
+      "ticker": "XEQT",
+      "name": "iShares Core Equity ETF Portfolio",
+      "country": "CA",
+      "mix": {
+        "us_stocks": "0.4577",
+        "intl_stocks.canada": "0.2489",
+        "intl_stocks": "0.2915",
+        "cash": "0.0019"
+      },
+      "expense_ratio": "0.19",
+      "notes": "Its ETFs: US 45.77%, Canada 24.89% (XIC), developed ex North America 24.26% (XEF), emerging 4.89% (XEC), cash 0.18%; the fact sheet's holdings add to 99.99%.",
+      "source_url": "https://www.blackrock.com/gls-download/literature/fact-sheet/xeqt-ishares-core-equity-etf-portfolio-fund-fact-sheet-en-ca.pdf",
+      "mix_as_of": "2026-09-30",
+      "verified_on": "2026-11-20"
     }
   ],
   "target_date": {

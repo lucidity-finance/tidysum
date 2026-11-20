@@ -1152,7 +1152,8 @@ async function runPolicy(h: DbHandle, args: string[]) {
   }
   if (sub === "styles") {
     const current = await readOwnerPolicy(h.db, userId);
-    const r = listStyles(current?.policy ?? null, { age });
+    const { country } = await readRegion(h.db, userId);
+    const r = listStyles(current?.policy ?? null, { ...(age ? { age } : {}), country });
     console.log(r.current ? `Now: ${styleLine(r.current)}` : "Now: your own rules (no style)");
     for (const s of r.styles) {
       console.log(`\n${s.id}  ${s.name} (${s.advocates})\n  ${s.summary}`);

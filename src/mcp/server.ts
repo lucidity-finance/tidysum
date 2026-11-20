@@ -29,6 +29,7 @@ import { readCashHistoryReport } from "../products/cashHistory.js";
 import type { Catalog } from "../products/catalog.js";
 import { readAndCompare } from "../products/compare.js";
 import { readResearchReport } from "../research/report.js";
+import { readAgentRegion } from "../users.js";
 import type { AgentDb } from "./agentDb.js";
 import {
   cashFlowSummary,
@@ -433,7 +434,8 @@ function registerPolicyTools(
     },
     async ({ age }) => {
       const loaded = await p.loadPolicy().catch(() => null);
-      return json(listStyles(loaded?.policy ?? null, { age }));
+      const { country } = await readAgentRegion(db);
+      return json(listStyles(loaded?.policy ?? null, { ...(age ? { age } : {}), country }));
     },
   );
 

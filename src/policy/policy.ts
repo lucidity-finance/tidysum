@@ -87,6 +87,14 @@ export const PolicySchema = z
           id: z.enum(STYLE_IDS),
           /** The age a style's mix was worked out for (both age-based styles' mixes follow it). */
           age: z.number().int().min(18).max(90).optional(),
+          /**
+           * The country whose funds the style's buckets were filled with, when not the US
+           * (src/region.ts): a Canadian buys Canadian-listed funds.
+           */
+          country: z
+            .string()
+            .regex(/^[A-Z]{2}$/)
+            .optional(),
         })
         .strict()
         .optional(),
