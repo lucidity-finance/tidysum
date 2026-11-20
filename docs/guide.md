@@ -96,7 +96,9 @@ Tidysum has no agent of its own ([decision 0005](decisions/0005-actions.md)). On
 approves an action on the Actions page, their own agent can carry it out with its own browser
 tools: `start_action` (returns the steps, the sites involved and the rules), `report_step` (a
 step done, or `your_turn` when only the owner can do it: identity checks, codes, signatures),
-`finish_action` and `stop_action`. Only an approved action can be started. Trades, the
+`finish_action`, `stop_action`, and `pause_action` for a step that can only go on later (a
+waitlist invite, a paycheck that has to land): the action waits under Scheduled until the day
+it names, with what happens then as its headline. Only an approved action can be started. Trades, the
 new-money action and 401(k) fund exchanges are the agent's to prepare, never to place: it fills
 in the order on the broker's or plan's site up to the final review screen and hands over with
 `your_turn` ("Review the order and press Submit"), and the owner presses Submit. 401(k)

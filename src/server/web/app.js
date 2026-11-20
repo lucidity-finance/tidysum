@@ -1474,7 +1474,7 @@ function carriedBy(a) {
 function whenText(a) {
   const by = a.due_by ? `due by ${dayShort(a.due_by)}` : "";
   if (a.timing === "scheduled")
-    return [`Starts ${dayShort(a.not_before)}`, by].filter(Boolean).join(", ");
+    return [`Starts ${dayShort(a.starts_on ?? a.not_before)}`, by].filter(Boolean).join(", ");
   if (a.timing === "waiting") return calmText(a.market);
   if (a.timing === "overdue") return `Was due by ${dayShort(a.due_by)}`;
   if (a.timing === "due" && a.wait_for === "calm_markets")
@@ -1517,6 +1517,7 @@ function whenLine(a) {
 function actionSteps(a) {
   const p = a.progress;
   const turn = p?.status === "your_turn" ? p.your_turn : null;
+  const pause = p?.status === "paused" ? p.paused : null;
   const tidysum = carriedBy(a) === "tidysum";
   return h(
     "ol",
@@ -1525,31 +1526,50 @@ function actionSteps(a) {
       const n = i + 1;
       const done = p?.done.includes(n);
       const mine = turn?.step === n;
+      const waits = !done && pause?.step === n;
       const byAgent = s.by === "agent";
       const who = done
         ? "Done"
         : mine
           ? "Your turn"
-          : byAgent
-            ? tidysum
-              ? "Tidysum"
-              : "Your agent"
-            : "You";
+          : waits
+            ? `Waiting until ${dayShort(pause.until)}`
+            : byAgent
+              ? tidysum
+                ? "Tidysum"
+                : "Your agent"
+              : "You";
       return h(
         "li",
-        { class: done ? "is-done" : mine ? "is-turn" : byAgent ? "is-agent" : "is-you" },
+        {
+          class: done
+            ? "is-done"
+            : mine
+              ? "is-turn"
+              : waits
+                ? "is-waiting"
+                : byAgent
+                  ? "is-agent"
+                  : "is-you",
+        },
         h(
           "span",
           { class: "step-mark", title: who, "aria-label": who },
-          icon(done ? "tick" : mine ? "alert" : byAgent ? "sparkle" : "user"),
+          icon(done ? "tick" : mine ? "alert" : waits ? "clock" : byAgent ? "sparkle" : "user"),
         ),
         h(
           "span",
           { class: "step-text" },
           s.text,
-          !done && !mine && s.needs_you
-            ? h("span", { class: "step-you" }, `You: ${s.needs_you.toLowerCase()}`)
-            : null,
+          waits
+            ? h(
+                "span",
+                { class: "step-you" },
+                `Next, ${dayShort(pause.until)}: ${prose(pause.next).replace(/\.$/, "")}`,
+              )
+            : !done && !mine && s.needs_you
+              ? h("span", { class: "step-you" }, `You: ${s.needs_you.toLowerCase()}`)
+              : null,
         ),
       );
     }),
@@ -1577,6 +1597,18 @@ function whoDoesIt(a) {
     );
   }
   if (p?.status === "your_turn") return line(`${who} needs you: ${p.your_turn.note}`, "warn");
+  if (p?.status === "paused" && p.paused) {
+    const ahead = a.timing === "scheduled";
+    return line(
+      `${who} paused at step ${p.paused.step}${p.note ? `: ${p.note}` : "."} ${
+        ahead
+          ? `It picks up again on ${dayShort(p.paused.until)}, and you get a notification.`
+          : "Its day has come: ask your agent to carry on."
+      }`,
+      "info",
+      "clock",
+    );
+  }
   if (p?.status === "stopped") {
     return line(
       `${who} stopped${p.note ? `: ${p.note}` : "."} Ask it to start again, or finish the steps yourself.`,
@@ -2115,7 +2147,8 @@ async function saveOrder(section, ids, focusId) {
 
 /** An approved action being carried out, or a finished one, as a compact row. */
 function actionRow(a, finished, movable = false) {
-  const { title } = actionText(a);
+  const { title: own } = actionText(a);
+  const title = a.finding_key === "new_money" ? "Invest new money toward your mix" : own;
   const confirmed = a.state === "confirmed";
   const realized = a.finding?.realized_annual_value;
   const value = cents(realized ?? a.expected_annual_value ?? "0");
@@ -2124,7 +2157,7 @@ function actionRow(a, finished, movable = false) {
   const row = fixRow({
     key: `action-${a.id}`,
     category: a.category,
-    title: a.finding_key === "new_money" ? "Invest new money toward your mix" : title,
+    title: !finished && a.headline ? prose(a.headline) : title,
     tag: finished
       ? h(
           "span",
@@ -2140,31 +2173,34 @@ function actionRow(a, finished, movable = false) {
             : a.due_by && p?.status !== "finished"
               ? h("span", { class: "tag-new" }, `Due ${dayShort(a.due_by)}`)
               : null,
-    sub: finished
-      ? confirmed
-        ? realized
-          ? "Measured from your accounts since."
-          : a.finding_key === "new_money"
-            ? "Your mix is back on target."
-            : a.category === "securities"
-              ? "Checked: it took effect."
-              : "A sync showed it's fixed."
+    sub: withAbout(
+      !finished && a.headline ? title : null,
+      finished
+        ? confirmed
+          ? realized
+            ? "Measured from your accounts since."
+            : a.finding_key === "new_money"
+              ? "Your mix is back on target."
+              : a.category === "securities"
+                ? "Checked: it took effect."
+                : "A sync showed it's fixed."
+          : p?.status === "finished"
+            ? `${didIt(p)} ${confirmWhen(a)}`
+            : confirmWhen(a)
         : p?.status === "finished"
           ? `${didIt(p)} ${confirmWhen(a)}`
-          : confirmWhen(a)
-      : p?.status === "finished"
-        ? `${didIt(p)} ${confirmWhen(a)}`
-        : p?.status === "your_turn"
-          ? `${agentName(p.agent)} needs you: ${p.your_turn.note}`
-          : live
-            ? `${agentName(p.agent)} is on step ${Math.min(p.done.length + 1, a.steps.length)} of ${a.steps.length}`
-            : p?.status === "stopped"
-              ? `${agentName(p.agent)} stopped`
-              : carriedBy(a) === "agent"
-                ? "Ready for your agent"
-                : carriedBy(a) === "tidysum"
-                  ? "Waiting for Tidysum's trading connection"
-                  : plural(a.steps.length, "step"),
+          : p?.status === "your_turn"
+            ? `${agentName(p.agent)} needs you: ${p.your_turn.note}`
+            : live
+              ? `${agentName(p.agent)} is on step ${Math.min(p.done.length + 1, a.steps.length)} of ${a.steps.length}`
+              : p?.status === "stopped"
+                ? `${agentName(p.agent)} stopped`
+                : carriedBy(a) === "agent"
+                  ? "Ready for your agent"
+                  : carriedBy(a) === "tidysum"
+                    ? "Waiting for Tidysum's trading connection"
+                    : plural(a.steps.length, "step"),
+    ),
     amount: value > 0n ? usd0(value) : null,
     amountNote: value > 0n ? (realized ? "a year, measured" : "a year") : "",
     gain: true,
@@ -2211,6 +2247,16 @@ function actionRow(a, finished, movable = false) {
   return row;
 }
 
+/**
+ * A card that leads with its next step keeps what it's about underneath: "Checking earns nothing.
+ * Due by Dec 24."
+ */
+function withAbout(about, text) {
+  if (!about) return text;
+  const lead = String(about).replace(/[.\s]+$/, "");
+  return text ? `${lead}. ${text}` : `${lead}.`;
+}
+
 /** "Claude Code did it: set 28% pre-tax." What the agent says it did, cut short for one line. */
 function didIt(p) {
   const who = agentName(p.agent);
@@ -2255,36 +2301,44 @@ function scheduledRow(a) {
   const { title } = actionText(a);
   const value = cents(a.expected_annual_value ?? "0");
   const who = carriedBy(a);
+  const paused = a.progress?.status === "paused";
   return fixRow({
     key: `action-${a.id}`,
     category: a.category,
-    title,
+    title: a.headline ? prose(a.headline) : title,
     tag: h(
       "span",
       { class: "tag-new tag-done" },
-      a.timing === "waiting" ? "Calm markets" : dayShort(a.not_before),
+      a.timing === "waiting" ? "Calm markets" : dayShort(a.starts_on ?? a.not_before),
     ),
-    sub:
-      a.timing === "waiting"
-        ? `${calmText(a.market)}. ${
-            who === "agent"
-              ? "Your agent starts then, and you get a notification."
-              : who === "tidysum"
-                ? "Tidysum carries it out then."
-                : "Tidysum reminds you then."
+    sub: withAbout(
+      a.headline ? title : null,
+      paused
+        ? `${who === "agent" ? "Your agent picks it up again that day." : "Tidysum reminds you that day."}${
+            a.due_by ? ` Due by ${dayShort(a.due_by)}.` : ""
           }`
-        : `${a.due_by ? `Due by ${dayShort(a.due_by)}. ` : ""}${
-            who === "agent"
-              ? "Ready for your agent that day."
-              : who === "tidysum"
-                ? "Tidysum carries it out that day."
-                : "Tidysum reminds you that day."
-          }`,
+        : a.timing === "waiting"
+          ? `${calmText(a.market)}. ${
+              who === "agent"
+                ? "Your agent starts then, and you get a notification."
+                : who === "tidysum"
+                  ? "Tidysum carries it out then."
+                  : "Tidysum reminds you then."
+            }`
+          : `${a.due_by ? `Due by ${dayShort(a.due_by)}. ` : ""}${
+              who === "agent"
+                ? "Ready for your agent that day."
+                : who === "tidysum"
+                  ? "Tidysum carries it out that day."
+                  : "Tidysum reminds you that day."
+            }`,
+    ),
     amount: value > 0n ? usd0(value) : null,
     amountNote: value > 0n ? "a year" : "",
     gain: true,
     body: [
       actionSteps(a),
+      paused ? whoDoesIt(a) : null,
       h(
         "div",
         { class: "finding-actions" },
@@ -2343,7 +2397,9 @@ function copyButton(text, label) {
 
 /** Approved work no agent has picked up yet: one line to hand it over. */
 function agentHandoff(going) {
-  const ready = going.filter((a) => carriedBy(a) === "agent" && !a.progress);
+  const ready = going.filter(
+    (a) => carriedBy(a) === "agent" && (!a.progress || a.progress.status === "paused"),
+  );
   if (!ready.length) return null;
   return h(
     "div",
@@ -2646,6 +2702,8 @@ function activityText(e, count) {
       return `stopped ${t}${e.note ? `: ${e.note}` : ""}`;
     case "action.finished":
       return `finished ${t}`;
+    case "action.paused":
+      return `paused ${t}${e.until ? ` until ${dayShort(e.until)}` : ""}${e.note ? `: ${e.note}` : ""}`;
     case "misallocation.found":
       return many
         ? `found ${count} places your money could do more`

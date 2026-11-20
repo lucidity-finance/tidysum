@@ -993,6 +993,26 @@ export interface Action {
   wait_for: "calm_markets" | null;
   /** For an action waiting for calm markets: the VIX reading it waits on. */
   market: Calm | null;
+  /**
+   * The day it waits for: `not_before`, or a later day the owner's agent paused it until (an
+   * invite still to come, a paycheck still to land). Null when it waits for no day.
+   */
+  starts_on: string | null;
+  /**
+   * What happens next, in a few words: what the agent paused it for, or the first step not done
+   * yet. The Actions page leads with it while the action waits or is part done. Null when every
+   * step is done.
+   */
+  next_step: string | null;
+  /**
+   * What its card leads with instead of its title, when that's the next step (owner,
+   * 2026-11-20: a scheduled "Checking earns nothing" didn't say the day's job was to
+   * check the paycheck landed): a paused action's next step, and for an approved action about a
+   * finding that waits for a day or is part done, its next step when it fits in a headline. The
+   * title then goes underneath. Null to lead with the title, as for an action with its own title,
+   * which already says what to do.
+   */
+  headline: string | null;
   /** Where it stands against those days, today: see `timingOf`. Null when it has neither. */
   timing: Timing | null;
   /** Its place in the owner's own order (action_order), or null when they haven't placed it. */
@@ -1102,28 +1122,98 @@ export type Timing = "scheduled" | "waiting" | "due" | "overdue";
  * nor condition.
  */
 export function timingOf(
-  a: { not_before: string | null; due_by: string | null; wait_for?: string | null },
+  a: {
+    not_before: string | null;
+    due_by: string | null;
+    wait_for?: string | null;
+    /** A later first day: the day a paused action goes on (see `startsOn`). */
+    starts_on?: string | null;
+  },
   today: string,
   calm?: Pick<Calm, "calm"> | null,
 ): Timing | null {
-  if (!a.not_before && !a.due_by && !a.wait_for) return null;
-  if (a.not_before && a.not_before > today) return "scheduled";
+  const first = a.starts_on ?? a.not_before;
+  if (!first && !a.due_by && !a.wait_for) return null;
+  if (first && first > today) return "scheduled";
   if (a.wait_for === "calm_markets" && !calm?.calm) return "waiting";
   if (a.due_by && a.due_by < today) return "overdue";
   return "due";
 }
 
+/** The first day an action may go on: its own, or the later day its agent paused it until. */
+export function startsOn(
+  notBefore: string | null,
+  progress: Pick<ActionProgress, "status" | "paused"> | null,
+): string | null {
+  const until = progress?.status === "paused" ? (progress.paused?.until ?? null) : null;
+  if (!until) return notBefore;
+  return !notBefore || until > notBefore ? until : notBefore;
+}
+
+/**
+ * A step in a few words, for a headline: its first sentence, cut at a word under about 80
+ * characters. "Check that a paycheck has landed in Savings" from a step that goes on
+ * to say what to do if it hasn't.
+ */
+export function stepHeadline(text: string): string {
+  const clean = firstSentence(text);
+  if (clean.length <= HEADLINE_MAX) return clean;
+  return `${clean.slice(0, HEADLINE_MAX).replace(/[\s,;:(]+\S*$/, "")}…`;
+}
+
+const HEADLINE_MAX = 80;
+
+function firstSentence(text: string): string {
+  const first = text.trim().split(/(?<=[a-z0-9)])[.;]\s+(?=[A-Z])/)[0] ?? text;
+  return first.replace(/[.;:,\s]+$/, "");
+}
+
+/** What a card leads with instead of its title: see `Action.headline`. */
+export function headlineOf(
+  a: Pick<Action, "state" | "steps" | "timing"> & {
+    progress: Pick<ActionProgress, "status" | "paused" | "done"> | null;
+    finding: unknown;
+  },
+): string | null {
+  const p = a.progress;
+  if (p?.status === "paused" && p.paused?.next) return p.paused.next;
+  if (a.state !== "approved" || p?.status === "finished" || !a.finding) return null;
+  const waits = a.timing === "scheduled" || a.timing === "waiting" || !!p?.done.length;
+  if (!waits) return null;
+  const open = a.steps.findIndex((_, i) => !p?.done.includes(i + 1));
+  const step = a.steps[open];
+  if (!step) return null;
+  const line = firstSentence(step.text);
+  return line.length <= HEADLINE_MAX ? line : null;
+}
+
+/** What happens next on an action: what its agent paused it for, or its first open step. */
+export function nextStep(
+  steps: ActionStep[],
+  progress: Pick<ActionProgress, "status" | "paused" | "done"> | null,
+): string | null {
+  if (progress?.status === "finished") return null;
+  if (progress?.status === "paused" && progress.paused?.next) return progress.paused.next;
+  const open = steps.findIndex((_, i) => !progress?.done.includes(i + 1));
+  const step = steps[open];
+  return step ? stepHeadline(step.text) : null;
+}
+
 function shape(row: Action, today: string, calm: Calm | null = null): Action {
   const steps = row.steps?.length ? row.steps : stepsFromActions(row.actions);
   const { agent_events, ...rest } = row;
+  const progress = progressFrom(agent_events);
+  const starts_on = startsOn(row.not_before, progress);
   const shaped = {
     ...rest,
     steps,
-    progress: progressFrom(agent_events),
+    progress,
+    starts_on,
+    next_step: nextStep(steps, progress),
     market: row.wait_for === "calm_markets" ? calm : null,
-    timing: timingOf(row, today, calm),
+    timing: timingOf({ ...row, starts_on }, today, calm),
   };
-  return { ...shaped, carried_by: carriedBy(shaped) };
+  return { ...shaped, headline: headlineOf(shaped), carried_by: carriedBy(shaped) };
 }
 
 const value = (a: Action) => new Big(a.expected_annual_value ?? 0);
@@ -1196,7 +1286,7 @@ export async function listActions(db: AgentDb, today: string): Promise<ActionQue
       .sort(
         (a, b) =>
           Number(a.timing === "waiting") - Number(b.timing === "waiting") ||
-          String(a.not_before).localeCompare(String(b.not_before)),
+          String(a.starts_on).localeCompare(String(b.starts_on)),
       ),
     finished: actions
       .filter((a) => a.state === "done" || a.state === "confirmed")
@@ -1287,6 +1377,8 @@ export interface ActivityEvent {
   step: number | null;
   /** An agent's note on a step ("your turn", stopped, finished). Untrusted. */
   note: string | null;
+  /** For a pause: the day the agent picks the action up again. */
+  until: string | null;
 }
 
 /**
@@ -1299,7 +1391,8 @@ export async function listActivity(db: AgentDb, limit = 30): Promise<ActivityEve
         coalesce(p.title, m.summary) as title,
         coalesce(p.category, m.category) as category,
         (e.data->>'step')::int as step,
-        e.data->>'note' as note
+        e.data->>'note' as note,
+        e.data->>'until' as until
        from audit_event e
        left join proposal p on p.id = e.proposal_id
        left join misallocation m

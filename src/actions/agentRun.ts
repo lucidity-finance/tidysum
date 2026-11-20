@@ -1,6 +1,6 @@
 import { CALM_CLOSES, CALM_VIX, SPIKE_VIX } from "../market/calm.js";
 import type { AgentDb } from "../mcp/agentDb.js";
-import { type Action, carriedBy, getAction } from "./actions.js";
+import { type Action, carriedBy, getAction, isoToday } from "./actions.js";
 import type { ActionProgress, AgentEvent } from "./progress.js";
 
 // Agent-carried actions (decision 0005, build step 2). There is no Tidysum agent: the owner's own
@@ -60,7 +60,9 @@ async function approved(db: AgentDb, id: string): Promise<Loaded> {
   }
   if (action.timing === "scheduled") {
     throw new ActionRefused(
-      `This action is scheduled: it can't be carried out before ${action.not_before}. Tidysum puts it in in_progress that day.`,
+      action.progress?.status === "paused"
+        ? `This action is paused until ${action.starts_on}: ${action.progress.paused?.next}. Tidysum puts it back in in_progress that day; start it again then.`
+        : `This action is scheduled: it can't be carried out before ${action.starts_on}. Tidysum puts it in in_progress that day.`,
     );
   }
   if (action.timing === "waiting") {
@@ -74,7 +76,7 @@ async function approved(db: AgentDb, id: string): Promise<Loaded> {
 
 function running(action: Loaded, actor: string): ActionProgress {
   const progress = action.progress;
-  if (!progress || progress.status === "stopped") {
+  if (!progress || progress.status === "stopped" || progress.status === "paused") {
     throw new ActionRefused("Call start_action first.");
   }
   if (progress.status === "finished") {
@@ -111,7 +113,9 @@ function brief(action: Action) {
     category: action.category,
     expected_annual_value: action.expected_annual_value,
     not_before: action.not_before,
+    starts_on: action.starts_on,
     due_by: action.due_by,
+    next_step: action.next_step,
     steps: action.steps.map((s, i) => ({
       step: i + 1,
       ...s,
@@ -202,6 +206,67 @@ export async function endAction(
       input.outcome === "finished"
         ? "Done. Tidysum's next sync checks that it worked and confirms it."
         : "Stopped. The owner sees why on the Actions page and can finish it themselves or ask you to start again.",
+  };
+}
+
+/** How far ahead a pause may run: a check waits weeks, not seasons. */
+export const MAX_PAUSE_DAYS = 92;
+
+const plusDays = (d: string, n: number) =>
+  new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * Pauses the run part way (decision 0006): a step is started but can only go on later, like a
+ * card waitlist whose invite comes some day, or a paycheck that has to land before the bills move.
+ * The action waits under Scheduled until `until` with `next` as its headline ("Check for a
+ * card invite"), then Tidysum puts it back in in_progress, tells the owner and,
+ * when they set it up, starts their agent; start_action picks the run up with its done steps kept.
+ * For something that may take a while, pause again after each look, a week or two apart.
+ */
+export async function pauseAction(
+  db: AgentDb,
+  proposer: AgentDb,
+  input: { id: string; step: number; until: string; next: string; note?: string | undefined },
+  actor: string,
+  today = isoToday(),
+) {
+  const action = await approved(db, input.id);
+  const progress = running(action, actor);
+  if (input.step < 1 || input.step > action.steps.length) {
+    throw new ActionRefused(`This action has steps 1 to ${action.steps.length}.`);
+  }
+  if (progress.done.includes(input.step)) {
+    throw new ActionRefused(`Step ${input.step} is already done; pause on the step that waits.`);
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.until) || input.until <= today) {
+    throw new ActionRefused("until is the day to pick it up again: a date after today.");
+  }
+  if (input.until > plusDays(today, MAX_PAUSE_DAYS)) {
+    throw new ActionRefused(
+      `Pause for at most ${MAX_PAUSE_DAYS} days; look again then and pause again if needed.`,
+    );
+  }
+  if (action.due_by && input.until > action.due_by) {
+    throw new ActionRefused(
+      `That's after the action's last day (${action.due_by}). Pick a day before it, or stop_action and say why.`,
+    );
+  }
+  const next = checkNote(input.next);
+  if (!next || next.length < 3 || next.length > 120) {
+    throw new ActionRefused(
+      "next says what happens on that day in a few words, like “Check for a card invite” (3 to 120 characters).",
+    );
+  }
+  const note = checkNote(input.note);
+  await record(proposer, actor, "action.paused", input.id, {
+    step: input.step,
+    until: input.until,
+    next,
+    note,
+  });
+  return {
+    ...brief(await getActionOrThrow(db, input.id)),
+    next: `Paused until ${input.until}. It waits under Scheduled with “${next}” as its headline. That day Tidysum puts it back in in_progress, tells the owner and starts their agent if they set that up; call start_action then, and your done steps are kept.`,
   };
 }
 

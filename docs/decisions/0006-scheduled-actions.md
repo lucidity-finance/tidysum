@@ -61,6 +61,21 @@ actions a day when the fix has one.
    says when Tidysum checks it. An agent's finished action is marked done when the Actions page
    loads and on the hourly pass, not only after the next sync, and the agent's closing note (what
    it actually did, say 28% where the draft said 21%) shows on the action.
+7. **A card says what happens next, and an action can wait part way** (owner, 2026-11-20: an action
+   for a card whose waitlist the owner had already joined still read "ready for your agent", where it
+   should have become a scheduled "check up on waitlist status"; and a scheduled "Checking earns
+   nothing" whose real job that day was to check the paycheck had landed). Once the owner has approved an action, the problem
+   it fixes is settled; what they need to see is the next thing that happens. So an approved
+   action about a finding that waits for a day, or is part done, leads its card with its next
+   open step (`headline`, its first sentence when that fits a headline), with the finding
+   underneath. An action with its own title keeps it: that title already says what to do.
+   And the owner's agent can pause a run part way with `pause_action`: the step that waits, the
+   day to look again (`until`, at most 92 days ahead and not after `due_by`) and what happens
+   then (`next`, "Check for a card invite"). It is an audit event like every other
+   report, so it needs no new column or grant. The action goes back under Scheduled with `next` as
+   its headline until that day (`starts_on`), then Tidysum notes it due again, tells the owner
+   and starts their agent if they set one up; `start_action` resumes the run with its done steps
+   kept. A wait of unknown length (a waitlist) is a pause every week or two until it's over.
 
 ## Not chosen
 

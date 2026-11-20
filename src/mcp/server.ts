@@ -1,7 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getAction, listActions } from "../actions/actions.js";
-import { AGENT_RULES, endAction, reportStep, startAction } from "../actions/agentRun.js";
+import {
+  AGENT_RULES,
+  endAction,
+  pauseAction,
+  reportStep,
+  startAction,
+} from "../actions/agentRun.js";
 import { parseSchedule, scheduleActionAsAgent } from "../actions/schedule.js";
 import { registerFactTools } from "../facts/mcpTools.js";
 import { loadCatalogs, misallocationReport } from "../misallocation/detect.js";
@@ -95,9 +101,10 @@ in_progress; steps with by: agent are for you to carry out when the owner asks, 
 
 Some actions have a day (not_before) before which they can't be carried out, and a last day
 (due_by). The owner can approve them early; they wait in list_actions' scheduled until their day,
-then move to in_progress. When you change something whose effect can only be checked later (a
-paystub, a statement), or a step that must wait for a date, add it with schedule_action, so it
-isn't forgotten; for a check, pass follows_up with the action it checks, and finishing the check
+then move to in_progress. An action you paused with pause_action waits there too, until its
+starts_on day. next_step says in a few words what happens next on each action. When you change
+something whose effect can only be checked later (a paystub, a statement), or a step that must
+wait for a date, add it with schedule_action, so it isn't forgotten; for a check, pass follows_up with the action it checks, and finishing the check
 confirms that action. When you carry out an action differently from its steps (another percent or
 amount), say exactly what you did in finish_action's note: the owner sees it on the action. When you start a session for the owner, glance at list_actions and mention
 anything in in_progress that is due or overdue.
@@ -127,7 +134,8 @@ const CARRY_OUT = `Carry out my approved Tidysum actions.
    report_step as soon as it is done. When a step needs me (needs_you, or anything identity or
    security related), report it as your_turn with exactly what I need to do, tell me, and wait.
 4. When every by: agent step is done, call finish_action. If you can't go on, call stop_action
-   with why.
+   with why. If a step is under way but can only go on later (a waitlist invite, a paycheck that
+   has to land first), call pause_action with the day to look again and what happens then.
 
 Rules:
 ${AGENT_RULES.map((r) => `- ${r}`).join("\n")}`;
@@ -606,6 +614,31 @@ function registerPolicyTools(
         json(
           await endAction(db, p.proposer, { id: a.id, outcome: "stopped", note: a.note }, agent()),
         ),
+    );
+
+    server.registerTool(
+      "pause_action",
+      {
+        title: "Pause an action until a day",
+        description:
+          "Pauses the action you started when a step is under way but can only go on later: a " +
+          "card waitlist whose invite hasn't come, a paycheck that has to land before the bills " +
+          "move. Give the step that waits, the day to pick it up again (until, at most 92 days " +
+          "ahead and not after due_by) and what happens then in a few words (next, like " +
+          "“Check for a card invite”): the Actions page shows it as the action's " +
+          "headline under Scheduled. That day Tidysum puts it back in in_progress and tells the " +
+          "owner; start_action resumes with the done steps kept. For a wait of unknown length, " +
+          "look again every week or two and pause again.",
+        inputSchema: {
+          id: actionId,
+          step: z.number().int().min(1).max(50).describe("the step that waits, from 1"),
+          until: isoDate.describe("the day to pick it up again, YYYY-MM-DD, after today"),
+          next: z.string().max(120).describe("what happens that day, in a few words"),
+          note: note.optional().describe("where things stand, in a line"),
+        },
+        annotations: write,
+      },
+      async (a) => json(await pauseAction(db, p.proposer, a, agent())),
     );
 
     server.registerTool(

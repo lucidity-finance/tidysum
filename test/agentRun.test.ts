@@ -8,7 +8,10 @@ import {
   decideAction,
   draftActions,
   getAction,
+  headlineOf,
+  isoToday,
   listActions,
+  stepHeadline,
 } from "../src/actions/actions.js";
 import { AGENT_RULES, checkNote, sitesFor } from "../src/actions/agentRun.js";
 import { type ProgressEvent, progressFrom } from "../src/actions/progress.js";
@@ -285,7 +288,7 @@ describe("an agent carrying out an approved action", () => {
       note: "The rate on the site is 3.1%, not 4%",
     });
     await expect(call("report_step", { id, step: 1, status: "done" })).rejects.toThrow(
-      /start_action first/,
+      /start_action/,
     );
     await draftActions(owner.db, userId);
     expect((await getAction(agentDb, id))?.state).toBe("approved");
@@ -315,6 +318,117 @@ describe("an agent carrying out an approved action", () => {
   });
 });
 
+const plus = (n: number) =>
+  new Date(Date.parse(`${isoToday()}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+describe("an action paused part way", () => {
+  const CARD: ActionStep[] = [
+    {
+      text: "Apply for the Gold Card",
+      by: "agent",
+      needs_you: "Credit check consent and signature",
+    },
+    { text: "Link it in Connections when it arrives", by: "you" },
+  ];
+
+  it("waits under scheduled with its next step as the headline, then resumes with done steps kept", async () => {
+    const id = await action({ title: "Get the Gold Card", category: "card", steps: CARD });
+    const call = await agent("claude-code");
+    await call("start_action", { id });
+
+    // The day has to be ahead, within reach, and the next step said in a few words.
+    for (const bad of [
+      { until: isoToday(), next: "Check for an invite" },
+      { until: plus(120), next: "Check for an invite" },
+      { until: plus(14), next: "" },
+    ]) {
+      await expect(call("pause_action", { id, step: 1, ...bad })).rejects.toThrow();
+    }
+    const paused = await call("pause_action", {
+      id,
+      step: 1,
+      until: plus(14),
+      next: "Check for a Gold Card invite",
+      note: "Joined the waitlist",
+    });
+    expect(paused.next).toContain(`Paused until ${plus(14)}`);
+    expect(paused.next_step).toBe("Check for a Gold Card invite");
+
+    const { in_progress, scheduled } = await listActions(agentDb, isoToday());
+    expect(in_progress.map((a) => a.id)).not.toContain(id);
+    const waiting = scheduled.find((a) => a.id === id);
+    expect(waiting).toMatchObject({
+      timing: "scheduled",
+      starts_on: plus(14),
+      headline: "Check for a Gold Card invite",
+      progress: { status: "paused", note: "Joined the waitlist", paused: { step: 1 } },
+    });
+
+    // Nothing more until its day: no reports, no restart.
+    await expect(call("report_step", { id, step: 1, status: "done" })).rejects.toThrow(
+      /paused until/,
+    );
+    await expect(call("start_action", { id })).rejects.toThrow(/paused until/);
+
+    // Its day: back in progress, and a start keeps what was done.
+    const due = await listActions(agentDb, plus(14));
+    expect(due.in_progress.find((a) => a.id === id)?.timing).toBe("due");
+    expect(await events(id)).toEqual([
+      "mcp:claude-code action.started",
+      "mcp:claude-code action.paused",
+    ]);
+  });
+
+  it("can't be paused past the action's last day", async () => {
+    const id = await action({ steps: STEPS, dueBy: plus(10) });
+    const call = await agent("claude-code");
+    await call("start_action", { id });
+    await expect(
+      call("pause_action", { id, step: 1, until: plus(11), next: "Look again" }),
+    ).rejects.toThrow(/last day/);
+  });
+});
+
+describe("headline", () => {
+  it("takes a step's first sentence, cut short at a word", () => {
+    expect(
+      stepHeadline(
+        "Check that a paycheck has landed in Better Bank Savings (••1234). If the Nov 30 paycheck still went to Checking, wait for Dec 15",
+      ),
+    ).toBe("Check that a paycheck has landed in Better Bank Savings (••1234)");
+    expect(stepHeadline("x ".repeat(60)).endsWith("…")).toBe(true);
+  });
+
+  it("leads a waiting or part-done finding's card with its next step, and leaves own titles", () => {
+    const steps: ActionStep[] = [
+      { text: "Check that the paycheck landed in Savings. If not, wait", by: "agent" },
+      { text: "Move the bills to Savings", by: "agent" },
+    ];
+    const base = {
+      state: "approved" as const,
+      steps,
+      timing: "scheduled" as const,
+      progress: null,
+      finding: {},
+    };
+    expect(headlineOf(base)).toBe("Check that the paycheck landed in Savings");
+    // Not waiting and nothing done: the finding's title stays.
+    expect(headlineOf({ ...base, timing: null })).toBeNull();
+    // Part done: the next open step.
+    expect(
+      headlineOf({
+        ...base,
+        timing: null,
+        progress: { status: "stopped", paused: null, done: [1] },
+      }),
+    ).toBe("Move the bills to Savings");
+    // An action with its own title already says what to do.
+    expect(headlineOf({ ...base, finding: null })).toBeNull();
+    // A step too long for a headline leaves the title.
+    expect(headlineOf({ ...base, steps: [{ text: "word ".repeat(30), by: "agent" }] })).toBeNull();
+  });
+});
+
 describe("progress", () => {
   const e = (event: ProgressEvent["event"], data: ProgressEvent["data"] = {}, actor = "mcp:a") => ({
     at: "2026-11-12T10:00:00Z",
@@ -335,6 +449,29 @@ describe("progress", () => {
         e("action.step_done", { step: 2 }, "mcp:b"),
       ]),
     ).toMatchObject({ agent: "mcp:b", status: "working", done: [2], note: null });
+  });
+
+  it("a start after a pause keeps the steps done before it", () => {
+    expect(
+      progressFrom([
+        e("action.started"),
+        e("action.step_done", { step: 1 }),
+        e("action.paused", { step: 2, until: "2026-12-01", next: "Look again", note: "waitlist" }),
+      ]),
+    ).toMatchObject({
+      status: "paused",
+      done: [1],
+      note: "waitlist",
+      paused: { step: 2, until: "2026-12-01", next: "Look again" },
+    });
+    expect(
+      progressFrom([
+        e("action.started"),
+        e("action.step_done", { step: 1 }),
+        e("action.paused", { step: 2, until: "2026-12-01", next: "Look again" }),
+        e("action.started"),
+      ]),
+    ).toMatchObject({ status: "working", done: [1], paused: null });
   });
 
   it("a later step done clears the owner's turn", () => {

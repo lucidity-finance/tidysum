@@ -3606,6 +3606,11 @@ a.task:hover .task-cta svg {
   border-color: var(--brand);
 }
 
+.is-waiting > .step-mark {
+  color: var(--muted);
+  background: var(--surface-2);
+}
+
 .is-turn > .step-mark {
   color: var(--warn);
   background: var(--warn-soft);

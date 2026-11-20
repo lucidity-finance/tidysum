@@ -247,6 +247,7 @@ describe("MCP tools", () => {
       "schedule_action",
       "start_action",
       "stop_action",
+      "pause_action",
     ];
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
@@ -264,6 +265,7 @@ describe("MCP tools", () => {
       "list_proposals",
       "list_styles",
       "net_worth_history",
+      "pause_action",
       "query_transactions",
       "report_step",
       "schedule_action",

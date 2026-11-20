@@ -29,11 +29,18 @@ next sync. You need the Tidysum MCP server connected, and browser or computer-us
    marks it done and its next sync confirms it worked.
 6. If you can't go on, call `stop_action` with why. The action stays approved and the owner
    sees your reason.
+7. If a step is under way but can only go on later (a card waitlist whose invite hasn't come, a
+   paycheck that has to land before the bills move), call `pause_action` with the step, the day
+   to look again (`until`) and what happens then in a few words (`next`, like "Check for a
+   card invite"). The owner sees that as the action's headline under Scheduled.
+   That day Tidysum puts it back in `in_progress`; `start_action` resumes it with your done steps
+   kept. For a wait of unknown length, look again every week or two and pause again.
 
 ## Actions with a day
 
-An action can have a first day (`not_before`) and a last day (`due_by`); `timing` says whether
-it's `scheduled`, `due` or `overdue`. Work due and overdue ones first. When you change something
+An action can have a first day (`not_before`, or `starts_on` once paused) and a last day
+(`due_by`); `timing` says whether it's `scheduled`, `due` or `overdue`, and `next_step` what
+happens next. Work due and overdue ones first. When you change something
 whose effect can only be seen later (a paystub, a statement, a payroll cutoff), or a step has to
 wait for a date, add it with `schedule_action` before you finish: the steps to check it, and what
 to do if the check fails. The owner approves it like any other action. When Tidysum starts you on

@@ -6,12 +6,13 @@ import {
   carriedBy,
   decideAction,
   draftActions,
+  isoToday,
   listActions,
   settleFinished,
   timingOf,
   windowOf,
 } from "../src/actions/actions.js";
-import { endAction, reportStep, startAction } from "../src/actions/agentRun.js";
+import { endAction, pauseAction, reportStep, startAction } from "../src/actions/agentRun.js";
 import {
   agentPrompt,
   checkSchedule,
@@ -31,6 +32,8 @@ import { approveProposal } from "../src/policy/proposals.js";
 import { activatePolicy } from "../src/policy/store.js";
 
 const owner = connect(inject("databaseUrl"));
+const plusDays = (d: string, n: number) =>
+  new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 // A user of its own: audit events can't be deleted, and other files count the owner's.
 const [user] = await owner.db
   .insert(appUser)
@@ -249,6 +252,53 @@ describe("a scheduled action", () => {
       "proposal.overdue",
     ]);
     expect(agentPrompt({ id: r.id })).toContain(r.id);
+  });
+
+  it("comes due again when an agent's pause ends, and goes back to the agent", async () => {
+    const today = isoToday();
+    const r = await scheduleAction(
+      owner.db,
+      userId,
+      parseSchedule({
+        ...check,
+        title: "Get the Gold Card",
+        category: "card",
+        not_before: today,
+        due_by: undefined,
+        finding_key: undefined,
+      }),
+      "owner",
+      today,
+    );
+    await approveProposal(owner.db, agentDb, userId, r.id, today, "admin");
+    const told: string[] = [];
+    const started: string[] = [];
+    const opts = {
+      notify: (async (_t, b) => void told.push(b)) satisfies Notify,
+      dispatch: (async (a) => void started.push(a.id)) satisfies Dispatch,
+    };
+    expect((await checkSchedule(owner.db, agentDb, userId, today, opts)).dispatched).toContain(
+      r.id,
+    );
+    await startAction(agentDb, proposer, r.id, "mcp:claude-code");
+    const until = plusDays(today, 14);
+    await pauseAction(
+      agentDb,
+      proposer,
+      { id: r.id, step: 1, until, next: "Check for a Gold Card invite" },
+      "mcp:claude-code",
+    );
+    // Waiting: nothing to say or start.
+    const quiet = await checkSchedule(owner.db, agentDb, userId, plusDays(today, 3), opts);
+    expect(quiet.due).not.toContain(r.id);
+    expect(quiet.dispatched).not.toContain(r.id);
+    // Its day: due afresh, named by what happens next, and the agent is started again.
+    const back = await checkSchedule(owner.db, agentDb, userId, until, opts);
+    expect(back.due).toContain(r.id);
+    expect(back.dispatched).toContain(r.id);
+    expect(told.at(-1)).toContain("Check for a Gold Card invite");
+    expect(started.filter((id) => id === r.id)).toHaveLength(2);
+    await decideAction(owner.db, userId, r.id, "dismiss", "admin", until);
   });
 
   it("isn't handed to an agent until approved, and never once an agent has started it", async () => {

@@ -432,6 +432,7 @@ export async function checkSchedule(
   const seen = await db
     .select({
       id: auditEvent.id,
+      at: auditEvent.at,
       proposalId: auditEvent.proposalId,
       event: auditEvent.event,
       data: auditEvent.data,
@@ -455,8 +456,16 @@ export async function checkSchedule(
   /** The newest such event's id, 0 for none. */
   const last = (id: string, event: string) =>
     Math.max(0, ...seen.filter((e) => e.proposalId === id && e.event === event).map((e) => e.id));
-  // An action waiting for calm markets is due afresh each time they settle again.
-  const dueNoted = (id: string) => last(id, "proposal.due") > last(id, "proposal.waiting");
+  /** When the owner's agent last paused it (decision 0006): it comes due afresh after that. */
+  const pausedAt = (a: Action) =>
+    a.progress?.paused ? Date.parse(a.progress.paused.at) : Number.NEGATIVE_INFINITY;
+  const since = (a: Action) =>
+    seen.filter((e) => e.proposalId === a.id && e.at.getTime() > pausedAt(a));
+  // An action waiting for calm markets is due afresh each time they settle again, and a paused
+  // one each time its day comes.
+  const dueNoted = (a: Action) =>
+    last(a.id, "proposal.due") > last(a.id, "proposal.waiting") &&
+    since(a).some((e) => e.event === "proposal.due");
   const note = (id: string, event: string, data: object) =>
     db.insert(auditEvent).values({
       userId,
@@ -468,7 +477,7 @@ export async function checkSchedule(
     });
 
   for (const a of held) {
-    if (!dueNoted(a.id)) continue;
+    if (!dueNoted(a)) continue;
     await note(a.id, "waiting", { wait_for: a.wait_for, market: a.market });
     result.waiting.push(a.id);
     await opts.notify?.(
@@ -480,6 +489,8 @@ export async function checkSchedule(
   for (const a of open) {
     const finished = a.progress?.status === "finished";
     if (finished) continue;
+    // A paused action is named by what happens next ("Check for a card invite").
+    const name = a.progress?.status === "paused" && a.next_step ? a.next_step : a.title;
     const approved = a.state === "approved";
     const agentCan = approved && a.carried_by === "agent";
     const days = { not_before: a.not_before, due_by: a.due_by };
@@ -489,26 +500,26 @@ export async function checkSchedule(
         result.overdue.push(a.id);
         await opts.notify?.(
           "Tidysum: past due",
-          `${a.title} was due ${short(a.due_by ?? today)} and isn't done.`,
+          `${name} was due ${short(a.due_by ?? today)} and isn't done.`,
         );
       }
       continue;
     }
     // Due: say so once, on the first day.
+    // Not started, or paused and its day has come (it's due, so the pause is over).
     const dispatching =
       agentCan &&
       !!opts.dispatch &&
-      !a.progress &&
+      (!a.progress || a.progress.status === "paused") &&
       inHours(opts.hour, opts.hours) &&
-      seen.filter((e) => e.proposalId === a.id && e.event === "proposal.dispatched").length <
-        MAX_DISPATCHES &&
+      since(a).filter((e) => e.event === "proposal.dispatched").length < MAX_DISPATCHES &&
       !seen.some(
         (e) =>
           e.proposalId === a.id &&
           e.event === "proposal.dispatched" &&
           (e.data as { day?: string } | null)?.day === today,
       );
-    if (!dueNoted(a.id)) {
+    if (!dueNoted(a)) {
       await note(
         a.id,
         "due",
@@ -525,8 +536,8 @@ export async function checkSchedule(
       await opts.notify?.(
         a.wait_for === "calm_markets" ? "Tidysum: markets are calm" : "Tidysum: due now",
         a.wait_for === "calm_markets" && a.market?.vix
-          ? `${a.title}. The VIX is ${a.market.vix}. ${what}`
-          : `${a.title}. ${what}`,
+          ? `${name}. The VIX is ${a.market.vix}. ${what}`
+          : `${name}. ${what}`,
       );
     } else if (
       a.due_by &&
@@ -538,7 +549,7 @@ export async function checkSchedule(
       result.due_soon.push(a.id);
       await opts.notify?.(
         "Tidysum: last day soon",
-        `${a.title} is due ${a.due_by === today ? "today" : "tomorrow"} and isn't done yet.`,
+        `${name} is due ${a.due_by === today ? "today" : "tomorrow"} and isn't done yet.`,
       );
     }
     if (dispatching && opts.dispatch) {

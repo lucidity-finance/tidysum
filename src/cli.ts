@@ -512,7 +512,7 @@ async function runActions(h: DbHandle) {
     const r = await listActions(agentDb, today());
     const days = (a: (typeof r.queue)[number]) =>
       [
-        a.not_before ? `from ${a.not_before}` : "",
+        a.starts_on ? `from ${a.starts_on}` : "",
         a.due_by ? `due by ${a.due_by}` : "",
         a.wait_for === "calm_markets"
           ? a.timing === "waiting"
@@ -524,7 +524,8 @@ async function runActions(h: DbHandle) {
         .join(", ");
     const line = (a: (typeof r.queue)[number]) => {
       const when = days(a);
-      return `  ${a.id}  ${a.title}${when ? `  (${when}${a.timing === "overdue" ? ", overdue" : ""})` : ""}`;
+      const next = a.headline ? `  next: ${a.headline}` : "";
+      return `  ${a.id}  ${a.title}${when ? `  (${when}${a.timing === "overdue" ? ", overdue" : ""})` : ""}${next}`;
     };
     for (const [label, list] of [
       ["Waiting for you", r.queue],
