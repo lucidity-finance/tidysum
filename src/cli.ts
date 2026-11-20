@@ -48,6 +48,15 @@ import { demoHousehold } from "./demo/household.js";
 import { DEFAULT_DEMO_DATABASE_URL, resetDemoDatabase, seedDemo } from "./demo/seed.js";
 import { writeDemoSite } from "./demo/site.js";
 import { deleteUser, removeItem } from "./exits.js";
+import { withPublicFacts } from "./facts/catalogs.js";
+import { readFactChecks, staleFacts } from "./facts/checks.js";
+import {
+  readCardSurvey,
+  readFactSources,
+  readHoldingFees,
+  readTreasuryBenchmark,
+} from "./facts/read.js";
+import { refreshFacts } from "./facts/refresh.js";
 import { importCsv } from "./ingest/csv.js";
 import { refreshVix } from "./market/calm.js";
 import { type AgentDb, connectAgent, connectProposer } from "./mcp/agentDb.js";
@@ -147,6 +156,13 @@ const USAGE = `tidysum <command>
                                    watchlists now (or the asset watchlist), wait, then import
   research                         the research sleeve against its cap, and the miner's ranked
                                    candidates with the evidence behind them
+  facts refresh [--force]          fetch public product facts now: what funds charge (SEC
+                                   prospectus data), card fees and APRs (CFPB survey) and the
+                                   3-month Treasury yield; serve does this by itself when each
+                                   is due. TIDYSUM_SEC_USER_AGENT names you to the SEC
+  facts                            when each source was last fetched, the Treasury yield, and
+                                   catalog rates waiting for your agent to re-check
+  fund-fees                        what your funds charge a year, from their SEC filings
   check                            run the policy checks against the active policy
   proposals                        list recent proposals
   allocation                       your investments by target bucket, in percent, and where
@@ -258,9 +274,9 @@ async function runServer(h: DbHandle) {
     userId,
     agentDb,
     ...(server.TIDYSUM_MCP_TOKEN
-      ? { mcp: { token: server.TIDYSUM_MCP_TOKEN, policy, products: productTools() } }
+      ? { mcp: { token: server.TIDYSUM_MCP_TOKEN, policy, products: productTools(agentDb) } }
       : {}),
-    products: productTools(),
+    products: productTools(agentDb),
     ...(miner && readMiner
       ? {
           research: new ResearchScanner(
@@ -273,7 +289,7 @@ async function runServer(h: DbHandle) {
   serve({ fetch: app.fetch, hostname: server.HOST, port: server.PORT }, (info) =>
     console.log(`tidysum listening on ${server.HOST}:${info.port}`),
   );
-  const products = productTools();
+  const products = productTools(agentDb);
   // Record what the data shows is in the wrong place, then turn what's open into actions.
   const reassess = async () => {
     await refreshMisallocations(h.db, agentDb, userId, await loadCatalogs(products), today())
@@ -319,6 +335,19 @@ async function runServer(h: DbHandle) {
     await reassess();
     await schedule();
   }, 60 * 60_000);
+  // Public product facts (SEC fund fees, CFPB card terms, the Treasury yield): each source
+  // fetches itself when it's due, so checking every hour costs a few queries.
+  const facts = () =>
+    refreshFacts(h.db, today())
+      .then((results) => {
+        for (const r of results) {
+          if (r.status === "imported") console.log(`facts: ${r.source} imported ${r.rows} rows`);
+          if (r.status === "failed") console.error(`facts: ${r.source} failed: ${r.error}`);
+        }
+      })
+      .catch((err) => console.error("facts refresh failed:", err));
+  void facts();
+  setInterval(facts, 60 * 60_000);
   if (readMiner) {
     void readMiner();
     setInterval(readMiner, minerIntervalHours() * 3_600_000);
@@ -496,15 +525,24 @@ async function currentUser(url: string): Promise<string> {
   }
 }
 
-function productTools(): ProductTools {
+/**
+ * The catalog files; with an agent connection, agents' fact checks and the SEC's fund fees are
+ * laid over them, as every recommendation uses them.
+ */
+function productTools(db?: AgentDb): ProductTools {
   const path = productsPath();
   const cards = cardsPath();
-  return {
+  const files: ProductTools = {
     loadCatalog: () => loadCatalogFile(path),
     loadCardCatalog: () => loadCardCatalogFile(cards),
     loadSecurityCatalog: () => loadSecurityCatalogFile(securitiesPath()),
   };
+  return db ? withPublicFacts(files, db) : files;
 }
+
+/** The card catalog with agents' fact checks laid over it. */
+const cardCatalogFor = (db: AgentDb) =>
+  productTools(db).loadCardCatalog?.() ?? loadCardCatalogFile(cardsPath());
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -514,12 +552,72 @@ async function runMcp() {
   const userId = await currentUser(url);
   const db = connectAgent(url, userId);
   const policy = policyTools(url, userId, db);
-  const server = createTidysumMcpServer(db, policy, productTools());
+  const server = createTidysumMcpServer(db, policy, productTools(db));
   server.server.onclose = () => {
     void db.end();
     void policy.proposer.end();
   };
   await server.connect(new StdioServerTransport());
+}
+
+async function runFacts() {
+  const url = loadDbConfig().DATABASE_URL;
+  const db = connectAgent(url, await currentUser(url));
+  try {
+    for (const s of await readFactSources(db)) {
+      const when = s.last_ok ? `last fetched ${s.last_ok.slice(0, 16)}` : "never fetched";
+      const file = s.last_file ? ` (${s.last_file})` : "";
+      console.log(
+        `${s.source}: ${when}${file}${s.last_error ? `; last error: ${s.last_error}` : ""}`,
+      );
+    }
+    const t = await readTreasuryBenchmark(db);
+    console.log(
+      t
+        ? `3-month Treasury yield: ${t.yield}% (${t.as_of})`
+        : "3-month Treasury yield: not fetched yet",
+    );
+    const products = productTools(db);
+    const stale = staleFacts(
+      await products.loadCatalog(),
+      await products.loadCardCatalog?.(),
+      await readFactChecks(db),
+      await readCardSurvey(db),
+      today(),
+    );
+    console.log(
+      stale.length
+        ? "\nFor your agent to re-check (list_stale_facts):"
+        : "\nEvery catalog rate is current.",
+    );
+    for (const f of stale)
+      console.log(`  ${f.kind} ${f.product_id}: ${f.reasons.join("; ")}  ${f.source_url}`);
+  } finally {
+    await db.end();
+  }
+}
+
+async function runFundFees() {
+  const url = loadDbConfig().DATABASE_URL;
+  const db = connectAgent(url, await currentUser(url));
+  try {
+    const r = await readHoldingFees(db);
+    for (const f of r.funds) {
+      const name = f.ticker ?? f.security_name ?? "a position";
+      console.log(
+        f.expense_ratio
+          ? `  ${name}: ${f.expense_ratio}% a year, ${f.annual_cost}/yr (${f.fee_as_of})`
+          : `  ${name}: unknown, ${f.why_unknown}`,
+      );
+    }
+    console.log(
+      `\nFund fees cost about ${r.annual_cost}/yr` +
+        (r.weighted_expense_ratio ? ` (${r.weighted_expense_ratio}% on average)` : "") +
+        (r.priced_share ? `, for ${r.priced_share}% of your holdings` : ""),
+    );
+  } finally {
+    await db.end();
+  }
 }
 
 async function runCheck() {
@@ -651,10 +749,10 @@ async function runProposals() {
 }
 
 async function runProducts() {
-  const catalog = await loadCatalogFile(productsPath());
   const url = loadDbConfig().DATABASE_URL;
   const db = connectAgent(url, await currentUser(url));
   try {
+    const catalog = await productTools(db).loadCatalog();
     const r = await readAndCompare(db, catalog, today());
     if (r.accounts.length === 0) console.log("no checking, savings or cash management accounts");
     for (const a of r.accounts) {
@@ -685,10 +783,10 @@ async function runProducts() {
 }
 
 async function runCashHistory() {
-  const catalog = await loadCatalogFile(productsPath());
   const url = loadDbConfig().DATABASE_URL;
   const db = connectAgent(url, await currentUser(url));
   try {
+    const catalog = await productTools(db).loadCatalog();
     const r = await readCashHistoryReport(db, catalog, today());
     if (!r.window) {
       for (const w of r.warnings) console.log(`warning: ${w}`);
@@ -745,10 +843,10 @@ function cardOverrides(values: string[] | undefined): Record<string, string> {
 
 async function runCards(args: string[]) {
   const { values } = parseArgs({ args, options: { card: { type: "string", multiple: true } } });
-  const catalog = await loadCardCatalogFile(cardsPath());
   const url = loadDbConfig().DATABASE_URL;
   const db = connectAgent(url, await currentUser(url));
   try {
+    const catalog = await cardCatalogFor(db);
     const day = today();
     const r = compareCards(
       catalog,
@@ -808,7 +906,7 @@ async function runMisallocations(h: DbHandle) {
   const userId = await resolveUserId(h.db);
   const db = connectAgent(url, userId);
   try {
-    const catalogs = await loadCatalogs(productTools());
+    const catalogs = await loadCatalogs(productTools(db));
     const day = today();
     const recorded = await refreshMisallocations(h.db, db, userId, catalogs, day);
     const drafted = await draftActions(
@@ -862,10 +960,10 @@ async function runCardFor(args: string[]) {
       card: { type: "string", multiple: true },
     },
   });
-  const catalog = await loadCardCatalogFile(cardsPath());
   const url = loadDbConfig().DATABASE_URL;
   const db = connectAgent(url, await currentUser(url));
   try {
+    const catalog = await cardCatalogFor(db);
     const history =
       values.merchant && !values.category ? await merchantCategory(db, values.merchant) : null;
     const r = adviseOnPurchase(
@@ -1155,6 +1253,8 @@ async function main(argv: string[]) {
   if (command === "demo") return runDemo(argv.slice(1));
   if (command === "mcp") return runMcp();
   if (command === "check") return runCheck();
+  if (command === "facts" && arg !== "refresh") return runFacts();
+  if (command === "fund-fees") return runFundFees();
   if (command === "proposals") return runProposals();
   if (command === "allocation") return runAllocation();
   if (command === "research" && arg !== "import") return runResearch();
@@ -1165,6 +1265,22 @@ async function main(argv: string[]) {
   const h = connect(loadDbConfig().DATABASE_URL);
   try {
     switch (command) {
+      case "facts": {
+        const results = await refreshFacts(h.db, today(), { force: argv.includes("--force") });
+        for (const r of results) {
+          const detail =
+            r.status === "imported"
+              ? `${r.rows} rows${r.files.length ? ` from ${r.files.join(", ")}` : ""}`
+              : r.status === "failed"
+                ? r.error
+                : r.status === "skipped"
+                  ? "fetched recently (--force to fetch now)"
+                  : "nothing new";
+          console.log(`${r.source}: ${r.status}${detail ? `, ${detail}` : ""}`);
+        }
+        if (results.some((r) => r.status === "failed")) process.exitCode = 1;
+        break;
+      }
       case "migrate":
         await runMigrations(h.db);
         console.log("migrations applied");

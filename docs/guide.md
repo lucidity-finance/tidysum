@@ -53,8 +53,9 @@ money out, so pass `--flip-sign` for exports where purchases are negative (most 
 
 Tidysum's MCP server gives agents read-only tools: `list_accounts`, `query_transactions`,
 `get_holdings`, `get_liabilities`, `cash_flow_summary`, `net_worth_history`,
-`compare_products`, `compare_cards`, `best_card_for_purchase`, `get_allocation` and
-`get_research_candidates`. Every query
+`compare_products`, `compare_cards`, `best_card_for_purchase`, `get_allocation`,
+`get_research_candidates`, `fund_fees`, `card_terms`, `benchmark_rates` and `list_stale_facts`
+(see [Where the numbers come from](#where-the-numbers-come-from)). Every query
 runs as the `tidysum_agent` role in a read-only session, so agents never see Plaid tokens or
 cursors and cannot write. Money comes back as decimal strings.
 
@@ -331,7 +332,8 @@ costs per year.
   printed `rates_as_of` date and the `verified_on` date someone last checked that page. A rate
   more than 30 days past `verified_on` is flagged stale. Promotional boosts and sign-up bonuses
   are left out.
-- **Updating rates:** open each `source_url`, change the numbers and both dates, and commit. The
+- **Updating rates:** your agent does it (see [Where the numbers come from](#where-the-numbers-come-from)),
+  or edit the file: open each `source_url`, change the numbers and both dates, and commit. The
   catalog is read on every request, so `tidysum serve` picks it up without a restart.
   `TIDYSUM_PRODUCTS_FILE` points at a different file.
 
@@ -383,6 +385,49 @@ past purchases at that merchant, or pass `--category`.
 
 Every product and card answer carries the same disclosure: Tidysum takes no referral or affiliate
 money, and rankings use only what a product would gain you.
+
+## Where the numbers come from
+
+Every rate, fee and APR Tidysum shows comes from the provider itself or from US government data.
+No comparison site, aggregator or referral feed is ever the source: those are paid when you open
+an account, which bends what they list.
+
+**Public data, fetched by itself.** `tidysum serve` fetches each source when it's due (`pnpm
+tidysum facts refresh` does it now; `pnpm tidysum facts` says when each last arrived). All three
+are free, need no key, and may be shipped with an open-source tool.
+
+- **What funds charge:** the SEC's [prospectus risk/return data
+  sets](https://www.sec.gov/data-research/sec-markets-data/mutual-fund-prospectus-riskreturn-summary-data-sets),
+  every mutual fund's and ETF's fee table, monthly. The last 13 months cover about 26,000 share
+  classes with tickers (a first fetch is about 200 MB; later ones a file a month). The fee is the
+  one after waivers, with the filing as its source. Unit trusts such as SPY and QQQ don't file
+  it. `fund_fees` (MCP) and `pnpm tidysum fund-fees` price each held fund per year;
+  `get_holdings` carries each position's expense ratio; and a catalog fund without an
+  `expense_ratio` gets the SEC's. The SEC asks every request to name who is asking: set
+  `TIDYSUM_SEC_USER_AGENT` to your name and email, or requests name the project's contact.
+- **Card fees and APRs:** the CFPB's [Terms of Credit Card Plans
+  survey](https://www.consumerfinance.gov/data-research/credit-card-data/terms-credit-card-plans-survey/),
+  twice a year, about 660 cards from 150+ issuers: annual fee, purchase APRs, foreign transaction
+  fee. It has the kinds of rewards but not their rates, and it is several months old when
+  published. `card_terms` (MCP) searches it for any card, in the catalog or not.
+- **A yardstick for cash:** the 13-week Treasury bill's yield from the [Treasury's daily bill
+  rates](https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_bill_rates),
+  the coupon-equivalent figure comparable to an APY. `benchmark_rates` (MCP) returns it.
+
+**Catalog rates, kept current by your agent.** Bank APYs, card reward rates and brokerage terms
+have no neutral free source, so they stay in the catalogs with the provider's page as
+`source_url`. `list_stale_facts` (MCP) lists what to re-check: anything verified more than 30
+days ago, and cards whose fees the CFPB's survey states differently. Your agent opens each page
+itself and records what it found with `submit_fact_check`:
+
+- `confirmed` (still right), `changed` (the new `apy`, `conditional_apy` or `monthly_fee`; a
+  card's `annual_fee`, `foreign_transaction_fee` or `base_rate`) or `not_found`.
+- The page must be on the provider's own site, and the agent quotes the sentence that states the
+  numbers; Tidysum refuses a check whose quote doesn't contain each new value.
+- Checks are stored in `fact_check` and laid over the catalog files wherever Tidysum uses them:
+  `verified_on` moves to the day of the check and changed values replace the file's. A later edit
+  to the file (a newer `verified_on`) wins. Product terms are public, so every user's
+  recommendations use every check; row-level security records each as the agent's own user.
 
 ## Investments
 

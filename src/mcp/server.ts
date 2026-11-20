@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getAction, listActions } from "../actions/actions.js";
 import { AGENT_RULES, endAction, reportStep, startAction } from "../actions/agentRun.js";
 import { parseSchedule, scheduleActionAsAgent } from "../actions/schedule.js";
+import { registerFactTools } from "../facts/mcpTools.js";
 import { loadCatalogs, misallocationReport } from "../misallocation/detect.js";
 import { listMisallocations } from "../misallocation/ledger.js";
 import { readPlan } from "../plan/plan.js";
@@ -77,6 +78,13 @@ best_card_for_purchase says which of the owner's cards to use, and compare_cards
 would pay for themselves given the last year of spending. Cite each product's
 source_url and verified_on date, mention any condition it needs (requires), and say when a rate
 is stale.
+
+Tidysum's rates come from each provider's own page, never from comparison or referral sites,
+and you keep them current: at the start of a session call list_stale_facts, open each listed page
+yourself, and record what it says with submit_fact_check (quote the sentence that states the
+numbers). Public data needs no checking: fund_fees has what held funds charge (SEC filings),
+card_terms the fees and APRs of cards on the market (CFPB survey), and benchmark_rates the
+3-month Treasury yield, a neutral yardstick to show next to any cash rate.
 
 Tidysum drafts an action for every open finding itself, with its steps; list_actions shows them
 and what the owner decided. File a proposal only for a concrete plan with account ids and amounts:
@@ -369,7 +377,15 @@ export function createTidysumMcpServer(
   );
 
   if (policy) registerPolicyTools(server, db, policy, products, options.proposals ?? true);
-  if (products) registerProductTools(server, db, products);
+  if (products) {
+    registerProductTools(server, db, products);
+    registerFactTools(
+      server,
+      db,
+      { ...products, today: products.today ?? today },
+      policy && (options.proposals ?? true) ? policy.proposer : undefined,
+    );
+  }
   return server;
 }
 

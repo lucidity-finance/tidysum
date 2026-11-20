@@ -288,6 +288,20 @@
       "when": 1794865732106,
       "tag": "0040_wait_for_calm_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1795139075906,
+      "tag": "0041_public_facts",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1795139082182,
+      "tag": "0042_public_facts_rules",
+      "breakpoints": true
     }
   ]
 }

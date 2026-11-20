@@ -675,3 +675,99 @@ export const researchImport = pgTable("research_import", {
   attempts: jsonb("attempts").notNull(),
   imported: text("imported").array().notNull(),
 });
+
+/**
+ * What each mutual fund and ETF share class charges, from the SEC's prospectus risk/return data
+ * sets (`tidysum facts refresh`). Market data, shared by everyone like `security`: no user_id.
+ * One row per share class, from its latest filing in the data.
+ */
+export const fundFee = pgTable(
+  "fund_fee",
+  {
+    classId: text("class_id").primaryKey(),
+    seriesId: text("series_id").notNull(),
+    ticker: text("ticker").notNull(),
+    fundName: text("fund_name").notNull(),
+    className: text("class_name"),
+    /** Percent a year after any fee waiver, like 0.03: what holders pay. */
+    expenseRatio: numeric("expense_ratio", { precision: 7, scale: 4 }).notNull(),
+    /** Percent before waivers, when the fee table states one apart. */
+    grossExpenseRatio: numeric("gross_expense_ratio", { precision: 7, scale: 4 }),
+    asOf: date("as_of", { mode: "string" }).notNull(),
+    filed: date("filed", { mode: "string" }).notNull(),
+    sourceUrl: text("source_url").notNull(),
+    updatedAt: tstz("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("fund_fee_ticker_idx").on(t.ticker)],
+);
+
+/**
+ * Card fees and APRs from the CFPB's Terms of Credit Card Plans survey. Market data, shared by
+ * everyone: no user_id. Replaced whole by each newer survey.
+ */
+export const cardTerms = pgTable("card_terms", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  institution: text("institution").notNull(),
+  product: text("product").notNull(),
+  reportDate: date("report_date", { mode: "string" }).notNull(),
+  national: boolean("national").notNull(),
+  secured: boolean("secured").notNull(),
+  annualFee: money("annual_fee"),
+  purchaseAprMin: numeric("purchase_apr_min", { precision: 6, scale: 2 }),
+  purchaseAprMedian: numeric("purchase_apr_median", { precision: 6, scale: 2 }),
+  purchaseAprMax: numeric("purchase_apr_max", { precision: 6, scale: 2 }),
+  introApr: boolean("intro_apr").notNull(),
+  foreignTransactionFee: numeric("foreign_transaction_fee", { precision: 5, scale: 2 }),
+  rewards: text("rewards"),
+  creditTiers: text("credit_tiers"),
+  website: text("website"),
+  sourceUrl: text("source_url").notNull(),
+});
+
+/** Each attempt to fetch a public data source: which file, how many rows, or why it failed. */
+export const factImport = pgTable(
+  "fact_import",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    /** sec_funds, cfpb_cards or treasury */
+    source: text("source").notNull(),
+    /** The file imported, when the source comes as files. */
+    file: text("file"),
+    ok: boolean("ok").notNull(),
+    rows: integer("rows").notNull().default(0),
+    error: text("error"),
+    at: tstz("at").notNull().defaultNow(),
+  },
+  (t) => [index("fact_import_source_idx").on(t.source, t.at)],
+);
+
+/**
+ * An agent's check of a catalog product against the provider's own page: still right, changed
+ * (with the new values and the sentence quoted from the page), or not found there. Product terms
+ * are public market data, so every user's catalog uses every check; `user_id` records whose agent
+ * made it, and row-level security only lets an agent record checks as its own user.
+ */
+export const factCheck = pgTable(
+  "fact_check",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    /** deposit or card: which catalog the product is in. */
+    kind: text("kind").notNull(),
+    productId: text("product_id").notNull(),
+    /** confirmed, changed or not_found */
+    outcome: text("outcome").notNull(),
+    /** For changed: the new value of each field, as decimal strings. */
+    changes: jsonb("changes").notNull().default({}),
+    sourceUrl: text("source_url").notNull(),
+    /** The sentence on the page that states the values. */
+    quote: text("quote").notNull(),
+    /** The "rates as of" date the page prints, when it prints one. */
+    ratesAsOf: date("rates_as_of", { mode: "string" }),
+    checkedOn: date("checked_on", { mode: "string" }).notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUser.id, { onDelete: "cascade" }),
+    at: tstz("at").notNull().defaultNow(),
+  },
+  (t) => [index("fact_check_product_idx").on(t.kind, t.productId, t.at)],
+);

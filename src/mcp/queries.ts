@@ -125,10 +125,15 @@ export async function getHoldings(db: AgentDb, accountIds?: string[]) {
   const { rows: holdings } = await db.query(
     `select h.account_id, a.name as account_name, s.id as security_id, s.name as security_name,
        s.ticker_symbol, s.type as security_type, s.is_cash_equivalent, h.quantity,
-       h.institution_price, h.institution_value, h.cost_basis, h.currency, h.as_of
+       h.institution_price, h.institution_value, h.cost_basis, h.currency, h.as_of,
+       trim_scale(ff.expense_ratio)::text as expense_ratio, ff.as_of as expense_ratio_as_of, ff.source_url as expense_ratio_source
      from holding h
      join account a on a.id = h.account_id
      join security s on s.id = h.security_id
+     left join lateral (
+       select f.expense_ratio, f.as_of, f.source_url from fund_fee f
+       where f.ticker = upper(s.ticker_symbol) order by f.filed desc limit 1
+     ) ff on true
      ${w}
      order by a.name, h.institution_value desc`,
     w.params,

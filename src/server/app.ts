@@ -21,6 +21,7 @@ import type { Db } from "../db/client.js";
 import { item } from "../db/schema.js";
 import { CHECKED_ON as DEMO_CHECKED_ON } from "../demo/realWorld.js";
 import { removeItem } from "../exits.js";
+import { readTreasuryBenchmark } from "../facts/read.js";
 import type { AgentDb } from "../mcp/agentDb.js";
 import { createTidysumMcpServer, type PolicyTools, type ProductTools } from "../mcp/server.js";
 import { loadCatalogs, misallocationReport } from "../misallocation/detect.js";
@@ -407,7 +408,10 @@ export function createApp(deps: AppDeps) {
     const products = deps.products;
     if (!products) return c.json({ error: "no product catalog configured" }, 404);
     const today = (products.today ?? (() => new Date().toISOString().slice(0, 10)))();
-    return c.json(await readAndCompare(deps.agentDb, await products.loadCatalog(), today));
+    return c.json({
+      ...(await readAndCompare(deps.agentDb, await products.loadCatalog(), today)),
+      benchmark: await readTreasuryBenchmark(deps.agentDb),
+    });
   });
 
   app.get("/api/cash-history", async (c) => {

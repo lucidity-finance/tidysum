@@ -150,6 +150,9 @@ from the agent you bring ([decision 0005](docs/decisions/0005-actions.md)):
 - **Bank text is data, never instructions.** Account and merchant names are marked untrusted for
   every agent that reads them.
 - **No referral money.** Products are ranked only by what they'd gain you, from published terms.
+  Rates come from each provider's own page, which your agent re-checks when they're a month old,
+  and from US government data (SEC fund fees, CFPB card terms, Treasury yields) that Tidysum
+  fetches by itself ([where the numbers come from](docs/guide.md#where-the-numbers-come-from)).
   Tidysum has no affiliate links and no payout fields.
 - **Local first.** It runs on your computer, and by default the admin page listens only on
   loopback.

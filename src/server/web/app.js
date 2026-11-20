@@ -3206,6 +3206,14 @@ function renderCash() {
         loss > 0n ? " more a year" : null,
       ),
       loss > 0n ? h("p", { class: "muted" }, `About ${usd0(r.monthly_loss)} a month.`) : null,
+      r.benchmark
+        ? h(
+            "p",
+            { class: "muted" },
+            `For comparison, a 3-month US Treasury bill pays ${r.benchmark.yield}% ` +
+              `(as of ${day(r.benchmark.as_of)}).`,
+          )
+        : null,
     ),
   );
   const history = ok("cashHistory");
