@@ -14,6 +14,9 @@ One, Citi, American Express and U.S. Bank.
 
 **How long it takes:** about 15 minutes, most of it Plaid's sign-up form.
 
+**No Plaid account?** [SimpleFIN Bridge](#without-plaid-simplefin-bridge) is the other way in: about
+$15 a year, no keys or sign-up form on Tidysum's side, and you can mix the two.
+
 ## The easy way: let your agent do it
 
 Any agent that can run commands and use a browser works, with any model. In
@@ -138,13 +141,51 @@ me?"_. To connect your agent to Tidysum, see [Connect your agent](../README.md#c
 - **Want to try it first?** Leave `PLAID_ENV=sandbox`, use the Sandbox secret from the same Keys
   page, and run `tidysum link-sandbox` for a test bank with two years of made-up history. Sandbox
   connections don't count toward your 10.
-- **An institution Plaid can't reach?** Export a CSV from its website and run
-  `tidysum import-csv` ([guide](guide.md#institutions-plaid-cant-reach)).
+- **An institution Plaid can't reach?** Try [SimpleFIN Bridge](#without-plaid-simplefin-bridge),
+  or export a CSV from its website and run `tidysum import-csv`
+  ([guide](guide.md#institutions-plaid-cant-reach)).
 - **What Plaid sees.** Plaid connects to your banks on your behalf and passes the data to Tidysum on
   your computer. Tidysum sends nothing anywhere else. Plaid's own
   [end user privacy policy](https://plaid.com/legal/#end-user-privacy-policy) covers what Plaid does
   with it.
 - **Outside the U.S. and Canada,** Plaid's free plan isn't available. See below.
+
+## Without Plaid: SimpleFIN Bridge
+
+[SimpleFIN Bridge](https://bridge.simplefin.org) is a small paid service (about $15 a year, or
+$1.50 a month, paid to SimpleFIN) that connects up to 25 US banks, cards and brokerages and shares
+them, read-only, with apps you give a token to. Tidysum needs nothing set up for it: no keys, no
+`.env` lines, no developer account. Use it if you'd rather not make a Plaid account, if Plaid won't
+give you access, or for an institution Plaid can't reach. Plaid and SimpleFIN connections can sit
+side by side.
+
+1. Make an account at [bridge.simplefin.org](https://bridge.simplefin.org) and connect your banks
+   there. You sign in to each bank on SimpleFIN's side; Tidysum never sees those passwords.
+2. On Tidysum's **Connections** page, click **Link institutions**, then **SimpleFIN Bridge**. Follow
+   **Open SimpleFIN Bridge** to create a setup token for Tidysum, copy it, and paste it in.
+3. Tidysum trades the token for its own read-only access (a token works once), adds one connection
+   per bank, and syncs up to a year of history, then every six hours. SimpleFIN refreshes from your
+   banks about once a day.
+
+Later:
+
+- **Added a bank at SimpleFIN Bridge?** Open the SimpleFIN dialog again and click **Check for new
+  banks**. No new token needed.
+- **A bank asks you to sign in again** at SimpleFIN Bridge: its connection here shows **Fix at
+  SimpleFIN**. If you turn Tidysum's access off at the Bridge, paste a new setup token to reconnect;
+  your connections and history stay.
+- **Removing a connection** here deletes its data in Tidysum. To stop SimpleFIN sharing it too,
+  remove it at SimpleFIN Bridge.
+- From a terminal, `tidysum simplefin -` reads a setup token from stdin, links and syncs; plain
+  `tidysum simplefin` checks for new banks.
+
+What's different from Plaid: SimpleFIN sends balances, posted transactions and, for most
+brokerages, holdings (ticker, shares, value, cost basis). It sends no account types and no spending
+categories, so Tidysum tells checking, savings, cards and brokerages apart from their names and
+holdings, and categories from the merchant code card networks assign (groceries, dining, gas,
+travel and so on) or plain descriptions like "Interest paid". It doesn't send card APRs or
+statement details, so card interest is read from the charges themselves. Tidysum asks SimpleFIN at
+most 20 times a day, under the Bridge's limit, so syncing never gets your access turned off.
 
 ## Outside the US
 
@@ -210,6 +251,10 @@ If you are an agent following this page for someone:
 - Never remove a connection to fix it: that spends one of the 10 free connections. Use
   **Reconnect**.
 - If the person doesn't live in the US, run `tidysum user country <code>` before linking.
+- With SimpleFIN Bridge instead of Plaid, the person makes the account, connects their banks and
+  creates the setup token themselves. Have them paste it on the Connections page, or pipe it to
+  `tidysum simplefin -`. A setup token works once and gives read access: never print it or put it
+  in a command line that gets logged.
 - After the first sync, run `tidysum agent setup --dry-run`, show the person what it would
   change, and ask them to run `tidysum agent setup` in their own terminal. (In a checkout, these
   commands are `pnpm tidysum ...`.)

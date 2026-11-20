@@ -55,6 +55,8 @@ import { setDepositChoice } from "../products/depositChoices.js";
 import { plaidCountries } from "../region.js";
 import { readResearchReport, researchForPage } from "../research/report.js";
 import type { ResearchScanner } from "../research/scan.js";
+import type { SimpleFinClient } from "../simplefin/client.js";
+import { linkSimpleFin } from "../simplefin/link.js";
 import { ensurePlaidUser, linkItem, loadAccessToken } from "../sync/items.js";
 import type { SyncScheduler } from "../sync/scheduler.js";
 import {
@@ -90,6 +92,10 @@ export interface AppDeps {
   plaidEurope?: boolean;
   /** Enable Banking, for UK and EU banks (decision 0011); unset when it isn't set up. */
   bankLinks?: BankLinks;
+  /** SimpleFIN Bridge (decision 0013): needs no keys, so it is there unless a test leaves it out. */
+  simplefin?: SimpleFinClient;
+  /** False when Plaid's keys aren't set: the page then offers the other ways to connect. */
+  plaidConfigured?: boolean;
   /** Wait between /link/token/get retries while a finished session's results appear; 0 = no retry. */
   linkSessionRetryMs?: number;
   /**
@@ -121,6 +127,8 @@ const BankLinkBody = z
   })
   .strict();
 const LinkSessionBody = z.object({ linkToken: z.string().min(1).max(200) }).strict();
+/** A SimpleFIN setup token, or none to ask the stored access URL for banks added since. */
+const SimpleFinBody = z.object({ token: z.string().trim().min(1).max(2000).optional() }).strict();
 const DepositChoiceBody = z
   .object({
     productId: z
@@ -264,6 +272,7 @@ export function createApp(deps: AppDeps) {
       "/api/link-sessions",
       "/api/items",
       "/api/bank-link",
+      "/api/simplefin",
     ]) {
       app.post(path, refuse);
     }
@@ -303,6 +312,8 @@ export function createApp(deps: AppDeps) {
       country: region.country,
       currency: region.currency,
       bankLinks: deps.bankLinks !== undefined,
+      plaid: deps.plaidConfigured ?? true,
+      simplefin: deps.simplefin !== undefined,
       phoneEnding: phone ? phone.slice(-4) : null,
       // The demo's banks are real; the page says when their public rates were last checked.
       ...(deps.demo ? { demo: true, demo_checked_on: DEMO_CHECKED_ON } : {}),
@@ -464,6 +475,26 @@ export function createApp(deps: AppDeps) {
       return back(err instanceof Error ? err.message : String(err));
     }
     return c.redirect("/#connections");
+  });
+
+  // SimpleFIN Bridge (decision 0013): the person pastes the setup token they made there.
+  app.post("/api/simplefin", async (c) => {
+    if (!deps.simplefin) return c.json({ error: "SimpleFIN isn't available here" }, 404);
+    const body = SimpleFinBody.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: "invalid body" }, 400);
+    try {
+      const banks = await linkSimpleFin(
+        deps.db,
+        deps.cipher,
+        deps.simplefin,
+        deps.userId,
+        body.data.token,
+      );
+      for (const b of banks) void deps.scheduler.request(b.itemId);
+      return c.json({ banks: banks.map((b) => ({ name: b.name, added: b.added })) });
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
+    }
   });
 
   // Disconnects an Item and deletes its data (decision 0002, principle 9).

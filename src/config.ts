@@ -82,7 +82,8 @@ export type EnableBankingConfig = z.infer<typeof EnableBankingEnv>;
 /**
  * What connects accounts: Plaid, Enable Banking (UK and EU banks, decision 0011), or both, and
  * the key their stored tokens are encrypted with. Either may be missing (a fresh install has
- * neither yet); their calls then fail with what to set up.
+ * neither yet); their calls then fail with what to set up. SimpleFIN (decision 0013) needs no
+ * keys at all, so a fresh install can link accounts through it right away.
  */
 export function loadConnectionConfig(env = process.env) {
   const enableBanking = env.ENABLE_BANKING_APP_ID ? parse(EnableBankingEnv, env) : undefined;

@@ -52,6 +52,15 @@ in the EU. Fee swaps stay inside the owner's own market (a UK owner is offered I
 US ETF), and ISAs, SIPPs, TFSAs and RRSPs count as tax-sheltered.
 See [decision 0011](decisions/0011-countries.md) for what each country still needs.
 
+## SimpleFIN Bridge
+
+A second way to connect US accounts, with no keys to set up ([decision 0013](decisions/0013-simplefin.md),
+`src/simplefin/`). The person pastes a SimpleFIN setup token on the Connections page or runs
+`tidysum simplefin -`; Tidysum claims an access URL (stored encrypted in `item_secret`), makes one
+item per bank (`item.source = 'simplefin'`), and syncs through the same gateway as Plaid. Requests
+are shared between the banks of one access URL and capped at 20 a day. Account kinds and categories
+are inferred (`src/simplefin/categories.ts`); there are no liabilities.
+
 ## Institutions Plaid can't reach
 
 ```sh

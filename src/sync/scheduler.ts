@@ -6,7 +6,7 @@ import type { PlaidGateway } from "../plaid/gateway.js";
 import { type SyncResult, syncItem } from "./syncItem.js";
 
 /** Sources a sync pulls from; CSV imports are refreshed by importing again. */
-const SYNCED = ["plaid", "enable_banking"] as const;
+export const SYNCED = ["plaid", "enable_banking", "simplefin"] as const;
 
 /**
  * Serializes syncs per Item. Webhooks, the interval timer and the Link page can all ask for a

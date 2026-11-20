@@ -198,6 +198,12 @@ Tidysum connects to your banks, cards, brokerages and retirement plans through
 connects up to 10 real institutions with no company and no cost. That is the whole setup: install
 Tidysum, make the Plaid account, paste two keys, and sign in to your banks.
 
+**No Plaid account? Use SimpleFIN Bridge.** If you'd rather not sign up for Plaid, or Plaid won't
+give you access, connect your banks at [SimpleFIN Bridge](https://bridge.simplefin.org) (about $15
+a year, paid to them), make a setup token there and paste it on Tidysum's **Connections** page.
+Nothing goes in `.env`, so it works straight after the install
+([SimpleFIN Bridge](docs/connect-your-accounts.md#without-plaid-simplefin-bridge)).
+
 ### The easy way: ask your agent
 
 Your AI agent can do nearly all of it. In [Claude Code](https://claude.com/claude-code) (with
@@ -238,7 +244,7 @@ free mode for your own accounts instead
 
 [Connect your accounts](docs/connect-your-accounts.md) explains every step, what counts toward the
 10 free connections, and how to try it first with Plaid's test bank. Institutions Plaid can't reach
-can come in as CSV (`tidysum import-csv`).
+can come in through SimpleFIN Bridge, or as CSV (`tidysum import-csv`).
 
 **Working on Tidysum itself?** Clone the repository, `pnpm install` (Node 22.19 or newer and
 [pnpm](https://pnpm.io)), `cp .env.example .env`, and run any command as `pnpm tidysum <command>`;

@@ -155,6 +155,12 @@ export const RELINK_ERROR_CODES = new Set([
   "ACCESS_NOT_GRANTED",
   "INSUFFICIENT_CREDENTIALS",
   "USER_PERMISSION_REVOKED",
+  // SimpleFIN (src/simplefin/gateway.ts): the bank wants a new sign-in at SimpleFIN Bridge, the
+  // access was turned off there, its subscription lapsed, or the bank is no longer shared.
+  "SIMPLEFIN_REAUTH",
+  "SIMPLEFIN_ACCESS_REVOKED",
+  "SIMPLEFIN_PAYMENT_REQUIRED",
+  "SIMPLEFIN_CONNECTION_GONE",
 ]);
 
 /** Errors that mean "this Item has no data for this product", not a failure. */

@@ -337,6 +337,13 @@
       "when": 1795191288361,
       "tag": "0047_uk_euro_cash_rates",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1795209211314,
+      "tag": "0048_simplefin_source",
+      "breakpoints": true
     }
   ]
 }

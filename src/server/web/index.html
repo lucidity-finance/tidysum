@@ -96,6 +96,34 @@
         <button class="btn" type="button" id="banks-cancel">Cancel</button>
       </div>
     </dialog>
+    <dialog class="dialog" id="providers">
+      <h2>Link institutions</h2>
+      <p class="muted small">Pick how Tidysum reads your accounts. Either way it only reads.</p>
+      <div class="provider-list" id="providers-list"></div>
+      <div class="dialog-actions">
+        <button class="btn" type="button" id="providers-cancel">Cancel</button>
+      </div>
+    </dialog>
+    <dialog class="dialog" id="simplefin">
+      <h2>Connect through SimpleFIN</h2>
+      <ol class="simplefin-steps">
+        <li>
+          <a id="simplefin-bridge" href="https://bridge.simplefin.org/simplefin/create" target="_blank" rel="noreferrer">Open SimpleFIN Bridge</a>,
+          connect your banks there, and create a setup token for Tidysum.
+        </li>
+        <li>Paste the token here. It works once.</li>
+      </ol>
+      <textarea class="input" id="simplefin-token" rows="3" placeholder="Setup token" autocomplete="off" spellcheck="false" aria-label="SimpleFIN setup token"></textarea>
+      <p class="muted small">
+        SimpleFIN Bridge costs about $15 a year, paid to them. It can only read, never move money.
+        To stop sharing, remove Tidysum at SimpleFIN Bridge.
+      </p>
+      <div class="dialog-actions">
+        <button class="btn btn-quiet" type="button" id="simplefin-again" hidden>Check for new banks</button>
+        <button class="btn" type="button" id="simplefin-cancel">Cancel</button>
+        <button class="btn btn-primary" type="button" id="simplefin-connect">Connect</button>
+      </div>
+    </dialog>
     <dialog class="dialog" id="confirm">
       <h2 id="confirm-title">Are you sure?</h2>
       <p id="confirm-body"></p>

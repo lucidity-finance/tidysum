@@ -126,8 +126,11 @@ import {
   start as startService,
   stop as stopService,
 } from "./service.js";
+import { SimpleFinClient } from "./simplefin/client.js";
+import { SimpleFinGateway, withSimpleFin } from "./simplefin/gateway.js";
+import { linkSimpleFin } from "./simplefin/link.js";
 import { linkItem } from "./sync/items.js";
-import { SyncScheduler } from "./sync/scheduler.js";
+import { SYNCED, SyncScheduler } from "./sync/scheduler.js";
 import { syncItem } from "./sync/syncItem.js";
 import { createUser, readRegion, resolveUserId, setCountry } from "./users.js";
 
@@ -140,6 +143,9 @@ const USAGE = `tidysum <command>
                                    demo instead
   migrate                          apply database migrations
   link-sandbox [institution_id]    create and link a Plaid Sandbox Item (default ins_109508)
+  simplefin [setup_token]          link the banks shared through SimpleFIN Bridge (a setup token
+                                   is used once; "-" reads it from stdin), then sync them; with
+                                   no token, adds banks connected at the Bridge since
   sync                             sync every active Item once
   serve                            admin page (Plaid Link), Plaid webhooks, scheduled sync, and
                                    the agent MCP endpoint at /mcp when TIDYSUM_MCP_TOKEN is set
@@ -251,8 +257,9 @@ Commands act for TIDYSUM_USER_ID, or for the only user when there is just one.`;
 const DAYS_REQUESTED = 730;
 
 /**
- * The connections that sync accounts: Plaid, and Enable Banking for UK and EU banks when it is
- * set up (decision 0011). Sync and removal calls reach whichever one an item belongs to.
+ * The connections that sync accounts: Plaid when its keys are set, Enable Banking for UK and EU
+ * banks when it is set up (decision 0011), and SimpleFIN, which needs nothing set up (decision
+ * 0013). Sync and removal calls reach whichever one an item belongs to.
  */
 function plaidDeps() {
   const config = loadConnectionConfig();
@@ -262,14 +269,24 @@ function plaidDeps() {
         config.enableBanking.ENABLE_BANKING_KEY_FILE,
       )
     : undefined;
-  const plaid = withEnableBanking(
-    config.plaid ? new PlaidApiGateway(config.plaid) : unconfiguredPlaid(),
-    eb ? new EnableBankingGateway(eb) : undefined,
+  const simplefin = new SimpleFinClient();
+  const plaid = withSimpleFin(
+    withEnableBanking(
+      config.plaid ? new PlaidApiGateway(config.plaid) : unconfiguredPlaid(),
+      eb ? new EnableBankingGateway(eb) : undefined,
+    ),
+    new SimpleFinGateway(simplefin),
   );
   const bankLinks = eb
     ? new BankLinks(eb, config.enableBanking?.ENABLE_BANKING_REDIRECT_URL)
     : undefined;
-  return { plaid, cipher: new TokenCipher(config.tokenKey), bankLinks };
+  return {
+    plaid,
+    cipher: new TokenCipher(config.tokenKey),
+    bankLinks,
+    simplefin,
+    plaidConfigured: !!config.plaid,
+  };
 }
 
 async function syncAll(h: DbHandle) {
@@ -277,12 +294,7 @@ async function syncAll(h: DbHandle) {
   const items = await h.db
     .select({ id: item.id, name: item.institutionName })
     .from(item)
-    .where(
-      and(
-        inArray(item.source, ["plaid", "enable_banking"]),
-        inArray(item.status, ["active", "error"]),
-      ),
-    );
+    .where(and(inArray(item.source, SYNCED), inArray(item.status, ["active", "error"])));
   for (const it of items) {
     const r = await syncItem(h.db, plaid, cipher, it.id);
     const detail = r.status === "succeeded" ? `+${r.added} ~${r.modified} -${r.removed}` : r.error;
@@ -294,7 +306,7 @@ async function runServer(h: DbHandle) {
   const server = loadServerConfig();
   const userId = await resolveUserId(h.db);
   const agentDb = connectAgent(loadDbConfig().DATABASE_URL, userId);
-  const { plaid, cipher, bankLinks } = plaidDeps();
+  const { plaid, cipher, bankLinks, simplefin, plaidConfigured } = plaidDeps();
   const scheduler = new SyncScheduler(h.db, plaid, cipher, (r) => {
     const detail = r.status === "succeeded" ? `+${r.added} ~${r.modified} -${r.removed}` : r.error;
     console.log(`sync ${r.itemId}: ${r.status} ${detail}`);
@@ -326,6 +338,8 @@ async function runServer(h: DbHandle) {
     daysRequested: DAYS_REQUESTED,
     plaidEurope: plaidEurope(),
     ...(bankLinks ? { bankLinks } : {}),
+    simplefin,
+    plaidConfigured,
     linkSessionRetryMs: 1000,
     userId,
     agentDb,
@@ -1436,6 +1450,30 @@ async function main(argv: string[]) {
         );
         const id = await linkItem(h.db, plaid, cipher, await resolveUserId(h.db), publicToken);
         console.log(`linked sandbox item ${id}`);
+        break;
+      }
+      case "simplefin": {
+        const { plaid, cipher, simplefin } = plaidDeps();
+        let token = arg;
+        if (arg === "-") {
+          const chunks: Buffer[] = [];
+          for await (const c of process.stdin) chunks.push(c as Buffer);
+          token = Buffer.concat(chunks).toString().trim();
+        }
+        const banks = await linkSimpleFin(
+          h.db,
+          cipher,
+          simplefin,
+          await resolveUserId(h.db),
+          token || undefined,
+        );
+        if (banks.length === 0) console.log("No new banks at SimpleFIN Bridge.");
+        for (const b of banks) {
+          const r = await syncItem(h.db, plaid, cipher, b.itemId);
+          const detail =
+            r.status === "succeeded" ? `+${r.added} transactions` : `sync failed: ${r.error}`;
+          console.log(`${b.added ? "linked" : "renewed"} ${b.name}: ${detail}`);
+        }
         break;
       }
       case "sync":

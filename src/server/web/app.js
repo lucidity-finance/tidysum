@@ -611,13 +611,142 @@ async function pickBank() {
   search.focus();
 }
 
-function startLink(button, itemId, bank) {
+// SimpleFIN Bridge (decision 0013): the person connects their banks there (about $15 a year,
+// paid to SimpleFIN), makes a setup token for Tidysum and pastes it here. No keys to set up.
+const SIMPLEFIN_CREATE = "https://bridge.simplefin.org/simplefin/create";
+const SIMPLEFIN_HOME = "https://bridge.simplefin.org/";
+const hasSimpleFin = () => !!ok("items")?.items.some((i) => i.source === "simplefin");
+
+/** "Chase, Vanguard and Citi". */
+const andList = (xs) =>
+  xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`;
+
+function simplefinDone({ banks }) {
+  const added = banks.filter((b) => b.added).map((b) => b.name);
+  const renewed = banks.filter((b) => !b.added).map((b) => b.name);
+  if (!banks.length) return "No new banks at SimpleFIN Bridge yet.";
+  return [
+    added.length ? `Linked ${andList(added)}.` : "",
+    renewed.length ? `Renewed ${andList(renewed)}.` : "",
+    "The first sync takes a minute.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function openSimpleFin() {
+  const dialog = $("#simplefin");
+  const input = $("#simplefin-token");
+  const connect = $("#simplefin-connect");
+  const again = $("#simplefin-again");
+  input.value = "";
+  $("#simplefin-bridge").href = SIMPLEFIN_CREATE;
+  again.hidden = !hasSimpleFin();
+  $("#simplefin-cancel").onclick = () => dialog.close();
+  const run = (button, body) =>
+    act(
+      button,
+      async () => {
+        const r = await api("/api/simplefin", body);
+        dialog.close();
+        toast(simplefinDone(r), "ok");
+      },
+      null,
+      ALL,
+    ).finally(() => {
+      button.disabled = false;
+    });
+  connect.onclick = () => {
+    const token = input.value.trim();
+    if (!token) return input.focus();
+    run(connect, { token });
+  };
+  again.onclick = () => run(again, {});
+  dialog.showModal();
+  input.focus();
+  return Promise.resolve();
+}
+
+/** How someone can connect here: Plaid, Enable Banking (UK and EU), SimpleFIN. */
+function providers() {
+  const r = ok("items");
+  const out = [];
+  if (viaEnableBanking()) out.push("enable_banking");
+  else out.push("plaid");
+  if (r?.simplefin) out.push("simplefin");
+  return out;
+}
+
+/** Plaid's keys aren't in .env yet: the choice says so instead of failing after a click. */
+const plaidMissing = () => ok("items")?.plaid === false;
+
+function chooseProvider() {
+  const dialog = $("#providers");
+  const choice = (title, text, onpick, opts = {}) =>
+    h(
+      opts.href ? "a" : "button",
+      {
+        class: `provider-choice ${opts.muted ? "is-muted" : ""}`,
+        ...(opts.href
+          ? { href: opts.href, target: "_blank", rel: "noreferrer" }
+          : {
+              type: "button",
+              onclick: () => {
+                dialog.close();
+                onpick().catch((e) => toast(e.message, "error"));
+              },
+            }),
+      },
+      h("span", { class: "avatar", style: { "--hue": hue(title) } }, initials(title)),
+      h("span", null, h("strong", null, title), h("span", { class: "muted small" }, text)),
+    );
+  const options = providers().map((p) => {
+    if (p === "simplefin") {
+      return choice(
+        "SimpleFIN Bridge",
+        "Connect your banks at SimpleFIN Bridge (about $15 a year) and paste the token it gives you. Nothing to set up here.",
+        openSimpleFin,
+      );
+    }
+    if (p === "enable_banking") {
+      return choice("Your bank, directly", "UK and EU banks, through Enable Banking.", pickBank);
+    }
+    return plaidMissing()
+      ? choice(
+          "Plaid",
+          "Free with your own Plaid account. Add its keys to Tidysum's .env first: see how.",
+          null,
+          {
+            href: "https://github.com/lucidity-finance/tidysum/blob/main/docs/connect-your-accounts.md",
+            muted: true,
+          },
+        )
+      : choice(
+          "Plaid",
+          "Sign in to each bank in Plaid's window, several in one go. Free with your Plaid account.",
+          () => openLink(),
+        );
+  });
+  fill($("#providers-list"), options);
+  $("#providers-cancel").onclick = () => dialog.close();
+  dialog.showModal();
+  return Promise.resolve();
+}
+
+function startLink(button, itemId, bank, source) {
   button.disabled = true;
-  const run = bank
-    ? goToBank(bank, itemId)
-    : viaEnableBanking() && !itemId
-      ? pickBank()
-      : openLink(itemId);
+  const run =
+    source === "simplefin"
+      ? openSimpleFin()
+      : bank
+        ? goToBank(bank, itemId)
+        : itemId
+          ? openLink(itemId)
+          : providers().length > 1
+            ? chooseProvider()
+            : viaEnableBanking()
+              ? pickBank()
+              : openLink(itemId);
   run
     .catch((e) => toast(e.message, "error"))
     .finally(() => {
@@ -631,7 +760,7 @@ function linkButton(label, opts = {}) {
     {
       class: `btn ${opts.primary === false ? "" : "btn-primary"} ${opts.small ? "btn-sm" : ""}`,
       type: "button",
-      onclick: (ev) => startLink(ev.currentTarget, opts.itemId, opts.bank),
+      onclick: (ev) => startLink(ev.currentTarget, opts.itemId, opts.bank, opts.source),
     },
     opts.itemId ? icon("refresh") : icon("plus"),
     label,
@@ -2837,6 +2966,12 @@ const ITEM_STATES = {
 
 const ITEM_DETAILS = {
   ITEM_LOGIN_REQUIRED: "The bank wants you to sign in again.",
+  SIMPLEFIN_REAUTH: "The bank wants you to sign in again at SimpleFIN Bridge.",
+  SIMPLEFIN_ACCESS_REVOKED:
+    "Tidysum's access was turned off at SimpleFIN Bridge. Paste a new setup token to reconnect.",
+  SIMPLEFIN_PAYMENT_REQUIRED: "SimpleFIN Bridge needs its subscription renewed.",
+  SIMPLEFIN_CONNECTION_GONE:
+    "SimpleFIN Bridge no longer shares this bank. Connect it there again, or remove it here.",
   PENDING_EXPIRATION: "Access expires soon. Reconnect to keep syncing.",
   PENDING_DISCONNECT: "The bank will disconnect soon. Reconnect to keep syncing.",
   USER_PERMISSION_REVOKED: "Access was turned off at the bank.",
@@ -2852,6 +2987,23 @@ function itemDetail(it, name) {
     return ITEM_DETAILS[it.statusDetail] || "Reconnect to keep syncing.";
   }
   return null;
+}
+
+/**
+ * A SimpleFIN bank that stopped syncing is fixed at the Bridge (sign in again, renew) or with a
+ * new setup token (access turned off).
+ */
+function simplefinFix(it) {
+  if (it.status === "error") return null;
+  if (it.statusDetail === "SIMPLEFIN_ACCESS_REVOKED") {
+    return linkButton("Reconnect", { small: true, source: "simplefin" });
+  }
+  return h(
+    "a",
+    { class: "btn btn-sm btn-primary", href: SIMPLEFIN_HOME, target: "_blank", rel: "noreferrer" },
+    "Fix at SimpleFIN",
+    icon("external"),
+  );
 }
 
 /** "Morgan Stanley - StockPlan Connect / Benefit Access" is a login page; people say "Morgan Stanley". */
@@ -2882,6 +3034,7 @@ function institutionRow(it) {
         },
         detail ? `${detail} ${synced}.` : synced,
         it.source === "csv" ? " · from a file" : null,
+        it.source === "simplefin" ? " · through SimpleFIN" : null,
       ),
     ),
     broken || retrying
@@ -2891,7 +3044,9 @@ function institutionRow(it) {
       ? linkButton("Reconnect", { itemId: it.id, small: true })
       : it.source === "enable_banking" && broken && ebBank(it.institutionId)
         ? linkButton("Reconnect", { itemId: it.id, small: true, bank: ebBank(it.institutionId) })
-        : null,
+        : it.source === "simplefin" && broken
+          ? simplefinFix(it)
+          : null,
     // The demo's banks stay put: there is nothing real of yours to disconnect.
     ok("items")?.demo
       ? null
@@ -2906,7 +3061,11 @@ function institutionRow(it) {
               const b = ev.currentTarget;
               const yes = await confirmDialog(
                 `Remove ${name}?`,
-                "This disconnects it and deletes its accounts and everything synced from them. Only the audit log is kept.",
+                `This disconnects it and deletes its accounts and everything synced from them. Only the audit log is kept.${
+                  it.source === "simplefin"
+                    ? " To stop SimpleFIN sharing it too, remove it at SimpleFIN Bridge."
+                    : ""
+                }`,
                 "Remove",
               );
               if (yes) {
@@ -3020,9 +3179,9 @@ function renderConnections() {
   $("#link-new").hidden = !r || !!r.error || r.items.length === 0 || !!r.demo;
   if (!r) return fill(root, skeleton(1));
   if (r.error) return fill(root, failed("Connections", r));
-  // Plaid remembers a phone number; Enable Banking has no such thing.
+  // Plaid remembers a phone number; Enable Banking and SimpleFIN have no such thing.
   const phone =
-    r.demo || viaEnableBanking()
+    r.demo || viaEnableBanking() || r.plaid === false
       ? null
       : h("div", { class: "panel list phone-panel" }, phoneRow(r.phoneEnding));
   if (r.items.length === 0) {
@@ -3031,7 +3190,7 @@ function renderConnections() {
       empty(
         "bank",
         "Nothing linked yet",
-        "Link your banks, cards and brokerages, several in one go. Tidysum only reads them.",
+        "Link your banks, cards and brokerages. Tidysum only reads them.",
         linkButton("Link institutions"),
       ),
       phone,
