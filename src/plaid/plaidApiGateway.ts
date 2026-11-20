@@ -9,6 +9,7 @@ import {
 } from "plaid";
 import type { PlaidConfig } from "../config.js";
 import {
+  LIVE_BALANCE_UNAVAILABLE_CODES,
   type PlaidAccount,
   PlaidApiError,
   type PlaidGateway,
@@ -60,11 +61,26 @@ async function call<T>(fn: () => Promise<{ data: T }>): Promise<T> {
     return (await fn()).data;
   } catch (err) {
     // The Plaid client throws axios errors; the Plaid error body is on response.data.
-    const d = (err as { response?: { data?: Record<string, string> } }).response?.data;
+    const e = err as { response?: { data?: Record<string, string> }; config?: { url?: string } };
+    const d = e.response?.data;
     if (d?.error_code) {
-      throw new PlaidApiError(d.error_type ?? "UNKNOWN", d.error_code, d.error_message ?? "");
+      throw new PlaidApiError(
+        d.error_type ?? "UNKNOWN",
+        d.error_code,
+        d.error_message ?? "",
+        endpointOf(e.config?.url),
+      );
     }
     throw err;
+  }
+}
+
+function endpointOf(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return undefined;
   }
 }
 
@@ -107,8 +123,18 @@ export class PlaidApiGateway implements PlaidGateway {
   }
 
   async getAccounts(accessToken: string) {
-    const r = await call(() => this.api.accountsBalanceGet({ access_token: accessToken }));
-    return r.accounts.map(mapAccount);
+    try {
+      const r = await call(() => this.api.accountsBalanceGet({ access_token: accessToken }));
+      return r.accounts.map(mapAccount);
+    } catch (err) {
+      // Some banks fail the live check for hours (Vanguard has) while everything Plaid already
+      // pulled is fine. Fall back to those balances rather than skip the whole sync.
+      if (!(err instanceof PlaidApiError && LIVE_BALANCE_UNAVAILABLE_CODES.has(err.errorCode))) {
+        throw err;
+      }
+      const r = await call(() => this.api.accountsGet({ access_token: accessToken }));
+      return r.accounts.map(mapAccount);
+    }
   }
 
   async syncTransactions(accessToken: string, cursor: string | null) {

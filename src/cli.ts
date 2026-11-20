@@ -326,6 +326,14 @@ async function runServer(h: DbHandle) {
   };
   void tick();
   setInterval(tick, server.SYNC_INTERVAL_MINUTES * 60_000);
+  // A bank or Plaid having a bad hour shouldn't leave its accounts stale until the next full pass.
+  setInterval(async () => {
+    const tried = await scheduler.retryFailed().catch((err) => {
+      console.error("sync retry failed:", err);
+      return 0;
+    });
+    if (tried > 0) await reassess();
+  }, server.SYNC_RETRY_MINUTES * 60_000);
   // Scheduled actions (decision 0006): every hour, see what came due and tell the owner. Data
   // recorded by hand (a workplace plan, an IRA year) and agents' finished actions count then too,
   // without waiting for the next sync.

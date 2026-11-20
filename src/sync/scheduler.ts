@@ -50,6 +50,19 @@ export class SyncScheduler {
     await Promise.all(items.map((i) => this.request(i.id)));
   }
 
+  /**
+   * Try again the Items whose last sync failed on Plaid's or the bank's side. Items that need
+   * the owner to reconnect are left alone: retrying can't fix them.
+   */
+  async retryFailed(): Promise<number> {
+    const items = await this.db
+      .select({ id: item.id })
+      .from(item)
+      .where(and(eq(item.source, "plaid"), eq(item.status, "error")));
+    await Promise.all(items.map((i) => this.request(i.id)));
+    return items.length;
+  }
+
   /** Wait for every sync in flight (tests and shutdown). */
   async idle(): Promise<void> {
     while (this.running.size > 0) await Promise.all(this.running.values());

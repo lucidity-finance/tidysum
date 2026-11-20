@@ -16,6 +16,7 @@ import {
 } from "../src/db/schema.js";
 import { PlaidApiError } from "../src/plaid/gateway.js";
 import { linkItem } from "../src/sync/items.js";
+import { SyncScheduler } from "../src/sync/scheduler.js";
 import { syncItem } from "../src/sync/syncItem.js";
 import { checking, FakePlaid, page, txn } from "./fakePlaid.js";
 import { ownerUserId } from "./users.js";
@@ -145,6 +146,31 @@ describe("syncItem", () => {
     const [run] = await db.select().from(syncRun).where(eq(syncRun.itemId, itemId));
     expect(run?.status).toBe("failed");
     expect(run?.error).toContain("ITEM_LOGIN_REQUIRED");
+  });
+
+  it("retries an Item that failed on Plaid's side until it syncs, and leaves re-links alone", async () => {
+    const { plaid, itemId } = await setup();
+    const relinkId = await linkItem(db, plaid, cipher, userId, "public-2");
+    await db
+      .update(item)
+      .set({ status: "relink_required", statusDetail: "ITEM_LOGIN_REQUIRED" })
+      .where(eq(item.id, relinkId));
+    plaid.accountsError = new PlaidApiError("API_ERROR", "INTERNAL_SERVER_ERROR", "unexpected");
+    expect((await syncItem(db, plaid, cipher, itemId)).status).toBe("failed");
+    const [failed] = await db.select().from(item).where(eq(item.id, itemId));
+    expect(failed).toMatchObject({ status: "error", statusDetail: "INTERNAL_SERVER_ERROR" });
+
+    plaid.accountsError = undefined;
+    plaid.onSync(null, page({ added: [txn("t1", "1.00")], nextCursor: "c1" }));
+    const scheduler = new SyncScheduler(db, plaid, cipher);
+    expect(await scheduler.retryFailed()).toBe(1);
+    const rows = await db.select().from(item);
+    expect(rows.find((r) => r.id === itemId)).toMatchObject({
+      status: "active",
+      statusDetail: null,
+    });
+    expect(rows.find((r) => r.id === relinkId)?.status).toBe("relink_required");
+    expect(await scheduler.retryFailed()).toBe(0);
   });
 
   it("replaces holdings with the latest snapshot and stores liabilities", async () => {

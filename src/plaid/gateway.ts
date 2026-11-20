@@ -131,8 +131,10 @@ export class PlaidApiError extends Error {
     readonly errorType: string,
     readonly errorCode: string,
     message: string,
+    /** The Plaid endpoint that failed, such as /accounts/balance/get, when known. */
+    readonly endpoint?: string,
   ) {
-    super(`${errorType}/${errorCode}: ${message}`);
+    super(`${errorType}/${errorCode}${endpoint ? ` from ${endpoint}` : ""}: ${message}`);
     this.name = "PlaidApiError";
   }
 }
@@ -155,6 +157,19 @@ export const PRODUCT_ABSENT_ERROR_CODES = new Set([
   "NO_INVESTMENT_AUTH_ACCOUNTS",
   "NO_LIABILITY_ACCOUNTS",
   "INVALID_PRODUCT",
+]);
+
+/**
+ * Errors from Plaid's live balance check that mean the bank (or Plaid) couldn't answer just
+ * now. The balances Plaid pulled on its own last refresh still hold, so the sync uses those.
+ */
+export const LIVE_BALANCE_UNAVAILABLE_CODES = new Set([
+  "INTERNAL_SERVER_ERROR",
+  "PLAID_ERROR",
+  "INSTITUTION_DOWN",
+  "INSTITUTION_NOT_RESPONDING",
+  "INSTITUTION_NOT_AVAILABLE",
+  "BALANCE_LIMIT",
 ]);
 
 export const MUTATION_DURING_PAGINATION = "TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION";

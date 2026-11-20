@@ -41,6 +41,8 @@ const ServerEnv = z
     HOST: z.string().default("127.0.0.1"),
     PORT: z.coerce.number().int().min(1).max(65535).default(8080),
     SYNC_INTERVAL_MINUTES: z.coerce.number().int().min(15).default(360),
+    /** How soon a connection that failed on Plaid's or the bank's side is tried again. */
+    SYNC_RETRY_MINUTES: z.coerce.number().int().min(15).default(30),
   })
   .refine((c) => c.TIDYSUM_ADMIN_TOKEN !== undefined || isLoopbackHost(c.HOST), {
     message: "required when HOST is not a loopback address",

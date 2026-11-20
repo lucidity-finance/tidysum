@@ -690,7 +690,16 @@ function fact(label, value, tone) {
   );
 }
 
-const needsAttention = (it) => it.status !== "active";
+/**
+ * Plaid or the bank failing on their side (a server error, the bank not answering). Tidysum
+ * tries again by itself, so it only asks the owner once it has gone on for days.
+ */
+const RETRY_GRACE_MS = 3 * 86_400_000;
+const isRetrying = (it) =>
+  it.status === "error" &&
+  !!it.lastSyncedAt &&
+  Date.now() - new Date(it.lastSyncedAt).getTime() < RETRY_GRACE_MS;
+const needsAttention = (it) => it.status !== "active" && !isRetrying(it);
 
 /** Warnings this page turns into inline fixes, so they aren't also shown as text. */
 const isCardQuestion = (w) => /doesn't say which card it is/.test(w);
@@ -2370,7 +2379,8 @@ function renderActions() {
   const dismissed = mis.items.filter((m) => m.state === "dismissed");
   const items = ok("items")?.items || [];
   const notes = mis.warnings.filter(
-    (w) => !isCardQuestion(w) && !(isConnectionStale(w) && items.some(needsAttention)),
+    (w) =>
+      !isCardQuestion(w) && !(isConnectionStale(w) && items.some((it) => it.status !== "active")),
   );
 
   fill(
@@ -2618,7 +2628,7 @@ function activityFeed(limit = 6) {
 const ITEM_STATES = {
   active: ["Syncing", "pill-gain"],
   relink_required: ["Needs you", "pill-warn"],
-  error: ["Error", "pill-danger"],
+  error: ["Not syncing", "pill-warn"],
   disconnected: ["Disconnected", ""],
 };
 
@@ -2629,14 +2639,29 @@ const ITEM_DETAILS = {
   USER_PERMISSION_REVOKED: "Access was turned off at the bank.",
 };
 
+/** What to tell the owner about a connection that isn't syncing, in words, never Plaid's codes. */
+function itemDetail(it, name) {
+  if (it.status === "active") return null;
+  if (isRetrying(it)) return `${name} isn't answering right now. Tidysum keeps trying on its own.`;
+  if (it.status === "error")
+    return `${name} hasn't answered for a while. Reconnecting often fixes it.`;
+  if (it.status === "relink_required") {
+    return ITEM_DETAILS[it.statusDetail] || "Reconnect to keep syncing.";
+  }
+  return null;
+}
+
 /** "Morgan Stanley - StockPlan Connect / Benefit Access" is a login page; people say "Morgan Stanley". */
 const institutionName = (s) => tidyName(String(s ?? "").split(/\s+-\s+/)[0]);
 
 function institutionRow(it) {
   const name = institutionName(it.institutionName) || "Unnamed connection";
   const broken = needsAttention(it);
-  const [label, cls] = ITEM_STATES[it.status] || [tidyName(it.status), ""];
-  const detail = it.statusDetail ? ITEM_DETAILS[it.statusDetail] || prose(it.statusDetail) : null;
+  const retrying = isRetrying(it);
+  const [label, cls] = retrying
+    ? ["Retrying", ""]
+    : ITEM_STATES[it.status] || [tidyName(it.status), ""];
+  const detail = itemDetail(it, name);
   const synced = it.lastSyncedAt ? `Synced ${ago(it.lastSyncedAt)}` : "Not synced yet";
   return h(
     "div",
@@ -2652,12 +2677,14 @@ function institutionRow(it) {
           class: `conn-sub ${broken ? "warn" : ""}`,
           title: it.lastSyncedAt ? new Date(it.lastSyncedAt).toLocaleString() : "",
         },
-        broken && detail ? `${detail} ${synced}.` : synced,
+        detail ? `${detail} ${synced}.` : synced,
         it.source === "csv" ? " · from a file" : null,
       ),
     ),
-    broken ? h("span", { class: `pill ${cls}` }, h("span", { class: "dot" }), label) : null,
-    it.source === "plaid" && it.status === "relink_required"
+    broken || retrying
+      ? h("span", { class: `pill ${cls}` }, h("span", { class: "dot" }), label)
+      : null,
+    it.source === "plaid" && broken && it.status !== "disconnected"
       ? linkButton("Reconnect", { itemId: it.id, small: true })
       : null,
     // The demo's banks stay put: there is nothing real of yours to disconnect.

@@ -523,7 +523,8 @@ the free Plaid account and linking step by step.
 Tidysum runs locally; there is no server deploy. `deploy/macos-setup.sh` starts Postgres in
 Docker (restarts with Docker Desktop) and installs a launchd agent that runs `tidysum serve`
 at login: the admin page on http://127.0.0.1:8080 and a Plaid sync every
-`SYNC_INTERVAL_MINUTES`. The page has no sign-in because it only listens on loopback, and it
+`SYNC_INTERVAL_MINUTES`. A connection that failed on Plaid's or the bank's side (a server error,
+the bank not answering) is tried again every `SYNC_RETRY_MINUTES` until it syncs. The page has no sign-in because it only listens on loopback, and it
 refuses requests whose Host isn't loopback, so a web page can't reach it by DNS rebinding. It creates
 `policy.json` from the example and loads it if you have no policy yet. Re-run it after pulling; logs go to
 `~/Library/Logs/tidysum/serve.log`. `deploy/macos-setup.sh uninstall` removes the agents.
