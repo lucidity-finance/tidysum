@@ -31,7 +31,7 @@ import {
   refreshMisallocations,
   setMisallocationState,
 } from "../misallocation/ledger.js";
-import type { PlaidGateway } from "../plaid/gateway.js";
+import { PlaidApiError, type PlaidGateway } from "../plaid/gateway.js";
 import { handlePlaidWebhook } from "../plaid/webhooks.js";
 import { type PlaidWebhookVerifier, WebhookVerificationError } from "../plaid/webhookVerifier.js";
 import { planForPage, readPlan } from "../plan/plan.js";
@@ -65,6 +65,11 @@ import {
   setShowInvestmentAmounts,
 } from "../users.js";
 import { APP_CSS, APP_JS, FAVICON_SVG, INDEX_HTML, SERIF_WOFF2 } from "./page.js";
+
+export const PLAID_SETUP_HINT =
+  "Plaid isn't set up yet. Make a free Plaid account, put its two keys (PLAID_CLIENT_ID and " +
+  "PLAID_SECRET) in Tidysum's .env, and restart Tidysum (tidysum restart). Your agent can do it " +
+  "for you: docs/connect-your-accounts.md in Tidysum's repository walks through it.";
 
 export interface AppDeps {
   db: Db;
@@ -698,6 +703,10 @@ export function createApp(deps: AppDeps) {
 
   app.onError((err, c) => {
     if (err instanceof HTTPException) return err.getResponse();
+    // A fresh install starts before there are any Plaid keys: say what to do, not "internal error".
+    if (err instanceof PlaidApiError && err.errorCode === "PLAID_NOT_CONFIGURED") {
+      return c.json({ error: PLAID_SETUP_HINT }, 409);
+    }
     console.error(err);
     return c.json({ error: "internal error" }, 500);
   });

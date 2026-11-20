@@ -1,7 +1,9 @@
 name: pages
 
-# The website at https://lucidity-finance.github.io/tidysum/: site/ plus the online demo, built
-# fresh from the made-up household (`tidysum demo --static`). Weekly too, so the demo's dates stay
+# The website at https://lucidity-finance.github.io/tidysum/: site/, the installer (so
+# `curl -fsSL https://lucidity-finance.github.io/tidysum/install.sh | sh` installs Tidysum) and the
+# online demo, built fresh from the made-up household (`tidysum demo --static`, in a Postgres of
+# its own). Weekly too, so the demo's dates stay
 # current. Free on GitHub-hosted runners for this public repository.
 on:
   push:
@@ -22,19 +24,6 @@ jobs:
     if: github.repository == 'lucidity-finance/tidysum'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    services:
-      # The demo's own throwaway database, as docker-compose.yml's demo-db.
-      demo-db:
-        image: postgres:17
-        env:
-          POSTGRES_USER: tidysum
-          POSTGRES_PASSWORD: tidysum
-          POSTGRES_DB: tidysum_demo
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd "pg_isready -U tidysum -d tidysum_demo"
-          --health-interval 2s --health-timeout 3s --health-retries 30
     steps:
       - uses: actions/checkout@v6
         with:
@@ -51,6 +40,7 @@ jobs:
           mkdir -p _site/assets
           cp site/index.html _site/
           cp site/bank-callback.html _site/
+          cp install.sh _site/
           cp docs/assets/* _site/assets/
           cp src/server/web/source-serif-4.woff2 _site/assets/
           pnpm tsx src/cli.ts demo --static _site/demo

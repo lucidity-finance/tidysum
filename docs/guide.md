@@ -6,8 +6,8 @@ The full reference: every command, detector and rule, and how Tidysum runs. Star
 
 ## The demo
 
-`pnpm demo` starts a throwaway Postgres (`demo-db` in docker-compose.yml, port 5433, kept in
-memory) and runs `tidysum demo` against it: it resets that database, makes up a household
+`tidysum demo` (`pnpm demo` in a checkout) starts a Postgres of its own in `~/.tidysum/demo`
+(Tidysum's own Postgres, below), stopped again when the demo ends: it resets that database, makes up a household
 (`src/demo/household.ts`: two years of checking, savings, two cards, a brokerage and a 401(k),
 ending today), links and syncs it through `DemoPlaid` instead of Plaid, records a 401(k) plan, an
 IRA year, a policy and `docs/plan.example.md`, runs every detector, drafts the actions and serves
@@ -17,7 +17,8 @@ for your agent.
 The demo never reads `.env` or `DATABASE_URL`. It only resets a database named `tidysum_demo`, and
 refuses when that Postgres server holds any other database or Tidysum's tables, so it can't reach
 real data. Linking or removing institutions is refused on the demo page.
-`TIDYSUM_DEMO_DATABASE_URL` and `TIDYSUM_DEMO_PORT` change where it runs.
+`TIDYSUM_DEMO_DATABASE_URL` (for example docker-compose.yml's `demo-db`) and `TIDYSUM_DEMO_PORT`
+change where it runs.
 
 `tidysum demo --static <dir>` writes the online demo instead of serving: the same page with a
 snapshot of every API response it reads, and a small loader (`static.js`) that answers from the
@@ -531,7 +532,39 @@ Generate `TIDYSUM_TOKEN_KEY` with `openssl rand -base64 32`. Plaid keys are on t
 dashboard under Developers → Keys; [Connect your accounts](connect-your-accounts.md) walks through
 the free Plaid account and linking step by step.
 
-## Running on your Mac
+## Installed with install.sh
+
+`curl -fsSL https://lucidity-finance.github.io/tidysum/install.sh | sh` installs everything in
+`~/.tidysum` with no prerequisites ([decision 0012](decisions/0012-one-step-install.md)): its own
+Node.js, Tidysum at one commit (`app/current`), Tidysum's own Postgres, your `.env` and the logs.
+The `tidysum` command is linked into `~/.local/bin`, and every command above works as `tidysum
+<command>` from any folder. On top of them:
+
+| Command                  | What it does                                                                                                                                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tidysum start [--open]` | Runs `serve` in the background, at login too (a launchd agent, `com.tidysum.app`, on a Mac; a systemd user service, `tidysum.service`, on Linux; else a plain background process), and waits for the page |
+| `tidysum stop`           | Stops the page and its database, and keeps them stopped until `start`                                                                                                                                     |
+| `tidysum restart`        | After changing `~/.tidysum/.env`                                                                                                                                                                          |
+| `tidysum status`         | Whether the page and database run, then Items and balances                                                                                                                                                |
+| `tidysum logs [-f]`      | The page's log, `~/.tidysum/logs/serve.log`                                                                                                                                                               |
+| `tidysum upgrade`        | Installs the newest `main` next to the current version, migrates, switches and restarts; goes back if the migration fails                                                                                 |
+| `tidysum uninstall`      | Removes the program and the service; your data stays in `~/.tidysum` until you delete it                                                                                                                  |
+
+The installer's settings are environment variables, listed at the top of `install.sh`:
+`TIDYSUM_HOME` (another folder), `TIDYSUM_REF` (a branch, tag or commit), `TIDYSUM_BIN_DIR`,
+`TIDYSUM_NO_MODIFY_PATH=1`, `TIDYSUM_NO_START=1` and `TIDYSUM_SOURCE` (install a local checkout).
+
+### Tidysum's own Postgres
+
+With `DATABASE_URL` empty, every command uses a PostgreSQL 17 cluster in `$TIDYSUM_HOME/postgres`
+(default `~/.tidysum/postgres`) and makes or starts it first if it has to (`src/db/localPostgres.ts`).
+The binaries come with the install, from the `@embedded-postgres/<platform>` packages for macOS and
+Linux. It listens only on a Unix socket in `postgres/run`, a folder only you can open, and never
+on a network port. Its roles, grants, row-level security and `numeric` columns are the same as on
+any other Postgres. `TIDYSUM_PG_BIN` points it at another PostgreSQL 17 `bin` folder; setting
+`DATABASE_URL` uses that database instead, as a checkout with Docker does.
+
+## Running on your Mac from a checkout
 
 Tidysum runs locally; there is no server deploy. `deploy/macos-setup.sh` starts Postgres in
 Docker (restarts with Docker Desktop) and installs a launchd agent that runs `tidysum serve`
@@ -614,9 +647,10 @@ pnpm test                 # starts a throwaway Postgres container
 pnpm db:generate          # after editing src/db/schema.ts
 ```
 
-Locally, tests use a Testcontainers Postgres (needs Docker). With `TEST_PG_BIN` set to a
-PostgreSQL `bin` directory they start a throwaway cluster on a Unix socket instead, which is
-an alternative when Docker isn't available.
+Locally, tests use a Testcontainers Postgres (needs Docker). Without Docker, `TEST_PG=local pnpm
+test` runs them on Tidysum's own Postgres in a temp directory, and `TEST_PG_BIN` set to a
+PostgreSQL `bin` directory does the same with that Postgres. Postgres won't run as root, so run
+these as a normal user.
 
 Secrets stay in `.env` (git-ignored). A gitleaks pre-commit hook is configured in
 `.pre-commit-config.yaml` and runs in CI.

@@ -81,15 +81,17 @@ risky or different from what the owner approved, stop and ask rather than guess.
 
 ## Setup (Claude Code)
 
-The owner runs this once in the Tidysum repo, in their own terminal:
+The owner runs this once, in their own terminal:
 
 ```sh
-pnpm tidysum agent setup
+tidysum agent setup                   # in a git checkout: pnpm tidysum agent setup
 ```
 
 It adds the MCP server, links this skill, and allows Tidysum's MCP tools and its command line.
-Run Tidysum commands in exactly the allowed form, `pnpm -C /path/to/tidysum -s tidysum <command>`,
-one per call, without `cd`, `bash -c` or redirects, or the rule won't match.
+Run Tidysum commands in exactly the allowed form, one per call, without `cd`, `bash -c` or
+redirects, or the rule won't match: `tidysum <command>` when Tidysum was installed with its
+installer (`~/.tidysum/bin/tidysum <command>` if `tidysum` isn't on your PATH), or
+`pnpm -C /path/to/tidysum -s tidysum <command>` in a git checkout.
 
 For browser work, give the agent a browser: for example Claude in Chrome, or a Playwright MCP
 server with a browser profile you've signed in to your banks with. Agents without skills can

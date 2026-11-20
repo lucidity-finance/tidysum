@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { PostgreSqlContainer } from "@testcontainers/postgresql";
 import type { TestProject } from "vitest/node";
 import { connect, runMigrations } from "../src/db/client.js";
+import { ensureLocalPostgres, stopLocalPostgres } from "../src/db/localPostgres.js";
 
 declare module "vitest" {
   export interface ProvidedContext {
@@ -21,11 +22,22 @@ interface TestPostgres {
 }
 
 /**
- * Tests use a Testcontainers Postgres, locally and in CI. Where there is no Docker, set TEST_PG_BIN
- * (a PostgreSQL bin directory) and they run on a throwaway cluster in a temp directory, reachable
- * only over a Unix socket.
+ * Tests use a Testcontainers Postgres, locally and in CI. Where there is no Docker, set
+ * TEST_PG=local for Tidysum's own Postgres, or TEST_PG_BIN (a PostgreSQL bin directory); either
+ * way they run on a throwaway cluster in a temp directory, reachable only over a Unix socket.
  */
 async function startPostgres(): Promise<TestPostgres> {
+  if (process.env.TEST_PG === "local") {
+    // Tidysum's own Postgres (decision 0012), in a temp directory: no Docker needed.
+    const dir = await mkdtemp(join(tmpdir(), "tidysum-pg-"));
+    return {
+      url: await ensureLocalPostgres(dir),
+      stop: async () => {
+        await stopLocalPostgres(dir);
+        await rm(dir, { recursive: true, force: true });
+      },
+    };
+  }
   const bin = process.env.TEST_PG_BIN;
   if (!bin) {
     const container = await new PostgreSqlContainer("postgres:17").start();

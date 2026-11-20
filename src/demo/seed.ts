@@ -22,9 +22,11 @@ import { resolveUserId } from "../users.js";
 import { DemoPlaid } from "./gateway.js";
 import type { DemoHousehold } from "./household.js";
 
-/** The demo's own database, in its own Postgres (`docker compose up -d demo-db`). */
+/**
+ * The demo's own database, in a Postgres server of its own: by default one Tidysum runs itself
+ * (`tidysum demo`), or TIDYSUM_DEMO_DATABASE_URL (`docker compose up -d demo-db` makes one).
+ */
 export const DEMO_DATABASE = "tidysum_demo";
-export const DEFAULT_DEMO_DATABASE_URL = `postgres://tidysum:tidysum@127.0.0.1:5433/${DEMO_DATABASE}`;
 
 const SYSTEM_DATABASES = new Set(["postgres", "template0", "template1", DEMO_DATABASE]);
 
@@ -39,7 +41,7 @@ async function connectWithRetry(connectionString: string, attempts = 20): Promis
       await client.end().catch(() => {});
       if (i >= attempts) {
         throw new Error(
-          `can't reach the demo database (${(err as Error).message}). Start it with \`docker compose up -d --wait demo-db\`, or run \`pnpm demo\`.`,
+          `can't reach the demo database (${(err as Error).message}). Is the server at TIDYSUM_DEMO_DATABASE_URL running?`,
         );
       }
       await new Promise((r) => setTimeout(r, 500));
@@ -70,7 +72,7 @@ export async function resetDemoDatabase(databaseUrl: string): Promise<void> {
     if (others.length > 0) {
       throw new Error(
         `refusing to reset: this Postgres server also holds ${others.join(", ")}. ` +
-          "The demo needs a server of its own: `docker compose up -d --wait demo-db`.",
+          "The demo needs a server of its own: leave TIDYSUM_DEMO_DATABASE_URL unset and Tidysum runs one.",
       );
     }
     await client.query(`drop database if exists ${DEMO_DATABASE} with (force)`);
@@ -121,7 +123,11 @@ export async function seedDemo(
   await setWorkplacePlan(db, userId, k401.id, household.workplace.facts);
   await setIraYear(db, userId, household.ira);
   await activatePolicy(db, userId, parsePolicy(household.policy));
-  await setPlan(db, userId, await readFile(opts.planFile ?? "docs/plan.example.md", "utf8"));
+  await setPlan(
+    db,
+    userId,
+    await readFile(opts.planFile ?? new URL("../../docs/plan.example.md", import.meta.url), "utf8"),
+  );
 
   const agentDb = connectAgentDb(userId);
   await refreshMisallocations(db, agentDb, userId, await loadCatalogs(products), household.today);

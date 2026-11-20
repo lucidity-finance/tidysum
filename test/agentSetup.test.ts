@@ -2,7 +2,14 @@ import { lstat, mkdir, mkdtemp, readFile, readlink, rm, writeFile } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { agentRules, mergeAllow, type Run, repoRoot, setupAgent } from "../src/agentSetup.js";
+import {
+  agentRules,
+  installedRules,
+  mergeAllow,
+  type Run,
+  repoRoot,
+  setupAgent,
+} from "../src/agentSetup.js";
 
 const REPO = "/opt/tidysum";
 const homes: string[] = [];
@@ -76,6 +83,26 @@ describe("agent setup", () => {
       `Skill: already linked at ${link}`,
       "MCP server: tidysum is already added",
     ]);
+  });
+
+  it("points an installed Tidysum's agent at the tidysum command and the current version's skill", async () => {
+    const home = await newHome();
+    const installed = { home: "/u/.tidysum", launcher: "/u/.tidysum/bin/tidysum" };
+    const claude = fakeClaude();
+    await setupAgent({ installed, home, run: claude.run });
+    const settings = JSON.parse(await readFile(join(home, ".claude", "settings.json"), "utf8"));
+    expect(settings.permissions.allow).toEqual([
+      "Bash(tidysum:*)",
+      "Bash(/u/.tidysum/bin/tidysum:*)",
+      "mcp__tidysum",
+    ]);
+    expect(installedRules(installed)).toEqual(settings.permissions.allow);
+    expect(await readlink(join(home, ".claude", "skills", "tidysum-actions"))).toBe(
+      "/u/.tidysum/app/current/skills/tidysum-actions",
+    );
+    expect(claude.calls).toContain(
+      "claude mcp add --scope user tidysum -- /u/.tidysum/bin/tidysum mcp",
+    );
   });
 
   it("changes nothing on a dry run and says how to add the server without claude", async () => {

@@ -3049,14 +3049,11 @@ function agentPanel() {
               `claude mcp add --transport http tidysum ${location.origin}/mcp --header "Authorization: Bearer $TIDYSUM_MCP_TOKEN"`,
             )
           : null,
-        commandRow(
-          "On this computer",
-          "claude mcp add tidysum -- pnpm -s --dir /path/to/tidysum tidysum mcp",
-        ),
+        commandRow("On this computer", "tidysum agent setup"),
         h(
           "p",
           { class: "muted small" },
-          "Then ask it to “carry out my approved Tidysum actions”. The tidysum-actions skill in the repo tells it how.",
+          "Run it once in your terminal (in a git checkout: pnpm tidysum agent setup). It connects Claude Code: Tidysum's MCP server, the tidysum-actions skill and its permissions. Any other MCP client can run tidysum mcp. Then ask it to “carry out my approved Tidysum actions”.",
         ),
       ),
     ),

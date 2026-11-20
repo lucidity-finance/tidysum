@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 const base64Key = z
@@ -80,27 +81,31 @@ export type EnableBankingConfig = z.infer<typeof EnableBankingEnv>;
 
 /**
  * What connects accounts: Plaid, Enable Banking (UK and EU banks, decision 0011), or both, and
- * the key their stored tokens are encrypted with. Plaid's keys are required unless Enable Banking
- * is set up, so someone in Europe needs no Plaid account.
+ * the key their stored tokens are encrypted with. Either may be missing (a fresh install has
+ * neither yet); their calls then fail with what to set up.
  */
 export function loadConnectionConfig(env = process.env) {
   const enableBanking = env.ENABLE_BANKING_APP_ID ? parse(EnableBankingEnv, env) : undefined;
-  const plaid = env.PLAID_CLIENT_ID || !enableBanking ? loadPlaidConfig(env) : undefined;
+  // No Plaid keys yet is fine: a fresh install starts without them, and linking says what's missing.
+  const plaid = env.PLAID_CLIENT_ID || env.PLAID_SECRET ? loadPlaidConfig(env) : undefined;
   const { TIDYSUM_TOKEN_KEY: tokenKey } = parse(z.object({ TIDYSUM_TOKEN_KEY: base64Key }), env);
   return { plaid, enableBanking, tokenKey };
 }
 
-/** Deposit product rates with their sources. Relative paths resolve from the working directory. */
+/** A catalog file that ships with Tidysum, wherever it runs from. */
+const catalog = (name: string) => fileURLToPath(new URL(`../catalog/${name}`, import.meta.url));
+
+/** Deposit product rates with their sources. A relative path set here resolves from the working directory. */
 export const productsPath = (env = process.env) =>
-  env.TIDYSUM_PRODUCTS_FILE || "catalog/deposit-products.json";
+  env.TIDYSUM_PRODUCTS_FILE || catalog("deposit-products.json");
 
-/** Credit card terms with their sources. Relative paths resolve from the working directory. */
+/** Credit card terms with their sources. A relative path set here resolves from the working directory. */
 export const cardsPath = (env = process.env) =>
-  env.TIDYSUM_CARDS_FILE || "catalog/credit-cards.json";
+  env.TIDYSUM_CARDS_FILE || catalog("credit-cards.json");
 
-/** What funds hold by asset class. Relative paths resolve from the working directory. */
+/** What funds hold by asset class. A relative path set here resolves from the working directory. */
 export const securitiesPath = (env = process.env) =>
-  env.TIDYSUM_SECURITIES_FILE || "catalog/securities.json";
+  env.TIDYSUM_SECURITIES_FILE || catalog("securities.json");
 
 /** The owner's plan file, loaded by `tidysum plan set`; unset means none is configured. */
 /**

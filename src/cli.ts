@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { serve } from "@hono/node-server";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -35,6 +36,13 @@ import {
 import { TokenCipher } from "./crypto/tokenCipher.js";
 import { connect, type DbHandle, runMigrations } from "./db/client.js";
 import {
+  ensureLocalPostgres,
+  localPostgresUrl,
+  stopLocalPostgres,
+  stopLocalPostgresLater,
+  tidysumHome,
+} from "./db/localPostgres.js";
+import {
   account,
   appUser,
   balanceSnapshot,
@@ -46,7 +54,7 @@ import {
   workplacePlan,
 } from "./db/schema.js";
 import { demoHousehold } from "./demo/household.js";
-import { DEFAULT_DEMO_DATABASE_URL, resetDemoDatabase, seedDemo } from "./demo/seed.js";
+import { DEMO_DATABASE, resetDemoDatabase, seedDemo } from "./demo/seed.js";
 import { writeDemoSite } from "./demo/site.js";
 import { EnableBankingClient } from "./enableBanking/client.js";
 import { EnableBankingGateway, withEnableBanking } from "./enableBanking/gateway.js";
@@ -111,6 +119,13 @@ import { importResearch } from "./research/store.js";
 import { setIraYear } from "./retirement/ira.js";
 import { readWorkplacePlans, setWorkplacePlan } from "./retirement/workplace.js";
 import { createApp } from "./server/app.js";
+import {
+  followLogs,
+  serviceContext,
+  status as serviceStatus,
+  start as startService,
+  stop as stopService,
+} from "./service.js";
 import { linkItem } from "./sync/items.js";
 import { SyncScheduler } from "./sync/scheduler.js";
 import { syncItem } from "./sync/syncItem.js";
@@ -119,14 +134,21 @@ import { createUser, readRegion, resolveUserId, setCountry } from "./users.js";
 const USAGE = `tidysum <command>
 
   demo [--static <dir>]            try Tidysum on a made-up person at real banks, no Plaid needed:
-                                   resets its own database (docker compose up -d demo-db), fills
-                                   it and serves the page on http://127.0.0.1:8090 (pnpm demo
-                                   does both); --static writes the read-only online demo instead
+                                   starts a database of its own (TIDYSUM_HOME/demo, or
+                                   TIDYSUM_DEMO_DATABASE_URL), fills it and serves the page on
+                                   http://127.0.0.1:8090; --static writes the read-only online
+                                   demo instead
   migrate                          apply database migrations
   link-sandbox [institution_id]    create and link a Plaid Sandbox Item (default ins_109508)
   sync                             sync every active Item once
   serve                            admin page (Plaid Link), Plaid webhooks, scheduled sync, and
                                    the agent MCP endpoint at /mcp when TIDYSUM_MCP_TOKEN is set
+  start [--open] | stop | restart  installed with install.sh: run serve in the background (at
+                                   login too) and wait for the page; stop it and its database
+  status                           installed: whether the page and database run, then Items
+  logs [-f]                        installed: serve's log (-f: keep following it)
+  upgrade                          installed: update to the newest Tidysum and restart
+  uninstall                        installed: remove Tidysum but keep your data (TIDYSUM_HOME)
   agent setup [--dry-run]          connect your own Claude Code to Tidysum, once: adds the MCP
                                    server and the tidysum-actions skill, and allows Tidysum's MCP
                                    tools and its command line in this repo so the agent isn't
@@ -404,17 +426,43 @@ async function runServer(h: DbHandle) {
  */
 async function runDemo(args: string[]) {
   const { values } = parseArgs({ args, options: { static: { type: "string" } } });
-  const url = process.env.TIDYSUM_DEMO_DATABASE_URL || DEFAULT_DEMO_DATABASE_URL;
   const port = Number(process.env.TIDYSUM_DEMO_PORT || 8090);
   console.log("Setting up the demo household (a made-up person at real banks)...");
-  await resetDemoDatabase(url);
-  const h = connect(url);
+  // A Postgres server of the demo's own, apart from your real data, stopped when the demo ends.
+  const url = process.env.TIDYSUM_DEMO_DATABASE_URL;
+  if (url) return showDemo(url, values.static, port, async () => {});
+  const dir = join(tidysumHome(), "demo");
+  await ensureLocalPostgres(dir, { database: "postgres" });
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, () => void stopLocalPostgresLater(dir).finally(() => process.exit(0)));
+  }
+  try {
+    await showDemo(localPostgresUrl(dir, DEMO_DATABASE), values.static, port, () =>
+      stopLocalPostgres(dir).then(() => {}),
+    );
+  } catch (err) {
+    // Don't leave the demo's Postgres running behind a failed demo.
+    console.error(err instanceof Error ? err.message : err);
+    await stopLocalPostgresLater(dir);
+    process.exit(1);
+  }
+}
+
+/** Fills the demo database at `demoUrl` and serves it, or writes the online demo to `staticDir`. */
+async function showDemo(
+  demoUrl: string,
+  staticDir: string | undefined,
+  port: number,
+  stopServer: () => Promise<void>,
+) {
+  await resetDemoDatabase(demoUrl);
+  const h = connect(demoUrl);
   const products = productTools();
   const { userId, plaid, cipher, agentDb } = await seedDemo(
     h.db,
     demoHousehold(today()),
     products,
-    (id) => connectAgent(url, id),
+    (id) => connectAgent(demoUrl, id),
   );
   // An agent can try it too, over MCP, with a token that lasts as long as this process.
   const mcpToken = randomBytes(32).toString("base64url");
@@ -428,18 +476,19 @@ async function runDemo(args: string[]) {
     userId,
     agentDb,
     products,
-    mcp: { token: mcpToken, policy: policyTools(url, userId, agentDb), products },
+    mcp: { token: mcpToken, policy: policyTools(demoUrl, userId, agentDb), products },
     demo: true,
   });
-  if (values.static) {
+  if (staticDir) {
     // The online demo: the same page, reading a snapshot of this household's API.
     await writeDemoSite(
       (path) => Promise.resolve(app.request(path, { headers: { host: "127.0.0.1" } })),
-      values.static,
+      staticDir,
     );
-    console.log(`wrote the online demo to ${values.static}`);
+    console.log(`wrote the online demo to ${staticDir}`);
     await agentDb.end();
     await h.close();
+    await stopServer();
     process.exit(0);
   }
   serve({ fetch: app.fetch, hostname: "127.0.0.1", port }, (info) => {
@@ -1283,6 +1332,50 @@ async function status(h: DbHandle) {
   }
 }
 
+/** The page's own address, from HOST and PORT. */
+function pageUrl(): string {
+  const { HOST, PORT } = loadServerConfig();
+  const host = HOST === "0.0.0.0" || HOST === "::" ? "127.0.0.1" : HOST;
+  return `http://${host.includes(":") ? `[${host}]` : host}:${PORT}`;
+}
+
+/** An installed Tidysum's own commands (decision 0012); none needs the database to be up. */
+async function runService(command: string, argv: string[]): Promise<boolean> {
+  const print = (lines: string[]) => {
+    for (const line of lines) console.log(line);
+  };
+  switch (command) {
+    case "start":
+      print(
+        await startService(serviceContext(), { url: pageUrl(), open: argv.includes("--open") }),
+      );
+      return true;
+    case "stop":
+      print(await stopService(serviceContext()));
+      return true;
+    case "restart":
+      await stopService(serviceContext());
+      print(await startService(serviceContext(), { url: pageUrl() }));
+      return true;
+    case "status": {
+      // Installed: how the service is doing first, then (if its database runs) Items and balances.
+      if (!process.env.TIDYSUM_LAUNCHER) return false;
+      const s = await serviceStatus(serviceContext(), pageUrl());
+      print(s.lines);
+      if (s.database) console.log("");
+      return !s.database;
+    }
+    case "logs":
+      await followLogs(serviceContext(), argv.includes("-f") || argv.includes("--follow"));
+      return true;
+    case "uninstall":
+      // The launcher removes the files once the service is gone.
+      await stopService(serviceContext());
+      return true;
+  }
+  return false;
+}
+
 async function main(argv: string[]) {
   const [command, arg] = argv;
   if (!command || command === "help" || command === "--help") {
@@ -1292,6 +1385,12 @@ async function main(argv: string[]) {
   if (command === "agent" && arg === "setup") {
     for (const line of await setupAgent({ dryRun: argv.includes("--dry-run") })) console.log(line);
     return;
+  }
+  if (await runService(command, argv.slice(1))) return;
+  // No DATABASE_URL: Tidysum's own Postgres in TIDYSUM_HOME (~/.tidysum), started if it isn't
+  // running. The demo has a database of its own.
+  if (!process.env.DATABASE_URL && command !== "demo") {
+    process.env.DATABASE_URL = await ensureLocalPostgres(join(tidysumHome(), "postgres"));
   }
   // These connect as the agent roles, not as the owner.
   if (command === "demo") return runDemo(argv.slice(1));

@@ -23,6 +23,29 @@ export function agentRules(repo: string): string[] {
   return [`Bash(pnpm -C ${repo} -s tidysum:*)`, "mcp__tidysum"];
 }
 
+/**
+ * Tidysum installed with install.sh (decision 0012): the `tidysum` command, by name and by its
+ * full path for a shell that doesn't have ~/.local/bin on PATH.
+ */
+export interface Installed {
+  /** TIDYSUM_HOME, e.g. ~/.tidysum. */
+  home: string;
+  /** The `tidysum` command install.sh wrote. */
+  launcher: string;
+}
+
+/** The permission rules for an agent working with an installed Tidysum. */
+export function installedRules(i: Installed): string[] {
+  return ["Bash(tidysum:*)", `Bash(${i.launcher}:*)`, "mcp__tidysum"];
+}
+
+/** The installed Tidysum this command runs from, if it does (the launcher sets both). */
+export function installedFromEnv(env = process.env): Installed | undefined {
+  return env.TIDYSUM_HOME && env.TIDYSUM_LAUNCHER
+    ? { home: env.TIDYSUM_HOME, launcher: env.TIDYSUM_LAUNCHER }
+    : undefined;
+}
+
 type Json = Record<string, unknown>;
 const isObject = (v: unknown): v is Json =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -61,7 +84,10 @@ const runCommand: Run = async (cmd, args) => {
 };
 
 export interface SetupOptions {
+  /** A git checkout; the default when this isn't an installed Tidysum. */
   repo?: string;
+  /** An installed Tidysum; the default when the `tidysum` command started this. */
+  installed?: Installed;
   home?: string;
   dryRun?: boolean;
   run?: Run;
@@ -69,7 +95,16 @@ export interface SetupOptions {
 
 /** What setup did (or, on a dry run, would do), one line per step. */
 export async function setupAgent(opts: SetupOptions = {}): Promise<string[]> {
+  const installed = opts.repo ? undefined : (opts.installed ?? installedFromEnv());
   const repo = opts.repo ?? repoRoot();
+  // The MCP server's command, and where the skill lives. An install's `app/current` moves to the
+  // new version on upgrade, so the skill link follows it.
+  const mcpCommand = installed
+    ? [installed.launcher, "mcp"]
+    : ["pnpm", "-s", "--dir", repo, "tidysum", "mcp"];
+  const skillsDir = installed
+    ? join(installed.home, "app", "current", "skills")
+    : join(repo, "skills");
   const home = opts.home ?? homedir();
   const run = opts.run ?? runCommand;
   const dry = opts.dryRun ?? false;
@@ -85,7 +120,10 @@ export async function setupAgent(opts: SetupOptions = {}): Promise<string[]> {
       throw new Error(`Can't read ${file}: ${(e as Error).message}. Fix it, then run this again.`);
     }
   }
-  const { settings, added } = mergeAllow(current, agentRules(repo));
+  const { settings, added } = mergeAllow(
+    current,
+    installed ? installedRules(installed) : agentRules(repo),
+  );
   if (added.length === 0) {
     out.push(`Permissions: already allowed in ${file}`);
   } else {
@@ -98,7 +136,7 @@ export async function setupAgent(opts: SetupOptions = {}): Promise<string[]> {
 
   // 2. The skill, linked rather than copied so a pull updates it.
   const link = join(home, ".claude", "skills", SKILL);
-  const target = join(repo, "skills", SKILL);
+  const target = join(skillsDir, SKILL);
   const existing = await lstat(link).catch(() => null);
   if (!existing) {
     if (!dry) {
@@ -115,17 +153,17 @@ export async function setupAgent(opts: SetupOptions = {}): Promise<string[]> {
   // 3. The MCP server, for the user so every folder has it.
   if (!(await run("claude", ["--version"])).ok) {
     out.push(
-      `MCP server: Claude Code's \`claude\` command isn't on PATH; add it later with: claude mcp add --scope user tidysum -- pnpm -s --dir ${repo} tidysum mcp`,
+      `MCP server: Claude Code's \`claude\` command isn't on PATH; add it later with: claude mcp add --scope user tidysum -- ${mcpCommand.join(" ")}`,
     );
   } else if ((await run("claude", ["mcp", "get", "tidysum"])).ok) {
     out.push("MCP server: tidysum is already added");
   } else {
-    const args = ["mcp", "add", "--scope", "user", "tidysum", "--", "pnpm", "-s", "--dir", repo];
-    const added = dry || (await run("claude", [...args, "tidysum", "mcp"])).ok;
+    const args = ["mcp", "add", "--scope", "user", "tidysum", "--", ...mcpCommand];
+    const added = dry || (await run("claude", args)).ok;
     out.push(
       added
         ? "MCP server: added tidysum for your user"
-        : `MCP server: adding it failed; try: claude ${[...args, "tidysum", "mcp"].join(" ")}`,
+        : `MCP server: adding it failed; try: claude ${args.join(" ")}`,
     );
   }
   if (dry) out.unshift("Dry run, nothing changed:");

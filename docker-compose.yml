@@ -15,8 +15,9 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  # `pnpm demo`: a throwaway Postgres for the made-up demo household, kept in memory and apart
-  # from your real data. Starts only when named: docker compose up -d --wait demo-db
+  # Optional: a throwaway Postgres for the made-up demo household, kept in memory. `pnpm demo` runs
+  # one of its own without Docker; to use this one instead, start it (docker compose up -d --wait
+  # demo-db) and set TIDYSUM_DEMO_DATABASE_URL=postgres://tidysum:tidysum@127.0.0.1:5433/tidysum_demo
   demo-db:
     image: postgres:17
     profiles: ["demo"]

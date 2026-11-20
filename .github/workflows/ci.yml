@@ -39,6 +39,31 @@ jobs:
       # Tests start a throwaway Postgres container (Testcontainers) on the runner's Docker.
       - name: Test
         run: pnpm test
+      # The one-step install (decision 0012), the way a user runs it: install.sh into this runner's
+      # home, then the page, the commands, the demo and uninstall.
+      - name: Install with install.sh
+        env:
+          TIDYSUM_SOURCE: ${{ github.workspace }}
+          TIDYSUM_NO_MODIFY_PATH: "1"
+          TIDYSUM_NO_START: "1"
+        run: sh install.sh
+      - name: Use the installed Tidysum
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          tidysum start
+          port="$(sed -n 's/^PORT=//p' "$HOME/.tidysum/.env")"
+          curl -fsS "http://127.0.0.1:$port/healthz"
+          tidysum status
+          tidysum misallocations
+          tidysum demo --static "$RUNNER_TEMP/demo"
+          test -f "$RUNNER_TEMP/demo/index.html"
+          tidysum stop
+          tidysum start
+          tidysum uninstall
+          test ! -e "$HOME/.local/bin/tidysum"
+      - name: Show the installed Tidysum's logs
+        if: failure()
+        run: cat "$HOME/.tidysum/logs/serve.log" "$HOME/.tidysum/postgres/postgres.log" || true
       # A pinned, checksummed gitleaks binary scans the whole history (gitleaks-action needs a
       # license for organization repositories).
       - name: Scan for secrets

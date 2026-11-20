@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
@@ -15,7 +16,7 @@ export function connect(databaseUrl: string): DbHandle {
   return { db: drizzle(pool, { schema }), close: () => pool.end() };
 }
 
-const migrationsFolder = new URL("../../drizzle", import.meta.url).pathname;
+const migrationsFolder = fileURLToPath(new URL("../../drizzle", import.meta.url));
 
 export async function runMigrations(db: Db): Promise<void> {
   await migrate(db, { migrationsFolder });

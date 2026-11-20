@@ -19,7 +19,7 @@
 <p align="center">
   <a href="https://lucidity-finance.github.io/tidysum/demo/"><strong>Live demo</strong></a> ·
   <a href="#why-tidysum">Why</a> ·
-  <a href="#try-the-demo-first">Try it locally</a> ·
+  <a href="#install">Install</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="docs/guide.md">Guide</a> ·
@@ -159,16 +159,28 @@ from the agent you bring ([decision 0005](docs/decisions/0005-actions.md)):
 
 ## Quick start
 
+### Install
+
+On a Mac or Linux (on Windows, inside WSL), in a terminal:
+
+```sh
+curl -fsSL https://lucidity-finance.github.io/tidysum/install.sh | sh
+```
+
+That's the whole install: no Node, Docker or database to set up first, and no sudo. It puts
+Tidysum, its own Node.js and its own PostgreSQL in `~/.tidysum`, adds the `tidysum` command, starts
+Tidysum in the background (and at every login) and opens it at http://127.0.0.1:8080. You can
+[read the script](install.sh) before you run it. `tidysum upgrade` updates it, and
+`tidysum uninstall` removes it and keeps your data
+([why it works this way](docs/decisions/0012-one-step-install.md)).
+
 ### Try the demo first
 
 See it working on a made-up household before you connect anything: no Plaid account, no keys.
 The person is invented; their banks, cards, funds and rates are real.
-You need Node 22.19 or newer, [pnpm](https://pnpm.io) and Docker.
 
 ```sh
-git clone https://github.com/lucidity-finance/tidysum.git && cd tidysum
-pnpm install
-pnpm demo                             # then open http://127.0.0.1:8090
+tidysum demo                          # then open http://127.0.0.1:8090
 ```
 
 It runs the real sync, detectors and pages on two years of ordinary life at real institutions
@@ -191,62 +203,54 @@ Your AI agent can do nearly all of it. In [Claude Code](https://claude.com/claud
 commands and use a browser, paste:
 
 ```text
-Set up Tidysum for me: clone https://github.com/lucidity-finance/tidysum, follow
-docs/connect-your-accounts.md, and connect my accounts. Stop and hand over to me
-whenever a step needs my password, a code, my identity or my agreement to terms.
+Set up Tidysum for me: follow
+https://github.com/lucidity-finance/tidysum/blob/main/docs/connect-your-accounts.md
+and connect my accounts. Stop and hand over to me whenever a step needs my password,
+a code, my identity or my agreement to terms.
 ```
 
-It installs Tidysum, opens Plaid's sign-up for you, puts your keys in place, starts Tidysum and
+It installs Tidysum, opens Plaid's sign-up for you, puts your keys in place, restarts Tidysum and
 opens the page where you link your banks. You only step in for what is yours: your Plaid password
 and codes, Plaid's identity check and terms, and signing in to each bank inside Plaid's window.
 Your bank passwords never pass through your agent or Tidysum.
 
 ### By hand
 
-You need Node 22.19 or newer, [pnpm](https://pnpm.io) and Docker.
-
-```sh
-git clone https://github.com/lucidity-finance/tidysum.git && cd tidysum
-pnpm install
-docker compose up -d                  # Postgres on 127.0.0.1:5432
-cp .env.example .env                  # then fill in the four lines below
-```
-
 1. **Make a free Plaid account** at [dashboard.plaid.com/signup](https://dashboard.plaid.com/signup)
    and choose **Personal use**. New U.S. and Canadian accounts start on the Trial plan, with real
    data included.
-2. **Fill in `.env`:** from **Developers → Keys** in the Plaid dashboard, `PLAID_CLIENT_ID` and the
-   Production secret as `PLAID_SECRET`; set `PLAID_ENV=production`; and set `TIDYSUM_TOKEN_KEY` to
-   the output of `openssl rand -base64 32`. Keep that key safe: losing it means linking every
-   account again.
-3. **Start Tidysum:**
-
-   ```sh
-   pnpm tidysum migrate
-   pnpm tidysum serve                 # open http://127.0.0.1:8080
-   ```
-
+2. **Fill in `~/.tidysum/.env`:** from **Developers → Keys** in the Plaid dashboard,
+   `PLAID_CLIENT_ID` and the Production secret as `PLAID_SECRET`, and set `PLAID_ENV=production`.
+   The installer already put a fresh `TIDYSUM_TOKEN_KEY` there. Keep a copy of it somewhere safe:
+   losing it means linking every account again.
+3. **Restart Tidysum:** `tidysum restart`.
 4. **Connect your accounts:** on the **Connections** page, click **Link institutions** and sign in
    to each bank, card and brokerage in Plaid's window. Tidysum syncs two years of history right
    away, then every six hours.
 
 **Outside the US?** Canada works with the same free Plaid account: run
-`pnpm tidysum user country CA` after `migrate`, and amounts, banks and funds follow. In the UK and
+`tidysum user country CA` before you link, and amounts, banks and funds follow. In the UK and
 EU, Plaid's free plan can't reach your banks, so Tidysum connects them through Enable Banking's
 free mode for your own accounts instead
 ([UK and EU banks](docs/connect-your-accounts.md#uk-and-eu-banks)).
 
 [Connect your accounts](docs/connect-your-accounts.md) explains every step, what counts toward the
 10 free connections, and how to try it first with Plaid's test bank. Institutions Plaid can't reach
-can come in as CSV (`pnpm tidysum import-csv`). On a Mac, `deploy/macos-setup.sh` runs it all in
-the background and keeps it running ([guide](docs/guide.md#running-on-your-mac)).
+can come in as CSV (`tidysum import-csv`).
+
+**Working on Tidysum itself?** Clone the repository, `pnpm install` (Node 22.19 or newer and
+[pnpm](https://pnpm.io)), `cp .env.example .env`, and run any command as `pnpm tidysum <command>`;
+it runs its own database there too, or uses Docker's with `docker compose up -d` and `DATABASE_URL`.
+On a Mac, `deploy/macos-setup.sh` keeps a checkout running in the background
+([guide](docs/guide.md#running-on-your-mac-from-a-checkout)).
 
 ### Connect your agent
 
-With Claude Code, run this once in the repo, in your own terminal:
+With Claude Code, run this once, in your own terminal (the installer offers to when it finds
+Claude Code):
 
 ```sh
-pnpm tidysum agent setup              # --dry-run shows what it would change
+tidysum agent setup                   # --dry-run shows what it would change
 ```
 
 It registers Tidysum's MCP server, links the [tidysum-actions skill](skills/tidysum-actions/SKILL.md)
@@ -257,15 +261,14 @@ Then ask it things like _"What is my money costing me?"_ or _"Carry out my appro
 actions."_ For browser steps, give it a browser tool such as Claude in Chrome.
 
 Tidysum doesn't care which agent or model you use. Any other MCP client works the same way: run
-`pnpm -s --dir /path/to/tidysum tidysum mcp` as a stdio server, or set `TIDYSUM_MCP_TOKEN` and use
-the Streamable HTTP endpoint at `/mcp`. Give it
-[skills/tidysum-actions/SKILL.md](skills/tidysum-actions/SKILL.md) as instructions, the way you would
-any agent rules file.
+`tidysum mcp` as a stdio server, or set `TIDYSUM_MCP_TOKEN` and use the Streamable HTTP endpoint
+at `/mcp`. Give it [skills/tidysum-actions/SKILL.md](skills/tidysum-actions/SKILL.md) as
+instructions, the way you would any agent rules file.
 
 ### Make it yours
 
 The quickest start is a **money style**: a well-known way of running money that fills in your
-rules for you. Pick one on the Plan page, or with `pnpm tidysum policy style <id>`:
+rules for you. Pick one on the Plan page, or with `tidysum policy style <id>`:
 
 | Style            | Known from                                        | In short                                                    |
 | ---------------- | ------------------------------------------------- | ----------------------------------------------------------- |
@@ -277,7 +280,7 @@ rules for you. Pick one on the Plan page, or with `pnpm tidysum policy style <id
 | Safety first     | Suze Orman                                        | 8 months of cash, no card debt                              |
 
 Tidysum isn't affiliated with or endorsed by any of these people. A style only fills in your
-policy, so you can change any rule afterwards; `pnpm tidysum policy styles` shows what each would
+policy, so you can change any rule afterwards; `tidysum policy styles` shows what each would
 change, and [decision 0009](docs/decisions/0009-money-styles.md) how each one is applied.
 
 Or write your rules yourself. Tidysum works from three files you write and keep out of git:
@@ -288,8 +291,8 @@ Or write your rules yourself. Tidysum works from three files you write and keep 
 | `plan.md`        | Your plan in words: goals, where each dollar goes, rules you keep | [`docs/plan.example.md`](docs/plan.example.md)     |
 | `workplace.json` | Your 401(k) as its website shows it: pay, elections, fund lineup  | [`workplace.example.json`](workplace.example.json) |
 
-Load them with `pnpm tidysum policy set policy.json`, `pnpm tidysum plan set plan.md` and
-`pnpm tidysum workplace set <account_id> workplace.json`. Your agent reads the plan before it
+Load them with `tidysum policy set policy.json`, `tidysum plan set plan.md` and
+`tidysum workplace set <account_id> workplace.json`. Your agent reads the plan before it
 suggests anything and keeps its suggestions inside it.
 
 ## Status
@@ -311,7 +314,7 @@ through a broker's API (Phase 4), is not built.
 | 4     | Trades placed by Tidysum itself, through a broker's API      | not started          |
 
 It is built and used by one person on their own money, so expect rough edges, U.S. accounts only,
-and a Mac-first setup.
+and macOS and Linux only (Windows through WSL).
 
 ## Learn more
 
@@ -334,7 +337,8 @@ Issues and pull requests are welcome. Before you open one, read the
 pnpm typecheck && pnpm lint && pnpm test
 ```
 
-Tests start a throwaway Postgres in Docker. CI runs the same checks on every pull request.
+Tests start a throwaway Postgres in Docker, or without Docker on Tidysum's own Postgres with
+`TEST_PG=local pnpm test`. CI runs the same checks on every pull request.
 
 ## Contact
 

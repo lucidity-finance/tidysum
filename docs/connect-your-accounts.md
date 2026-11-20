@@ -18,21 +18,22 @@ One, Citi, American Express and U.S. Bank.
 
 Any agent that can run commands and use a browser works, with any model. In
 [Claude Code](https://claude.com/claude-code), add [Claude in Chrome](https://claude.com/chrome) for
-the browser steps. Open your agent in the folder where you keep projects and paste:
+the browser steps. Paste:
 
 ```text
-Set up Tidysum for me: clone https://github.com/lucidity-finance/tidysum, follow
-docs/connect-your-accounts.md, and connect my accounts. Stop and hand over to me
-whenever a step needs my password, a code, my identity or my agreement to terms.
+Set up Tidysum for me: follow
+https://github.com/lucidity-finance/tidysum/blob/main/docs/connect-your-accounts.md
+and connect my accounts. Stop and hand over to me whenever a step needs my password,
+a code, my identity or my agreement to terms.
 ```
 
 Your agent will:
 
-1. Clone Tidysum, install it, start its database and write your `.env` file.
+1. Install Tidysum with its one-line installer, if it isn't installed yet.
 2. Open Plaid's sign-up page in your browser and fill in what it can.
 3. Hand the page to you for the parts that are yours (see below), then carry on.
-4. Copy your Plaid keys from the dashboard into `.env`.
-5. Start Tidysum, open its **Connections** page and wait while you sign in to each bank.
+4. Copy your Plaid keys from the dashboard into Tidysum's `.env` file.
+5. Restart Tidysum, open its **Connections** page and wait while you sign in to each bank.
 6. Run the first sync and tell you what Tidysum found.
 
 What only you do, because it is your identity and your agreement:
@@ -51,18 +52,20 @@ The same steps, if you'd rather do them yourself or want to see what your agent 
 
 ### 1. Install Tidysum
 
-You need Node 22.19 or newer, [pnpm](https://pnpm.io) and Docker.
+On a Mac or Linux (on Windows, inside WSL), in a terminal:
 
 ```sh
-git clone https://github.com/lucidity-finance/tidysum.git && cd tidysum
-pnpm install
-docker compose up -d                  # Postgres on 127.0.0.1:5432
-cp .env.example .env
+curl -fsSL https://lucidity-finance.github.io/tidysum/install.sh | sh
 ```
 
-In `.env`, set `TIDYSUM_TOKEN_KEY` to the output of `openssl rand -base64 32`. This key encrypts
-your Plaid tokens. Keep a copy somewhere safe: if you lose it, you have to connect every account
-again.
+That's all it needs: no Node, Docker or database to install first. Everything goes in
+`~/.tidysum`, including Tidysum's own database and your settings file, `~/.tidysum/.env`, with a
+fresh `TIDYSUM_TOKEN_KEY` already in it. That key encrypts your Plaid tokens. Keep a copy somewhere
+safe: if you lose it, you have to connect every account again. When the installer finishes,
+Tidysum is running at [http://127.0.0.1:8080](http://127.0.0.1:8080) and starts again at login.
+
+Working on Tidysum's code instead? Clone it, `pnpm install`, and `cp .env.example .env`; with
+`DATABASE_URL` left empty it runs its own database there too ([guide](guide.md#development)).
 
 ### 2. Make a free Plaid account
 
@@ -79,7 +82,8 @@ access. There is nothing to apply for.
 
 ### 3. Put your keys in `.env`
 
-In the Plaid dashboard, open **Developers → Keys**. Copy:
+Open `~/.tidysum/.env` (in a checkout, `.env` in the repository). In the Plaid dashboard, open
+**Developers → Keys**. Copy:
 
 - **client_id** into `PLAID_CLIENT_ID`
 - the **Production** secret into `PLAID_SECRET`
@@ -93,21 +97,21 @@ PLAID_ENV=production
 TIDYSUM_TOKEN_KEY=...
 ```
 
-Never commit `.env` or paste the secret anywhere else. Git already ignores the file.
+Never paste the secret anywhere else.
 
-### 4. Start Tidysum
+### 4. Restart Tidysum
 
 ```sh
-pnpm tidysum migrate
-pnpm tidysum user country CA          # only if you don't live in the US: CA, GB, DE, FR, ...
-pnpm tidysum serve                    # open http://127.0.0.1:8080
+tidysum user country CA               # only if you don't live in the US: CA, GB, DE, FR, ...
+tidysum restart                       # picks up the keys; open http://127.0.0.1:8080
 ```
 
 Your country sets the currency Tidysum counts in, which banks Plaid offers, and which advice
 applies (see [Outside the US](#outside-the-us)).
 
-On a Mac, `bash deploy/macos-setup.sh` does this in the background instead, and keeps Tidysum
-running after restarts ([guide](guide.md#running-on-your-mac)).
+In a checkout, run the same commands as `pnpm tidysum ...`, with `pnpm tidysum migrate` and
+`pnpm tidysum serve` in place of `restart`. On a Mac, `bash deploy/macos-setup.sh` runs a checkout
+in the background instead ([guide](guide.md#running-on-your-mac-from-a-checkout)).
 
 ### 5. Connect your accounts
 
@@ -132,10 +136,10 @@ me?"_. To connect your agent to Tidysum, see [Connect your agent](../README.md#c
 - **More than 10?** Upgrade from the Trial plan to a paid plan in the Plaid dashboard (**Get full
   access**). Plaid then bills per connection per month. Upgrading can't be undone.
 - **Want to try it first?** Leave `PLAID_ENV=sandbox`, use the Sandbox secret from the same Keys
-  page, and run `pnpm tidysum link-sandbox` for a test bank with two years of made-up history. Sandbox
+  page, and run `tidysum link-sandbox` for a test bank with two years of made-up history. Sandbox
   connections don't count toward your 10.
 - **An institution Plaid can't reach?** Export a CSV from its website and run
-  `pnpm tidysum import-csv` ([guide](guide.md#institutions-plaid-cant-reach)).
+  `tidysum import-csv` ([guide](guide.md#institutions-plaid-cant-reach)).
 - **What Plaid sees.** Plaid connects to your banks on your behalf and passes the data to Tidysum on
   your computer. Tidysum sends nothing anywhere else. Plaid's own
   [end user privacy policy](https://plaid.com/legal/#end-user-privacy-policy) covers what Plaid does
@@ -144,7 +148,7 @@ me?"_. To connect your agent to Tidysum, see [Connect your agent](../README.md#c
 
 ## Outside the US
 
-- **Canada** works with the free Plaid account. Run `pnpm tidysum user country CA` first: amounts
+- **Canada** works with the free Plaid account. Run `tidysum user country CA` first: amounts
   are then in Canadian dollars, Plaid offers Canadian (and US) banks, money styles buy
   Canadian-listed funds, and cash is measured against the Bank of Canada's 3-month bill yield.
   The 401(k) and IRA checks are US tax law, so they stay off; TFSA and RRSP checks, and Canadian
@@ -161,7 +165,7 @@ me?"_. To connect your agent to Tidysum, see [Connect your agent](../README.md#c
 
 ## UK and EU banks
 
-1. Set your country: `pnpm tidysum user country GB` (or `DE`, `FR`, `NL`, ...).
+1. Set your country: `tidysum user country GB` (or `DE`, `FR`, `NL`, ...).
 2. Sign up at [enablebanking.com](https://enablebanking.com/sign-in/) (a one-time link by email)
    and open **Applications** in the Control Panel. Add an application:
    - **Environment:** Production.
@@ -196,13 +200,16 @@ less to work with than in the US.
 
 If you are an agent following this page for someone:
 
+- Install with the one-line installer above unless the person already has Tidysum (`tidysum
+  status` answers) or wants a checkout. Its `.env` is `~/.tidysum/.env`, and after changing it run
+  `tidysum restart`.
 - Write `PLAID_SECRET` and `TIDYSUM_TOKEN_KEY` straight into `.env`. Never print them, repeat them
   in chat or put them in a command line that gets logged.
 - Hand the browser to the person for their Plaid password and codes, Plaid's identity check,
   accepting Plaid's terms, and every bank sign-in inside Plaid Link. Don't type those for them.
 - Never remove a connection to fix it: that spends one of the 10 free connections. Use
   **Reconnect**.
-- If the person doesn't live in the US, run `pnpm tidysum user country <code>` right after
-  `migrate`, before linking.
-- After the first sync, run `pnpm tidysum agent setup --dry-run`, show the person what it would
-  change, and ask them to run `pnpm tidysum agent setup` in their own terminal.
+- If the person doesn't live in the US, run `tidysum user country <code>` before linking.
+- After the first sync, run `tidysum agent setup --dry-run`, show the person what it would
+  change, and ask them to run `tidysum agent setup` in their own terminal. (In a checkout, these
+  commands are `pnpm tidysum ...`.)
