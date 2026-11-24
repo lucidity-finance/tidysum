@@ -223,6 +223,32 @@ if the money leaves Robinhood within 5 years. A membership the owner already pay
 (`memberships` in the IRA year, like `["Robinhood Gold"]`) isn't counted against the match, and
 the action doesn't ask to turn it on.
 
+## Croatia: obrt and d.o.o. owners
+
+For an owner in Croatia who runs an obrt that keeps books (dohodaš) and owns a d.o.o.,
+`pnpm tidysum hr check <file>` (`croatia_owner_check` over MCP) prices in euros a year what is lost
+to how the money reaches the owner ([decision 0014](decisions/0014-croatia-owner.md)):
+
+- **billing:** obrt profit pays pension and health contributions on a base that follows income
+  (36.5%) and income tax up to the city's higher rate; company profit pays 10% profit tax and 12%
+  on the dividend. It finds the share of obrt work best billed through the company, keeping enough
+  in the obrt to use the personal allowance, and says how much less goes into the owner's pension.
+- **owner pay:** the salary from the company, against taking its profit as dividends.
+- **company cash:** cash above a buffer earning less than `benchmark_rate` (the €STR from Tidysum's
+  facts over MCP), after profit tax.
+- **III. stup:** the 15% state incentive on up to EUR 663.61 a year not yet claimed.
+- **holding periods:** shares and fund units held personally that still pay 12% on their gain if
+  sold before their two-year anniversary, and the day they become tax-free.
+- **dividends across borders** (investing enabled): no US treaty is in force, so US stocks and US
+  ETFs lose 30% of their dividends; a distributing fund pays Croatia's 12% on every payout. Each
+  holding is priced against an Irish accumulating UCITS fund (15% on its US dividends, nothing in
+  Croatia until sold). US stocks and funds near USD 60,000 get a US estate tax warning.
+
+It reads only the facts file and needs no database. Keep your own figures in `croatia.json`
+(git-ignored); `croatia.example.json` is the shape, with made-up numbers. The 2026 rules and their sources are in
+`src/croatia/rules.ts`; the city rates (Zagreb by default) and contribution bases can be
+overridden in the file. It is arithmetic, not tax advice: confirm with the accountant first.
+
 ## Your plan
 
 The policy is the numbers; the plan is the why. Write your plan for your money in Markdown (what
@@ -648,6 +674,7 @@ src/
   sync/scheduler.ts       one sync at a time per Item, whoever asks
   sync/syncItem.ts        accounts + balances, /transactions/sync, holdings, liabilities
   portfolio/              allocation by target bucket, where new money goes, hand-entered holdings
+  croatia/                Croatian obrt and d.o.o. owner check: rules with sources, pure arithmetic
 catalog/                  deposit rates, card terms and fund asset-class splits, with sources
 drizzle/                  generated + hand-written SQL migrations
 test/                     vitest against a real Postgres (Testcontainers)

@@ -14,3 +14,6 @@ workplace.json
 
 # Your written plan (`tidysum plan set`, TIDYSUM_PLAN_FILE): personal, never committed.
 plan.md
+
+# Croatian owner facts (`tidysum hr check`): profits and holdings, personal, never committed.
+croatia.json

@@ -9,6 +9,7 @@ import {
   startAction,
 } from "../actions/agentRun.js";
 import { parseSchedule, scheduleActionAsAgent } from "../actions/schedule.js";
+import { registerCroatiaTools } from "../croatia/mcpTools.js";
 import { registerFactTools } from "../facts/mcpTools.js";
 import { loadCatalogs, misallocationReport } from "../misallocation/detect.js";
 import { listMisallocations } from "../misallocation/ledger.js";
@@ -385,6 +386,8 @@ export function createTidysumMcpServer(
     },
     async () => json(await readPlan(db)),
   );
+
+  registerCroatiaTools(server, db);
 
   if (policy) registerPolicyTools(server, db, policy, products, options.proposals ?? true);
   if (products) {

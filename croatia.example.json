@@ -1,0 +1,36 @@
+{
+  "tax_year": 2026,
+  "as_of": "2026-11-24",
+  "obrt": { "name": "Example obrt", "profit": "120000" },
+  "company": {
+    "name": "Example d.o.o.",
+    "revenue": "60000",
+    "profit": "50000",
+    "owner_salary": "0",
+    "cash": "40000",
+    "cash_rate": "0",
+    "cash_buffer": "10000"
+  },
+  "benchmark_rate": "0.019",
+  "pillar3_contributed": "0",
+  "lots": [
+    {
+      "name": "Example US ETF",
+      "acquired": "2025-06-02",
+      "cost": "10000",
+      "value": "12400",
+      "domicile": "US",
+      "kind": "fund",
+      "dividend_yield": "0.013"
+    },
+    {
+      "name": "Example Irish world ETF, accumulating",
+      "value": "20000",
+      "domicile": "IE",
+      "kind": "fund",
+      "distributing": false,
+      "dividend_yield": "0.018",
+      "us_share": "0.6"
+    }
+  ]
+}

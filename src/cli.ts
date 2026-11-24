@@ -33,6 +33,7 @@ import {
   productsPath,
   securitiesPath,
 } from "./config.js";
+import { croatiaOwnerCheck, parseCroatiaOwner } from "./croatia/ownerCheck.js";
 import { TokenCipher } from "./crypto/tokenCipher.js";
 import { connect, type DbHandle, runMigrations } from "./db/client.js";
 import {
@@ -184,6 +185,10 @@ const USAGE = `tidysum <command>
                                    traditional, converted; filing status and MAGI optional);
                                    see ira.example.json. Finished IRA actions record themselves
   ira show                         the recorded IRA years
+  hr check <file> [--json]         Croatia: what an obrt and d.o.o. owner loses a year to where
+                                   work is billed, salary vs dividends, idle company cash and the
+                                   III. stup incentive, plus gains near the 2-year exemption;
+                                   see croatia.example.json. Reads only the file, needs no database
   research import                  read investment-miner's newest current run per watchlist
                                    (TIDYSUM_MINER_DIR; serve also does this every hour)
   research scan [assets]           ask investment-miner's API to scan the institutional
@@ -1055,6 +1060,38 @@ async function runMisallocations(h: DbHandle) {
   }
 }
 
+async function runHr(args: string[]) {
+  const [sub, file] = args;
+  if (sub !== "check" || !file)
+    throw new Error(`usage: tidysum hr check <file> [--json]\n\n${USAGE}`);
+  // The owner's own CLI on their own money: the investing findings are on.
+  const facts = parseCroatiaOwner(JSON.parse(await readFile(file, "utf8")));
+  const r = croatiaOwnerCheck(facts, { investing: true });
+  if (args.includes("--json")) {
+    console.log(JSON.stringify(r, null, 2));
+    return;
+  }
+  console.log(`Croatia ${r.tax_year}, rules checked ${r.rules.checked_on}, ${r.rules.city} rates`);
+  if (r.current) console.log(`owner keeps now: EUR ${r.current.owner_net} a year`);
+  if (r.best && r.current && r.best.owner_net !== r.current.owner_net) {
+    console.log(
+      `best mix: EUR ${r.best.owner_net} (bill EUR ${r.best.shifted_to_company} through the company, ` +
+        `salary EUR ${r.best.owner_salary})`,
+    );
+  }
+  for (const f of r.findings)
+    console.log(`\nEUR ${f.annual_cost}/yr  ${f.summary}\n  -> ${f.action}`);
+  for (const h of r.holding_periods) {
+    console.log(
+      `\n${h.name}: selling now pays EUR ${h.tax_if_sold_now} on a EUR ${h.gain} gain; tax-free from ` +
+        `${h.tax_free_from} (${h.days_left} days)`,
+    );
+  }
+  for (const n of r.notes) console.log(`\nnote: ${n}`);
+  for (const w of r.warnings) console.log(`warning: ${w}`);
+  console.log(`\n${r.disclaimer}`);
+}
+
 async function runCardFor(args: string[]) {
   const { values } = parseArgs({
     args,
@@ -1401,6 +1438,7 @@ async function main(argv: string[]) {
     return;
   }
   if (await runService(command, argv.slice(1))) return;
+  if (command === "hr") return runHr(argv.slice(1));
   // No DATABASE_URL: Tidysum's own Postgres in TIDYSUM_HOME (~/.tidysum), started if it isn't
   // running. The demo has a database of its own.
   if (!process.env.DATABASE_URL && command !== "demo") {

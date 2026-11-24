@@ -254,6 +254,7 @@ describe("MCP tools", () => {
       "cash_flow_summary",
       "check_policy",
       "create_proposal",
+      "croatia_owner_check",
       "finish_action",
       "get_action",
       "get_holdings",
