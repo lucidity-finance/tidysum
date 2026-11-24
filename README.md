@@ -13,7 +13,7 @@
 <p align="center">
   <strong>Bring your own AI.</strong> Tidysum has no model inside and works with any agent that speaks
   <a href="https://modelcontextprotocol.io">MCP</a>,<br>
-  running whichever model you choose: Claude, GPT, Gemini, or one on your own machine.
+  running whichever model you choose: Claude, ChatGPT/Codex, Gemini, or one on your own machine.
 </p>
 
 <p align="center">
