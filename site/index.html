@@ -160,7 +160,8 @@
         border: 1px solid var(--line);
         background: var(--surface);
       }
-      .shot img {
+      .shot img,
+      .shot video {
         display: block;
         width: 100%;
         height: auto;
@@ -371,17 +372,24 @@
         <p class="note">Free and open source (MIT). Runs on your computer. Works with any AI agent.</p>
       </div>
 
-      <a class="shot" href="demo/" style="display: block">
-        <img
-          src="assets/screenshot-actions.png"
-          width="2560"
-          height="1720"
-          alt="Tidysum's Actions page: 'You could keep about $2,800 more each year', with the next change to approve and a queue of the rest"
-        />
-      </a>
+      <div class="shot" id="video">
+        <video
+          controls
+          playsinline
+          preload="metadata"
+          poster="assets/tidysum-video-poster.png"
+          width="1280"
+          height="720"
+          aria-label="78-second video: what Tidysum does, shown with the demo household"
+        >
+          <source src="assets/tidysum-video.mp4" type="video/mp4" />
+          <track kind="captions" src="assets/tidysum-video.vtt" srclang="en" label="English" />
+        </video>
+      </div>
       <p class="caption">
         The demo household: a made-up person at real banks, with their public rates and fees as of
         November 2026. Tidysum isn't affiliated with any institution named.
+        <a href="demo/">Click through it yourself</a>.
       </p>
 
       <section>

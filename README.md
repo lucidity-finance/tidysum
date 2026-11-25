@@ -28,6 +28,12 @@
 </p>
 
 <p align="center">
+  <a href="https://lucidity-finance.github.io/tidysum/#video">
+    <img src="docs/assets/tidysum-video.gif" width="860" alt="A short tour of Tidysum: findings priced in dollars a year, approving a move, then cash, cards, investing and money styles">
+  </a>
+  <br>
+  <sub><a href="https://lucidity-finance.github.io/tidysum/#video"><strong>Watch the 78-second video with sound</strong></a></sub>
+  <br><br>
   <a href="https://lucidity-finance.github.io/tidysum/demo/">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshot-actions-dark.png">
