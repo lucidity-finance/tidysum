@@ -5,7 +5,7 @@ import { parseArgs } from "node:util";
 import { serve } from "@hono/node-server";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { draftActions, listActions } from "./actions/actions.js";
+import { decideAction, draftActions, listActions } from "./actions/actions.js";
 import {
   checkSchedule,
   commandDispatch,
@@ -222,6 +222,8 @@ const USAGE = `tidysum <command>
   action schedule <file>           add an action that waits for a day (not_before) or has a last
                                    day (due_by), for you to approve on the Actions page; see
                                    scheduled-action.example.json
+  action start-now <id>            start a scheduled action today instead of on its day, when
+                                   what it waited for came early
   due                              check the actions' days now (serve does it every hour): note
                                    and tell you what came due, and start your agent on approved
                                    ones when TIDYSUM_AGENT_COMMAND is set
@@ -1548,8 +1550,25 @@ async function main(argv: string[]) {
         break;
       case "action": {
         const file = argv[2];
+        if (arg === "start-now" && file) {
+          const ok = await decideAction(
+            h.db,
+            await resolveUserId(h.db),
+            file,
+            "start_now",
+            "owner",
+            today(),
+          );
+          if (!ok) throw new Error(`no scheduled action ${file} that starts after today`);
+          console.log(
+            `${file} starts today. Once approved, Tidysum starts your agent on it at its next check.`,
+          );
+          break;
+        }
         if (arg !== "schedule" || !file)
-          throw new Error(`usage: tidysum action schedule <file>\n\n${USAGE}`);
+          throw new Error(
+            `usage: tidysum action schedule <file> | tidysum action start-now <id>\n\n${USAGE}`,
+          );
         const r = await scheduleAction(
           h.db,
           await resolveUserId(h.db),

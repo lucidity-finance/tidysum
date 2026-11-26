@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import Big from "big.js";
-import { and, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq, gt, gte, inArray, isNotNull } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import {
   type ActionStep,
@@ -1424,6 +1424,7 @@ const ACTIVITY_EVENTS = [
   "proposal.confirmed",
   "proposal.dismissed",
   "proposal.snoozed",
+  "proposal.started_early",
   "proposal.withdrawn",
   "proposal.due",
   "proposal.due_soon",
@@ -1476,20 +1477,24 @@ export async function listActivity(db: AgentDb, limit = 30): Promise<ActivityEve
   return rows;
 }
 
-type Decision = "done" | "snooze" | "dismiss";
+type Decision = "done" | "snooze" | "dismiss" | "start_now";
 
 const FROM: Record<Decision, readonly string[]> = {
   done: ["approved"],
   snooze: ["proposed", "blocked"],
   // An approval can be taken back while nothing has run.
   dismiss: ["proposed", "blocked", "approved"],
+  // What a scheduled action waited for came early (a paycheck that landed before payday).
+  start_now: ["proposed", "approved"],
 };
 
 /**
  * The owner's other decisions on an action (approval is `approveProposal`, which re-checks the
  * rules first): done ("I've carried out the steps"), snooze ("not now", for SNOOZE_DAYS), or
  * dismiss ("don't suggest again"), which also dismisses the finding it fixes so Tidysum doesn't
- * draft it again; restoring the finding on the Actions page brings a fresh draft.
+ * draft it again; restoring the finding on the Actions page brings a fresh draft; or start_now,
+ * which moves a scheduled action's day (not_before) up to today, when what it waited for came
+ * early. An approved one is then due, so Tidysum starts the owner's agent on its next check.
  */
 export async function decideAction(
   db: Db,
@@ -1506,6 +1511,25 @@ export async function decideAction(
       eq(proposal.userId, userId),
       inArray(proposal.state, [...FROM[decision]] as (typeof proposal.$inferSelect)["state"][]),
     );
+    if (decision === "start_now") {
+      const [row] = await tx
+        .select({ notBefore: proposal.notBefore })
+        .from(proposal)
+        .where(and(where, gt(proposal.notBefore, today)))
+        .for("update");
+      if (!row?.notBefore) return false;
+      await tx.update(proposal).set({ notBefore: today }).where(where);
+      await logDecision(
+        tx,
+        userId,
+        id,
+        actor,
+        "proposal.started_early",
+        { not_before: { from: row.notBefore, to: today } },
+        now,
+      );
+      return true;
+    }
     if (decision === "snooze") {
       const until = new Date(`${today}T00:00:00Z`);
       until.setUTCDate(until.getUTCDate() + SNOOZE_DAYS);

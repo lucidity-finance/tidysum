@@ -708,11 +708,12 @@ export function createApp(deps: AppDeps) {
     return c.json({ error: `Your rules block it now: ${r.validation.violations.join("; ")}` }, 409);
   });
 
-  // The owner's other decisions on an action: done, not now, don't suggest again.
+  // The owner's other decisions on an action: done, not now, don't suggest again, start now.
   for (const [path, decision] of [
     ["done", "done"],
     ["snooze", "snooze"],
     ["dismiss", "dismiss"],
+    ["start-now", "start_now"],
   ] as const) {
     app.post(`/api/proposals/:id/${path}`, async (c) => {
       const id = z.uuid().safeParse(c.req.param("id"));

@@ -2536,6 +2536,26 @@ function scheduledRow(a) {
       h(
         "div",
         { class: "finding-actions" },
+        // What it waits for came early (a paycheck before payday): no need to sit out the days.
+        a.timing === "scheduled" && !paused
+          ? h(
+              "button",
+              {
+                class: "btn btn-sm",
+                type: "button",
+                onclick: (ev) =>
+                  decide(
+                    ev.currentTarget,
+                    a,
+                    "start-now",
+                    who === "agent"
+                      ? "Moved to today. Tidysum starts your agent on it within the hour."
+                      : "Moved to today.",
+                  ),
+              },
+              "Start now",
+            )
+          : null,
         h("span", { class: "spacer" }),
         h(
           "button",
@@ -2874,6 +2894,8 @@ function activityText(e, count) {
       return who.kind === "tidysum" ? `withdrew ${t}` : `turned down ${t}`;
     case "proposal.snoozed":
       return `set ${t} aside for a week`;
+    case "proposal.started_early":
+      return `moved ${t} up to today`;
     case "proposal.withdrawn":
       return `withdrew ${t}: the problem went away`;
     case "proposal.due":

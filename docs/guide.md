@@ -137,7 +137,10 @@ them (`retirement_rate` does for next year's percent). Agents add one with the M
 checks, and finishing the check confirms that action: no sync can see a 401(k) election); the
 owner adds one with
 `pnpm tidysum action schedule <file>` (see `scheduled-action.example.json`). `pnpm tidysum
-actions` lists the queue with the days.
+actions` lists the queue with the days. When what an action waits for comes early (a paycheck
+that lands before payday), **Start now** on its Scheduled card, or `pnpm tidysum action
+start-now <id>`, moves its day to today (logged as `proposal.started_early`); an approved one is
+then due, and Tidysum starts the owner's agent on it at its next hourly check.
 
 An action can also wait for calm markets ([decision 0008](decisions/0008-calm-markets.md)):
 `wait_for: "calm_markets"`, for a sale whose money goes straight back into the market. While

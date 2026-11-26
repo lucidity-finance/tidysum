@@ -301,6 +301,45 @@ describe("a scheduled action", () => {
     await decideAction(owner.db, userId, r.id, "dismiss", "admin", until);
   });
 
+  it("can start today when what it waits for comes early, and goes to the agent then", async () => {
+    const r = await scheduleAction(
+      owner.db,
+      userId,
+      parseSchedule({
+        ...check,
+        title: "Early paycheck",
+        not_before: "2026-12-10",
+        due_by: "2026-12-24",
+      }),
+      "owner",
+      "2026-12-01",
+    );
+    await approveProposal(owner.db, agentDb, userId, r.id, "2026-12-01", "admin");
+    expect(await decideAction(owner.db, userId, r.id, "start_now", "admin", "2026-12-03")).toBe(
+      true,
+    );
+    // Already starting today: nothing left to move up.
+    expect(await decideAction(owner.db, userId, r.id, "start_now", "admin", "2026-12-03")).toBe(
+      false,
+    );
+    const now = await listActions(agentDb, "2026-12-03");
+    expect(now.in_progress.find((a) => a.id === r.id)).toMatchObject({
+      timing: "due",
+      not_before: "2026-12-03",
+    });
+    const started: string[] = [];
+    const out = await checkSchedule(owner.db, agentDb, userId, "2026-12-03", {
+      dispatch: async (a) => void started.push(a.id),
+    });
+    expect(out.dispatched).toContain(r.id);
+    const [logged] = await owner.db
+      .select({ data: auditEvent.data })
+      .from(auditEvent)
+      .where(and(eq(auditEvent.proposalId, r.id), eq(auditEvent.event, "proposal.started_early")));
+    expect(logged?.data).toEqual({ not_before: { from: "2026-12-10", to: "2026-12-03" } });
+    await decideAction(owner.db, userId, r.id, "dismiss", "admin", "2026-12-03");
+  });
+
   it("isn't handed to an agent until approved, and never once an agent has started it", async () => {
     const r = await scheduleAction(
       owner.db,
