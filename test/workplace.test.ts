@@ -199,15 +199,49 @@ describe("contribution percent", () => {
     );
     // Next year: 24% of 210,000 + 24% of a 30,000 bonus is far over 25,500. With the bonus
     // first, the limit comes on paycheck 9 of 24, and 15 paychecks lose a 6% match of 8,750.
+    // The bonus keeps only the match's 6% (1,800), and base pay fills the rest:
+    // (25,500 - 1,800) / 210,000 is 11.3%, so 11%.
     expect(change).toMatchObject({
       kind: "lower",
       year: 2027,
       this_year: false,
-      new_percent: "10",
+      new_percent: "11",
+      bonus_percent: "6",
       unmatched: 15,
       limit_official: false,
     });
     expect(change?.value.toFixed(2)).toBe("7875.00");
+
+    // With the bonus's size unknown, base pay alone fills the limit (25,500 / 210,000 is 12.1%),
+    // and at 6% even a large bonus leaves the last paychecks their match.
+    const unknown = rateChange(
+      parseWorkplaceFacts({
+        ...facts({ ytd_employee: "24000", base: { pretax: "24", roth: "0", after_tax: "0" } }),
+        pay: { salary: "210000", paychecks_per_year: 24 },
+      }),
+      "2026-12-20",
+    ).change;
+    expect(unknown).toMatchObject({ kind: "lower", new_percent: "12", bonus_percent: "6" });
+    const steps = stepsFor(
+      {
+        detector: "retirement_rate",
+        accountIds: ["a"],
+        action: "",
+        inputs: {
+          plan_name: "Acme 401(k)",
+          kind: "lower",
+          year: 2027,
+          this_year: false,
+          new_percent: "12",
+          bonus_percent: "6",
+          prefer: "pretax",
+        },
+      } as never,
+      () => null,
+    );
+    expect(steps[0]?.text).toBe(
+      "In Acme 401(k), set pre-tax contributions to 12% of base pay and 6% of bonus pay starting with the first 2027 paycheck",
+    );
   });
 
   it("leaves a plan alone that is on course, and says when its numbers are from another year", () => {

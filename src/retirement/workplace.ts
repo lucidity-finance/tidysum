@@ -617,6 +617,8 @@ export interface RateChange {
   limit: string;
   limit_official: boolean;
   limit_source: string;
+  /** Next year, for a plan that elects bonus pay separately: the percent of bonus pay. */
+  bonus_percent?: string;
 }
 
 const pctText = (b: Big) => b.toFixed(b.round(0).eq(b) ? 0 : 1);
@@ -703,7 +705,21 @@ export function rateChange(
   const bonus = new Big(f.pay.bonus ?? 0);
   const bonusPct = c.bonus ? new Big(c.bonus.pretax).plus(c.bonus.roth) : employee;
   const planned = salary.times(employee).div(100).plus(bonus.times(bonusPct).div(100));
-  const fill = bigMin(next.value.div(salary.plus(bonus)).times(100).round(0, Big.roundDown), max);
+  // A bonus the plan elects separately comes early in the year and its size is rarely known
+  // ahead. Keep only the match's percent of it (whatever match it earns, little of the limit),
+  // and let base pay fill the rest: an unexpectedly large bonus then can't reach the limit
+  // before the last paycheck. A check after the bonus resets base pay to land on the limit.
+  const nextBonusPct = c.bonus ? bigMin(bonusPct, matchUpTo) : null;
+  const fill = nextBonusPct
+    ? bigMin(
+        next.value
+          .minus(bonus.times(nextBonusPct).div(100))
+          .div(salary)
+          .times(100)
+          .round(0, Big.roundDown),
+        max,
+      )
+    : bigMin(next.value.div(salary.plus(bonus)).times(100).round(0, Big.roundDown), max);
   const base = {
     year: year + 1,
     this_year: false,
@@ -712,6 +728,7 @@ export function rateChange(
     limit: next.amount,
     limit_official: next.official,
     limit_source: next.source_url,
+    ...(nextBonusPct ? { bonus_percent: pctText(nextBonusPct) } : {}),
   };
   if (planned.lt(next.value.minus(slack)) && fill.gt(employee)) {
     const added = salary.plus(bonus).times(fill).div(100).minus(planned);
@@ -809,7 +826,7 @@ export function workplaceFindings(
         summary:
           change.kind === "raise"
             ? `At ${change.current_percent}% of pay, your ${f.plan_name} contributions fall short of the ${change.year} limit${projected}. ${change.new_percent}% for ${change.this_year ? `the ${change.paychecks} paychecks left` : "the year"} reaches it, and pre-tax money saves tax only in its own year.`
-            : `At ${change.current_percent}% of pay, your ${f.plan_name} contributions reach the ${change.year} limit${projected} with ${change.unmatched} paycheck${change.unmatched === 1 ? "" : "s"} to go, and those get no match. ${change.new_percent}% reaches it with the last paycheck.`,
+            : `At ${change.current_percent}% of pay, your ${f.plan_name} contributions reach the ${change.year} limit${projected} with ${change.unmatched} paycheck${change.unmatched === 1 ? "" : "s"} to go, and those get no match. ${change.new_percent}% reaches it with the last paycheck.${change.bonus_percent ? ` Bonus pay goes in at ${change.bonus_percent}%, so a bonus of any size can't reach the limit early; once it's paid, base pay is set to land on the limit.` : ""}`,
         annual_cost: money(change.value),
         currency: "USD",
         account_ids: [account_id],
@@ -824,7 +841,8 @@ export function workplaceFindings(
           new_percent: change.new_percent,
           paychecks: change.paychecks,
           unmatched: change.unmatched,
-          bonus_too: !change.this_year && !!bonus,
+          bonus_too: !change.this_year && !!bonus && !change.bonus_percent,
+          ...(change.bonus_percent ? { bonus_percent: change.bonus_percent } : {}),
           roth_to_pretax: rothToPretax,
           prefer: f.prefer,
           marginal_tax_rate: f.marginal_tax_rate,

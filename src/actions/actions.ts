@@ -73,6 +73,7 @@ interface RetirementRateInputs {
   this_year?: boolean;
   new_percent?: string;
   bonus_too?: boolean;
+  bonus_percent?: string;
   roth_to_pretax?: boolean;
   prefer?: "pretax" | "roth";
 }
@@ -216,9 +217,12 @@ export function stepsFor(f: Finding, accountName: (id: string) => string | null)
       const when = i.this_year
         ? `for the rest of ${i.year}`
         : `starting with the first ${i.year} paycheck`;
+      const of = i.bonus_percent
+        ? `${i.new_percent}% of base pay and ${i.bonus_percent}% of bonus pay`
+        : `${i.new_percent}% of ${pay}`;
       const steps: ActionStep[] = [
         {
-          text: `In ${plan}, set ${kind} contributions to ${i.new_percent}% of ${pay} ${when}`,
+          text: `In ${plan}, set ${kind} contributions to ${of} ${when}`,
           by: "agent",
           needs_you: "Sign-in",
         },

@@ -174,7 +174,11 @@ which git ignores. With investing enabled, three detectors price it:
   and that action waits until the day after this year's last payday. Paydays are the usual ones
   (the 15th and the last day, or the last day, moved back to the Friday before a weekend) unless
   `pay.pay_dates` lists them; pay every one or two weeks needs `pay.last_pay_date`, and
-  `pay.cutoff_days` is how far ahead of a payday payroll needs a change.
+  `pay.cutoff_days` is how far ahead of a payday payroll needs a change. When the plan elects bonus
+  pay separately (`contributions.bonus`), next year's action keeps the bonus at the match's
+  percent and fills the limit with base pay (less the bonus's share when `pay.bonus` is known), so
+  an early bonus of any size can't reach the limit before the last paycheck; after the bonus is
+  paid, record the year-to-date total again and the this-year check sets base pay to land on it.
 - **fund_fee:** a plan fund that costs more than a faithful copy of it in the plan's own index
   funds (decision 0007). The copy is built from what the fund actually holds: its lineup `mix`,
   by sleeve (`us_stocks.large`, `us_stocks.small_mid`, `intl_stocks`, `bonds`), and for a
