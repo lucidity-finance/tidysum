@@ -9,7 +9,8 @@ import { DISCLOSURE } from "./disclosure.js";
 // catalog's products would pay on the same balance. The difference is the money lost each year
 // by not switching. Interest and fees are observed, not assumed: Plaid tags interest credits as
 // INCOME_INTEREST_EARNED and fees as BANK_FEES_*, so an account that paid nothing for a year
-// shows 0, and one that charged a monthly fee shows it.
+// shows 0, and one that charged a monthly fee shows it. An account that is itself a catalog
+// product earns at least that product's published rate, since a new one has no interest yet.
 
 /** Rates older than this are flagged so they get re-checked at the source. */
 export const STALE_AFTER_DAYS = 30;
@@ -181,6 +182,11 @@ export interface AccountComparison {
   alternatives: Alternative[];
   /** The owner's pick for this account's spare money (deposit_choice), when they made one. */
   chosen_product_id: string | null;
+  /**
+   * The account is the product the owner picked for their spare cash (their SoFi Savings, once
+   * they chose SoFi): the money is where they want it, so nothing is offered in its place.
+   */
+  holds_choice?: boolean;
   skipped?: string;
 }
 
@@ -204,6 +210,9 @@ const ASSUMPTIONS = [
     "(Plaid categories INCOME_INTEREST_EARNED, BANK_FEES_OTHER_BANK_FEES, BANK_FEES_OVERDRAFT_FEES " +
     "and BANK_FEES_INSUFFICIENT_FUNDS), annualized when there is less than a year of history.",
   "Limited-time promotional rates and sign-up bonuses are left out.",
+  "An account Tidysum recognizes as one of the products it compares earns at least that " +
+    "product's published rate, even before its first interest shows up: the rate that needs a " +
+    "direct deposit when the owner picked that product for their spare cash, the plain rate otherwise.",
   "Checking balances are also compared with savings and cash management products, since money " +
     "held as a cash buffer doesn't need to sit in checking.",
 ];
@@ -246,6 +255,10 @@ export function compareProducts(
     }
   }
 
+  // Products the owner picked for their spare cash: an account that already is one is where they
+  // want the money, and they set up what its best rate needs (the paycheck moves there).
+  const picked = new Set(facts.flatMap((f) => (f.chosen_product_id ? [f.chosen_product_id] : [])));
+
   let annualLoss = new Big(0);
   let annualLossNoConditions = new Big(0);
   const accounts = facts.map((f): AccountComparison => {
@@ -264,21 +277,38 @@ export function compareProducts(
       : 0;
     const annualize = (s: string) =>
       observedDays > 0 ? new Big(s).times(WINDOW_DAYS).div(observedDays) : new Big(0);
-    const interest = annualize(f.interest);
+    const observed = annualize(f.interest);
     const overdraft = annualize(f.overdraft_fees);
     const fees = annualize(f.maintenance_fees).plus(overdraft);
+    // A new account has little or no interest history, so observed interest alone would say a
+    // product the owner just opened pays nothing. When the account is a catalog product, it earns
+    // at least that product's published rate.
+    const own = catalog.products.find((p) => isThisProduct(f, p));
+    const holdsChoice = !!own && picked.has(own.id);
+    const ownTiers = own && holdsChoice && own.conditional_apy ? own.conditional_apy.apy : own?.apy;
+    const publishedApy = ownTiers ? apyFor(ownTiers, balance) : null;
+    const published = publishedApy ? balance.times(publishedApy).div(100) : new Big(0);
+    const fromPublished = published.gt(observed);
+    const interest = fromPublished ? published : observed;
     const net = interest.minus(fees);
+    const observedBasis =
+      observedDays === 0
+        ? "no transactions synced yet, so current interest and fees are taken as 0"
+        : observedDays < WINDOW_DAYS
+          ? `${observedDays} days of transactions, annualized`
+          : "the last 365 days of transactions";
+    const condition =
+      holdsChoice && own?.conditional_apy ? ` (with ${own.conditional_apy.requires})` : "";
     const current = {
       annual_interest: money(interest),
       annual_fees: money(fees),
       effective_apy: balance.gt(0) ? interest.div(balance).times(100).toFixed(2) : "0.00",
       observed_days: observedDays,
       basis:
-        observedDays === 0
-          ? "no transactions synced yet, so current interest and fees are taken as 0"
-          : observedDays < WINDOW_DAYS
-            ? `${observedDays} days of transactions, annualized`
-            : "the last 365 days of transactions",
+        fromPublished && own && publishedApy
+          ? `${own.name}'s published ${publishedApy.toFixed(2)}% APY${condition}, since the ` +
+            `interest seen so far is lower (${observedBasis})`
+          : observedBasis,
     };
     const base = {
       chosen_product_id: f.chosen_product_id ?? null,
@@ -289,6 +319,7 @@ export function compareProducts(
       balance: money(balance),
       balance_basis: balanceBasis,
       current,
+      ...(holdsChoice ? { holds_choice: true } : {}),
     };
     if (!catalogCurrencies.has(f.currency ?? "USD")) {
       return {
@@ -300,6 +331,8 @@ export function compareProducts(
       };
     }
     if (balance.lte(0)) return { ...base, alternatives: [], skipped: "no positive balance" };
+    // The owner chose this product for their cash: offering another in its place goes against it.
+    if (holdsChoice) return { ...base, alternatives: [] };
     if (observedDays > 0 && observedDays < 28) {
       warnings.push(
         `${f.name}: only ${observedDays} days of transactions, so its current interest and fees are rough.`,

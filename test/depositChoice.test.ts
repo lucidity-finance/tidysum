@@ -202,3 +202,69 @@ describe("the owner's pick of where spare cash goes", () => {
     expect(productLabel("Ally Bank", "Online Savings")).toBe("Ally Bank Online Savings");
   });
 });
+
+describe("an account that already is the owner's pick", () => {
+  let savings = "";
+
+  beforeAll(async () => {
+    const { db } = owner;
+    const [it] = await db
+      .insert(item)
+      .values({
+        userId,
+        source: "plaid",
+        plaidItemId: "choice-paybank-item",
+        institutionName: "PayBank",
+        lastSyncedAt: new Date("2026-11-12T08:00:00Z"),
+      })
+      .returning();
+    if (!it) throw new Error("no item");
+    const [acct] = await db
+      .insert(account)
+      .values({
+        userId,
+        itemId: it.id,
+        name: "PayBank Savings",
+        type: "depository",
+        subtype: "savings",
+      })
+      .returning();
+    if (!acct) throw new Error("no account");
+    savings = acct.id;
+    // Newly opened: a balance, but no interest has posted yet.
+    await db.insert(balanceSnapshot).values({
+      userId,
+      accountId: savings,
+      current: "2000.00",
+      asOf: new Date("2026-11-12T08:00:00Z"),
+    });
+  });
+
+  it("earns the published rate before its first interest posts, the direct-deposit one once picked", async () => {
+    let compared = await readAndCompare(agentDb, deposits, TODAY);
+    let acct = compared.accounts.find((a) => a.account_id === savings);
+    expect(acct?.current).toMatchObject({ annual_interest: "10.00", effective_apy: "0.50" });
+    expect(acct?.holds_choice).toBeUndefined();
+    expect(acct?.alternatives[0]?.product_id).toBe("top-rate");
+
+    await setDepositChoice(owner.db, deposits, userId, checking, "pay-bank");
+    compared = await readAndCompare(agentDb, deposits, TODAY);
+    acct = compared.accounts.find((a) => a.account_id === savings);
+    expect(acct?.current).toMatchObject({ annual_interest: "70.00", effective_apy: "3.50" });
+    expect(acct?.current.basis).toMatch(/PayBank Savings's published 3\.50% APY/);
+    expect(acct?.holds_choice).toBe(true);
+    expect(acct?.alternatives).toEqual([]);
+  });
+
+  it("is not told to move to another bank, while the old account's action stays", async () => {
+    const { queue } = await refresh();
+    expect(queue.map((a) => a.title)).toEqual(["Move the balance to PayBank Savings."]);
+    const [row] = await owner.db
+      .select()
+      .from(misallocation)
+      .where(
+        and(eq(misallocation.userId, userId), eq(misallocation.key, `deposit_rate:${savings}`)),
+      );
+    expect(row?.state ?? "none").not.toBe("open");
+  });
+});

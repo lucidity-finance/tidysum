@@ -3415,17 +3415,24 @@ function accountCard(a) {
     fees > 0n ? notice("warn", `It also cost you ${usd(fees)} in fees over the last year.`) : null,
     a.skipped
       ? notice("info", `Not compared: ${prose(a.skipped)}.`)
-      : a.alternatives.length === 0
-        ? h("p", { class: "acct-ok" }, icon("check"), "Already the best rate Tidysum knows.")
-        : // Under a dollar a year isn't worth a new account; say so instead of drawing a ladder.
-          cents(a.alternatives[0].annual_gain) < 100n
-          ? h(
-              "p",
-              { class: "acct-ok" },
-              icon("check"),
-              `Earns ${pct(a.current.effective_apy)}, within a dollar a year of the best rate Tidysum knows.`,
-            )
-          : apyLadder(a),
+      : a.holds_choice
+        ? h(
+            "p",
+            { class: "acct-ok" },
+            icon("check"),
+            `Where you chose to keep your cash. Earns ${pct(a.current.effective_apy)}.`,
+          )
+        : a.alternatives.length === 0
+          ? h("p", { class: "acct-ok" }, icon("check"), "Already the best rate Tidysum knows.")
+          : // Under a dollar a year isn't worth a new account; say so instead of drawing a ladder.
+            cents(a.alternatives[0].annual_gain) < 100n
+            ? h(
+                "p",
+                { class: "acct-ok" },
+                icon("check"),
+                `Earns ${pct(a.current.effective_apy)}, within a dollar a year of the best rate Tidysum knows.`,
+              )
+            : apyLadder(a),
   );
 }
 

@@ -350,7 +350,12 @@ costs per year.
   `INCOME_INTEREST_EARNED` credits over the last 365 days; fees are its maintenance, overdraft
   and NSF fees. Less history is annualized. The balance is the average of the last 90 days of
   daily balances, rebuilt from transactions (see below) when they cover all 90 days, otherwise
-  from the snapshots synced so far.
+  from the snapshots synced so far. One exception: an account Tidysum recognizes as a catalog
+  product (same bank, same kind) earns at least that product's published rate, so a new account
+  isn't taken to pay nothing before its first interest posts.
+- **The bank you picked stays picked.** When you pick a product for an account's spare cash
+  (SoFi, because it takes your paycheck, say), an account you hold at that product counts at its
+  direct-deposit rate and is never told to move somewhere else.
 - **What you could earn comes from the catalog.** Each product has its APY tiers, any condition
   for a higher rate (direct deposit, say), fees, the provider's page as `source_url`, the bank's
   printed `rates_as_of` date and the `verified_on` date someone last checked that page. A rate
