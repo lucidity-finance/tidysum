@@ -258,6 +258,9 @@ export function rothIraFindings(p: {
 }): RothIraDetection {
   const out: RothIraDetection = { items: [], warnings: [], recorded: {} };
   for (const [year, r] of p.years) out.recorded[String(year)] = recordedTotal(r).toFixed();
+  // A fresh install knows nothing about the person yet: no accounts, plan or recorded year. Room
+  // that "goes unused" then is only a guess, so wait until there is something to go on.
+  if (p.accounts.length === 0 && p.plans.length === 0 && p.years.size === 0) return out;
 
   // A 401(k)'s brokerage window can come through as an "ira" account; it isn't one.
   const windows = new Set(findOverlaps(p.accounts, p.holdings).map((o) => o.same_as_account_id));

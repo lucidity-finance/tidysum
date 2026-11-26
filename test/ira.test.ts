@@ -90,6 +90,11 @@ const detect = (over: Partial<Parameters<typeof rothIraFindings>[0]> = {}) =>
   });
 
 describe("Roth IRA room", () => {
+  it("says nothing on a fresh install, before anything is linked or recorded", () => {
+    expect(detect({ accounts: [], plans: [] }).items).toEqual([]);
+    expect(detect({ accounts: [] }).items.length).toBeGreaterThan(0);
+  });
+
   it("opens last year's room until April 15", () => {
     expect(openTaxYears("2027-03-01")).toEqual([2026, 2027]);
     expect(openTaxYears("2027-04-15")).toEqual([2026, 2027]);

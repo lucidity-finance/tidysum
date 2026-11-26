@@ -283,7 +283,8 @@ link_command() {
 
 offer_agent() {
   command -v claude >/dev/null 2>&1 || return 0
-  [ -r /dev/tty ] || return 0
+  # Ask only when there is a terminal to answer in (not under CI, or with no terminal attached).
+  (: </dev/tty) 2>/dev/null || return 0
   printf '\nConnect Claude Code to Tidysum now (its MCP server, skill and permissions; nothing that can move money)? [Y/n] '
   answer=""
   read -r answer </dev/tty || answer=n
