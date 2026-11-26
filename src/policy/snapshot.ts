@@ -1,6 +1,6 @@
 import type { AgentDb } from "../mcp/agentDb.js";
 import { regionOf } from "../region.js";
-import { findFund, readWorkplacePlans } from "../retirement/workplace.js";
+import { asPlanFund, findFund, readWorkplacePlans } from "../retirement/workplace.js";
 
 // The numbers the policy engine works from, read in one go so every finding and every
 // validation in a call uses the same data. All money is decimal strings.
@@ -131,14 +131,14 @@ export async function readSnapshot(db: AgentDb, today: string): Promise<Snapshot
       s.type as security_type,
       h.institution_value, h.cost_basis
     from holding h join security s on s.id = h.security_id`);
-  const lineups = new Map(
-    (await readWorkplacePlans(db)).map((p) => [p.account_id, p.facts.lineup]),
-  );
-  for (const h of holdings.rows) {
-    const lineup = lineups.get(h.account_id);
-    const mix = lineup && !h.ticker_symbol ? findFund(lineup, h.security_name)?.mix : undefined;
-    if (mix) h.plan_mix = mix;
-  }
+  const plans = new Map((await readWorkplacePlans(db)).map((p) => [p.account_id, p.facts]));
+  holdings.rows = holdings.rows.map((row) => {
+    const plan = plans.get(row.account_id);
+    if (!plan) return row;
+    const h = asPlanFund(plan, row);
+    const mix = !h.ticker_symbol ? findFund(plan.lineup, h.security_name)?.mix : undefined;
+    return mix ? { ...h, plan_mix: mix } : h;
+  });
   const manual = await db.query<ManualHolding>(
     `select id, name, asset_class, value::text as value, as_of::text as as_of
      from manual_holding order by name`,

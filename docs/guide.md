@@ -188,7 +188,14 @@ which git ignores. With investing enabled, three detectors price it:
   is sold too and its money goes in the same split as the rest. It's priced as what the moved funds cost (`expense_ratio` in the
   catalog) over their copy; the bigger reason is nothing to trade by hand. The action sells the
   funds that can be copied and puts the cash back into the plan's index funds, tax-free inside
-  the plan.
+  the plan. While the plan still reports money in its window but no linked account matches it
+  (the two are priced on different days and drift apart in a fast market), the finding is left
+  as it is: only the window's funds leaving counts as the move being made.
+
+Plaid sometimes reports a ticker-less plan fund under an unrelated security (a 401(k)'s large-cap
+index fund showing up as a small mining stock with its ticker). List each one in
+`holding_names` as `{ "reported": "<name or ticker Plaid shows>", "fund": "<lineup name>" }`,
+from what the plan's own site shows; Tidysum then reads that holding as the lineup fund everywhere.
 
 The new-money action also says how each paycheck should be invested in the plan, in its cheapest
 fund per bucket. `allocation.new_money_max_share` in the policy caps how much of each

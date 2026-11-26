@@ -10,6 +10,7 @@ import type { SnapshotHolding } from "../src/policy/snapshot.js";
 import { type AllocationResult, capShares } from "../src/portfolio/allocation.js";
 import { loadSecurityCatalogFile } from "../src/portfolio/securityCatalog.js";
 import {
+  asPlanFund,
   nextYearWindow,
   parseWorkplaceFacts,
   paycheckMirror,
@@ -93,6 +94,43 @@ const facts = (over: Partial<WorkplaceFacts["contributions"]> = {}, extra: objec
     ],
     ...extra,
   });
+
+describe("plan funds reported under another name", () => {
+  it("reads a mislabeled holding as the lineup fund the owner named", () => {
+    const f = facts(
+      {},
+      { holding_names: [{ reported: "AMLI", fund: "The U.S. Large Cap Equity Index Fund" }] },
+    );
+    const h = {
+      account_id: "a",
+      ticker_symbol: "AMLI",
+      security_name: "American Lithium Corp",
+      is_cash_equivalent: false,
+      security_type: "equity",
+      institution_value: "1000",
+    };
+    expect(asPlanFund(f, h)).toMatchObject({
+      security_name: "U.S. Large Cap Equity Index Fund",
+      ticker_symbol: null,
+      institution_value: "1000",
+    });
+    // Matched on the reported name too; anything else is left alone.
+    const byName = facts(
+      {},
+      {
+        holding_names: [
+          { reported: "American Lithium Corp", fund: "U.S. Large Cap Equity Index Fund" },
+        ],
+      },
+    );
+    expect(asPlanFund(byName, h).security_name).toBe("U.S. Large Cap Equity Index Fund");
+    const other = { ...h, ticker_symbol: "XYZ", security_name: "Something Else" };
+    expect(asPlanFund(f, other)).toBe(other);
+    // An alias naming no lineup fund changes nothing.
+    const typo = facts({}, { holding_names: [{ reported: "AMLI", fund: "No Such Fund" }] });
+    expect(asPlanFund(typo, h)).toBe(h);
+  });
+});
 
 describe("contribution percent", () => {
   it("counts the paychecks left in the year", () => {
@@ -564,7 +602,11 @@ describe("plan fund fees", () => {
     // A window holding only what the plan can't copy has nothing to move.
     const left = workplaceFindings(
       [{ account_id: acct, facts: facts() }],
-      [...holdings.slice(0, 2), holdings[3] as SnapshotHolding],
+      [
+        held("The 2055 Retirement Fund", "100000"),
+        held("Self-Directed Brokerage Account", "3401.89"),
+        holdings[3] as SnapshotHolding,
+      ],
       catalog,
       "2026-11-12",
       accounts,
@@ -592,6 +634,35 @@ describe("plan fund fees", () => {
       accounts,
     );
     expect(empty.items.some((m) => m.detector === "brokerage_window")).toBe(false);
+
+    // The plan still reports its window, but the brokerage's own account drifted more than the
+    // matching band from it (priced on different days): that isn't the move being made, so the
+    // finding is left as it is rather than counted as done.
+    const drifted = workplaceFindings(
+      [{ account_id: acct, facts: facts() }],
+      [
+        held("The 2055 Retirement Fund", "100000"),
+        held("Self-Directed Brokerage Account", "51059.51"),
+        fund("SWPPX", "Schwab S&P 500 Index Fd", "44000"),
+        fund("SFREX", "Schwab Fundamental Gl Real Estate Idx Fd", "3100"),
+      ],
+      catalog,
+      "2026-11-21",
+      accounts,
+    );
+    expect(drifted.items.some((m) => m.detector === "brokerage_window")).toBe(false);
+    expect(drifted.undecided).toEqual([`brokerage_window:${acct}`]);
+    expect(drifted.window_tickers[acct]).toBeUndefined();
+
+    // Once the plan stops reporting money in the window, there is nothing left to wait for.
+    const gone = workplaceFindings(
+      [{ account_id: acct, facts: facts() }],
+      [held("The 2055 Retirement Fund", "151059.51")],
+      catalog,
+      "2026-11-30",
+      accounts,
+    );
+    expect(gone.undecided).toEqual([]);
   });
 
   it("rounds a split to whole steps that add up to 100", () => {

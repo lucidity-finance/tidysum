@@ -7,7 +7,7 @@ import type { AgentDb } from "../mcp/agentDb.js";
 import type { Misallocation } from "../misallocation/detect.js";
 import type { SnapshotAccount, SnapshotHolding } from "../policy/snapshot.js";
 import { capShares } from "../portfolio/allocation.js";
-import { findOverlaps } from "../portfolio/overlap.js";
+import { findOverlaps, WINDOW } from "../portfolio/overlap.js";
 import {
   classOf,
   type SecurityCatalog,
@@ -170,6 +170,22 @@ export const WorkplaceFactsSchema = z
      * the policy's target mix.
      */
     paychecks_mirror: z.string().trim().min(1).max(120).optional(),
+    /**
+     * Plan funds the data source reports under another security's name or ticker (Plaid has
+     * matched a ticker-less plan fund to an unrelated stock): `reported` is that name or ticker,
+     * `fund` the lineup fund it really is, as the plan's own site shows it.
+     */
+    holding_names: z
+      .array(
+        z
+          .object({
+            reported: z.string().trim().min(1).max(120),
+            fund: z.string().trim().min(1).max(120),
+          })
+          .strict(),
+      )
+      .max(30)
+      .default([]),
   })
   .strict()
   .refine(
@@ -234,6 +250,20 @@ export async function readWorkplacePlans(
     warnings.push("A recorded workplace plan no longer reads; record it again.");
     return [];
   });
+}
+
+/**
+ * A plan account's holding under the lineup fund it really is, when the plan's facts say the data
+ * source reports that fund as something else (`holding_names`, matched on name or ticker). The
+ * fund has no ticker of its own, so the reported one is dropped.
+ */
+export function asPlanFund<
+  H extends { ticker_symbol: string | null; security_name: string | null },
+>(f: Pick<WorkplaceFacts, "holding_names" | "lineup">, h: H): H {
+  const reported = [h.security_name, h.ticker_symbol].flatMap((x) => (x ? [normal(x)] : []));
+  const alias = f.holding_names.find((a) => reported.includes(normal(a.reported)));
+  const fund = alias ? findFund(f.lineup, alias.fund) : undefined;
+  return fund ? { ...h, security_name: fund.name, ticker_symbol: null } : h;
 }
 
 // The plan's funds ----------------------------------------------------------------------------
@@ -886,6 +916,8 @@ export function workplaceFindings(
   return out;
 }
 
+const label = (a: SnapshotAccount) => [a.name, a.official_name ?? ""].join(" ");
+
 /**
  * The plan's brokerage window, when it holds money: the funds in it (from the brokerage's own
  * account, which findOverlaps pairs with the plan's lump), a copy of each in the plan's own funds
@@ -903,9 +935,24 @@ function windowFinding(
 ): Misallocation | null {
   const window = f.lineup.find((x) => x.kind === "brokerage_window");
   if (!window) return null;
-  const pair = findOverlaps(accounts, holdings).find((o) => o.account_id === account_id);
-  if (!pair) return null;
   const key = `brokerage_window:${account_id}`;
+  const pair = findOverlaps(accounts, holdings).find((o) => o.account_id === account_id);
+  if (!pair) {
+    // The plan still reports money in its window and a window account is linked, but they don't
+    // match today: the plan and the brokerage price it on different days, so the two drift apart
+    // in a fast market. That says nothing about whether the move was made, so the finding stays.
+    const lump = holdings.some(
+      (h) =>
+        h.account_id === account_id &&
+        findFund([window], h.security_name) &&
+        new Big(h.institution_value).gt(0),
+    );
+    const linked = accounts.some(
+      (a) => a.id !== account_id && a.type === "investment" && WINDOW.test(label(a)),
+    );
+    if (lump && linked) out.undecided.push(key);
+    return null;
+  }
   const held = holdings.filter(
     (h) => h.account_id === pair.same_as_account_id && new Big(h.institution_value).gt(0),
   );
